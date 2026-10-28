@@ -573,13 +573,15 @@ function toGrams(size, unit) {
 function amountToServings(amount, chosenUnit, food) {
   const baseUnit = (food.servingUnit || 'serving').toLowerCase();
   const chosen = (chosenUnit || 'serving').toLowerCase();
-  if (chosen === 'serving' || chosen === baseUnit) return amount;
-  if (isWeightUnit(baseUnit) && (chosen === 'g' || chosen === 'grams' || chosen === 'oz' || chosen === 'ounces')) {
+  // "serving" means a count of the food's defined servings.
+  // Same weight unit still needs dividing by the serving size (38 g of a 38 g food = 1 serving).
+  if (chosen === 'serving') return amount;
+  if (isWeightUnit(baseUnit) && isWeightUnit(chosen)) {
     const baseGrams = toGrams(food.servingSize, baseUnit) || 1;
     const amountGrams = chosen === 'oz' || chosen === 'ounces' ? amount * G_PER_OZ : amount;
     return amountGrams / baseGrams;
   }
-  // Grams on a food that is not defined by weight would otherwise be counted as servings.
+  if (chosen === baseUnit) return amount;
   return null;
 }
 
@@ -855,6 +857,11 @@ document.getElementById('btn-log-food').addEventListener('click', async () => {
   const unit = document.getElementById('food-amount-unit').value;
   const servings = amountToServings(amount, unit, selectedFood);
   if (servings == null) return toast('Pick a unit this food is measured in');
+  if (isWeightUnit(unit) && isWeightUnit(selectedFood.servingUnit)) {
+    const grams = unit === 'oz' ? amount * G_PER_OZ : amount;
+    const kcalPerGram = grams > 0 ? (selectedFood.calories * servings) / grams : 0;
+    if (kcalPerGram > 10) return toast('That calorie total is not possible for this amount');
+  }
 
   try {
     await api('/food-logs', {

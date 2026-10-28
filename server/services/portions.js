@@ -15,12 +15,13 @@ function toGrams(size, unit) {
 function amountToServings(amount, chosenUnit, food) {
   const baseUnit = (food.servingUnit || 'serving').toLowerCase();
   const chosen = (chosenUnit || 'serving').toLowerCase();
-  if (chosen === 'serving' || chosen === baseUnit) return amount;
-  if (isWeightUnit(baseUnit) && (chosen === 'g' || chosen === 'oz' || chosen === 'grams' || chosen === 'ounces')) {
+  if (chosen === 'serving') return amount;
+  if (isWeightUnit(baseUnit) && isWeightUnit(chosen)) {
     const baseGrams = toGrams(food.servingSize || 1, baseUnit) || 1;
     const amountGrams = chosen === 'oz' || chosen === 'ounces' ? amount * G_PER_OZ : amount;
     return amountGrams / baseGrams;
   }
+  if (chosen === baseUnit) return amount;
   return null;
 }
 

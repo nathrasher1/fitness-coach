@@ -2,7 +2,7 @@ const express = require('express');
 const FoodLog = require('../models/FoodLog');
 const Food = require('../models/Food');
 const { requireAuth } = require('../middleware/auth');
-const { amountToServings } = require('../services/portions');
+const { amountToServings, isWeightUnit, toGrams } = require('../services/portions');
 const { computeCalorieRecommendation } = require('../services/recommendations');
 
 const router = express.Router();
@@ -108,6 +108,16 @@ router.post('/', async (req, res) => {
     const qty = qtyFromAmount != null ? qtyFromAmount : Number(servings) || 1;
     if (!qty || qty <= 0) {
       return res.status(400).json({ error: 'That unit does not match this food' });
+    }
+    const calories = Math.round(food.calories * qty);
+    if (isWeightUnit(food.servingUnit) && amount != null && isWeightUnit(amountUnit || 'g')) {
+      const grams = (amountUnit || 'g') === 'oz' ? Number(amount) * 28.3495 : Number(amount);
+      const kcalPerGram = grams > 0 ? calories / grams : 0;
+      if (kcalPerGram > 10) {
+        return res.status(400).json({
+          error: `That would be ${Math.round(kcalPerGram)} kcal per gram, which is not possible. Try again or log it manually.`
+        });
+      }
     }
     const log = await FoodLog.create({
       user: req.session.userId,
