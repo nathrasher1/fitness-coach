@@ -18,6 +18,7 @@ const foodSchema = new mongoose.Schema({
   sodium: { type: Number, default: 0 }, // mg
   isRecipe: { type: Boolean, default: false },
   isPublic: { type: Boolean, default: false },
+  barcode: { type: String, default: '', index: true },
   createdAt: { type: Date, default: Date.now }
 });
 

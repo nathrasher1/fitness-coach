@@ -290,8 +290,11 @@
             </select>
           </div>
           <div class="form-row">
-            <label for="food-search">Search foods</label>
-            <input type="text" id="food-search" placeholder="Search a food, brand, or recipe…" autocomplete="off" />
+            <label for="food-search">Search or scan</label>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="food-search" placeholder="Search a food, brand, or recipe…" autocomplete="off" style="flex:1" />
+              <button type="button" class="btn btn-secondary" id="btn-scan">Scan</button>
+            </div>
             <div id="food-search-results" class="search-results"></div>
           </div>
           <div id="food-selected-row" style="display:none">
@@ -528,6 +531,23 @@
   </div>
 
   <div id="toast" class="toast"></div>
+
+  <div id="scan-modal" class="scan-modal" style="display:none">
+    <div class="scan-card">
+      <div class="flex-between">
+        <h2 style="margin:0">Scan barcode</h2>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-scan-close">Close</button>
+      </div>
+      <p class="hint" id="scan-status">Point the camera at a barcode. On a computer, type the number.</p>
+      <div id="barcode-reader"></div>
+      <div class="serving-input-row" style="margin-top:12px">
+        <input type="text" id="barcode-manual" inputmode="numeric" placeholder="Or type barcode" />
+        <button type="button" class="btn btn-primary" id="btn-barcode-lookup">Look up</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -687,6 +687,72 @@ document.getElementById('food-search').addEventListener('input', (e) => {
   searchTimeout = setTimeout(() => searchFoods(q), 250);
 });
 
+let barcodeScanner = null;
+let barcodeBusy = false;
+const scanModal = document.getElementById('scan-modal');
+
+async function lookupBarcode(raw) {
+  const code = String(raw || '').replace(/\D/g, '');
+  if (code.length < 8) return toast('Enter a valid barcode');
+  if (barcodeBusy) return;
+  barcodeBusy = true;
+  const status = document.getElementById('scan-status');
+  if (status) status.textContent = 'Looking up ' + code + '…';
+  try {
+    const data = await api(`/foods/barcode/${code}`);
+    if (!data.found) {
+      if (status) status.textContent = 'Not found. Search by name or add it manually.';
+      toast('Barcode not in the free database');
+      return;
+    }
+    await stopScanner();
+    selectFoodForLog(data.food);
+    toast(data.food.name + ' ready to log');
+  } catch (err) {
+    toast(err.message);
+  } finally {
+    barcodeBusy = false;
+  }
+}
+
+async function stopScanner() {
+  scanModal.style.display = 'none';
+  if (barcodeScanner) {
+    try { await barcodeScanner.stop(); } catch (e) {}
+    try { barcodeScanner.clear(); } catch (e) {}
+    barcodeScanner = null;
+  }
+}
+
+document.getElementById('btn-scan').addEventListener('click', async () => {
+  scanModal.style.display = 'flex';
+  document.getElementById('scan-status').textContent = 'Starting camera…';
+  if (typeof Html5Qrcode === 'undefined') {
+    document.getElementById('scan-status').textContent = 'Camera scanner unavailable. Type the barcode.';
+    return;
+  }
+  try {
+    barcodeScanner = new Html5Qrcode('barcode-reader');
+    await barcodeScanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 240, height: 140 } },
+      (text) => lookupBarcode(text),
+      () => {}
+    );
+    document.getElementById('scan-status').textContent = 'Point the camera at a barcode.';
+  } catch (err) {
+    document.getElementById('scan-status').textContent = 'Camera blocked. Allow camera, or type the barcode.';
+  }
+});
+
+document.getElementById('btn-scan-close').addEventListener('click', stopScanner);
+document.getElementById('btn-barcode-lookup').addEventListener('click', () => {
+  lookupBarcode(document.getElementById('barcode-manual').value);
+});
+document.getElementById('barcode-manual').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') lookupBarcode(e.target.value);
+});
+
 async function searchFoods(q) {
   try {
     const foods = await api(`/foods?q=${encodeURIComponent(q)}&limit=15`);

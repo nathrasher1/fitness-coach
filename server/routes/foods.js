@@ -7,6 +7,66 @@ const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
 router.use(requireAuth);
 
+function num(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function round1(n) {
+  return Math.round(n * 10) / 10;
+}
+
+// GET /api/foods/barcode/:code – local cache, then Open Food Facts
+router.get('/barcode/:code', async (req, res) => {
+  try {
+    const code = String(req.params.code || '').replace(/\D/g, '');
+    if (code.length < 8 || code.length > 14) {
+      return res.status(400).json({ error: 'Enter a valid barcode' });
+    }
+
+    const existing = await Food.findOne({ barcode: code });
+    if (existing) return res.json({ found: true, source: 'cache', food: existing });
+
+    const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json`, {
+      headers: { 'User-Agent': 'FitnessCoach/1.0 (personal nutrition tracker)' }
+    });
+    if (!response.ok) return res.json({ found: false });
+    const data = await response.json();
+    if (!data || data.status !== 1 || !data.product) return res.json({ found: false });
+
+    const p = data.product;
+    const n = p.nutriments || {};
+    const hasServing = n['energy-kcal_serving'] != null || n.proteins_serving != null;
+    const servingQty = Number(p.serving_quantity) || (hasServing ? 1 : 100);
+    const servingUnit = hasServing && !p.serving_quantity ? 'serving' : 'g';
+    const pick = (servingKey, per100Key) =>
+      hasServing && n[servingKey] != null ? num(n[servingKey]) : num(n[per100Key]);
+
+    const calories = Math.round(pick('energy-kcal_serving', 'energy-kcal_100g'));
+    const food = await Food.create({
+      user: null,
+      name: (p.product_name || p.product_name_en || 'Scanned food').trim(),
+      brand: (p.brands || '').split(',')[0].trim(),
+      servingSize: servingUnit === 'g' ? servingQty : 1,
+      servingUnit,
+      calories,
+      protein: round1(pick('proteins_serving', 'proteins_100g')),
+      carbs: round1(pick('carbohydrates_serving', 'carbohydrates_100g')),
+      fat: round1(pick('fat_serving', 'fat_100g')),
+      fiber: round1(pick('fiber_serving', 'fiber_100g')),
+      sugar: round1(pick('sugars_serving', 'sugars_100g')),
+      sodium: Math.round(pick('sodium_serving', 'sodium_100g') * 1000),
+      barcode: code,
+      isPublic: true
+    });
+
+    res.json({ found: true, source: 'openfoodfacts', food });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Barcode lookup failed' });
+  }
+});
+
 // GET /api/foods?q=chicken&limit=20
 router.get('/', async (req, res) => {
   try {

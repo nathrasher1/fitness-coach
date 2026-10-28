@@ -1172,3 +1172,24 @@ tr:last-child td { border-bottom: none; }
   .set-check { width: 40px; height: 40px; }
   .diary-toolbar { flex-wrap: wrap; }
 }
+
+.scan-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 400;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+}
+.scan-card {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 16px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: var(--shadow-md);
+}
+#barcode-reader { margin-top: 12px; }
+#barcode-reader video { border-radius: 10px; }
