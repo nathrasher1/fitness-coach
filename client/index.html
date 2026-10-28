@@ -141,31 +141,27 @@
 
       <!-- WORKOUTS -->
       <section id="workouts" class="panel">
+        <div class="session-bar">
+          <div>
+            <input type="text" id="wo-name" placeholder="Workout name" />
+            <input type="date" id="wo-date" />
+          </div>
+          <div id="wo-timer" class="wo-timer">00:00</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-secondary btn-sm" id="btn-quick-workout">Quick Log</button>
+            <button class="btn btn-secondary btn-sm" id="btn-load-routine">Routines</button>
+            <button class="btn btn-primary" id="btn-save-workout" disabled>Finish</button>
+          </div>
+        </div>
+        <div id="wo-rest" class="rest-banner" style="display:none"></div>
+
         <div class="card">
-          <div class="flex-between" style="margin-bottom:12px">
-            <h2 style="margin:0">Session</h2>
-            <div style="display:flex;gap:8px">
-              <button class="btn btn-secondary btn-sm" id="btn-quick-workout">Quick Log</button>
-              <button class="btn btn-secondary btn-sm" id="btn-load-routine">Load Routine</button>
-            </div>
-          </div>
-          <div class="grid-2">
-            <div class="form-row">
-              <label for="wo-date">Date</label>
-              <input type="date" id="wo-date" />
-            </div>
-            <div class="form-row">
-              <label for="wo-name">Session name</label>
-              <input type="text" id="wo-name" placeholder="e.g. Upper A or Quick" />
-            </div>
-          </div>
           <div class="form-row">
             <label for="wo-ex-search">Add exercise</label>
             <input type="text" id="wo-ex-search" placeholder="Search exercises…" autocomplete="off" />
             <div id="wo-ex-results" class="search-results"></div>
           </div>
           <div id="wo-exercise-list"></div>
-          <button class="btn btn-primary btn-block" id="btn-save-workout" disabled>Finish & Save Workout</button>
         </div>
 
         <div class="card">
@@ -255,23 +251,26 @@
 
       <!-- FOOD -->
       <section id="food" class="panel">
-        <div class="card">
-          <div class="flex-between" style="margin-bottom: 12px;">
-            <h2 style="margin-bottom:0">Daily Log</h2>
-            <div style="display:flex; gap:8px; align-items:center;">
-              <input type="date" id="food-date" style="width:auto;" />
-              <button class="btn btn-secondary" id="btn-copy-yesterday" title="Copy previous day's food">Copy yesterday</button>
-            </div>
-          </div>
-
-          <div id="macro-progress" class="macro-progress"></div>
-
-          <div id="food-day-totals" class="day-totals"></div>
-          <div id="food-log-list"></div>
+        <div class="diary-toolbar">
+          <button type="button" class="btn btn-secondary btn-sm" id="food-prev" aria-label="Previous day">‹</button>
+          <input type="date" id="food-date" />
+          <button type="button" class="btn btn-secondary btn-sm" id="food-next" aria-label="Next day">›</button>
+          <button class="btn btn-secondary btn-sm" id="btn-copy-yesterday">Copy yesterday</button>
         </div>
 
+        <div class="energy-card">
+          <div class="energy-main">
+            <div id="energy-remaining" class="energy-number">—</div>
+            <div class="energy-label">kcal remaining</div>
+            <div id="food-day-totals" class="day-totals"></div>
+          </div>
+          <div id="macro-progress" class="macro-progress"></div>
+        </div>
+
+        <div id="food-log-list" class="diary"></div>
+
         <div class="card">
-          <h2>Quick Add</h2>
+          <h2>Add Food</h2>
           <div class="form-row">
             <label>Favorites</label>
             <div id="favorites-chips" class="chip-row"></div>
@@ -280,10 +279,6 @@
             <label>Recent</label>
             <div id="recent-chips" class="chip-row"></div>
           </div>
-        </div>
-
-        <div class="card">
-          <h2>Log Food</h2>
           <div class="form-row">
             <label for="food-meal">Meal</label>
             <select id="food-meal">
@@ -296,7 +291,7 @@
           </div>
           <div class="form-row">
             <label for="food-search">Search foods</label>
-            <input type="text" id="food-search" placeholder="Start typing a food name…" autocomplete="off" />
+            <input type="text" id="food-search" placeholder="Search a food, brand, or recipe…" autocomplete="off" />
             <div id="food-search-results" class="search-results"></div>
           </div>
           <div id="food-selected-row" style="display:none">

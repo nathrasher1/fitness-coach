@@ -849,34 +849,35 @@ document.getElementById('btn-copy-yesterday').addEventListener('click', async ()
 
 function renderMacroProgress(totals, targets) {
   const el = document.getElementById('macro-progress');
+  const remEl = document.getElementById('energy-remaining');
+  const remaining = targets ? Math.round(targets.calories - totals.calories) : null;
+  if (remEl) {
+    remEl.textContent = remaining == null ? '—' : remaining.toLocaleString();
+    remEl.className = 'energy-number' + (remaining != null && remaining < 0 ? ' over' : '');
+  }
   if (!targets) {
-    el.innerHTML = '<p class="hint">Log weight + food for a few days to see remaining macro targets.</p>';
+    el.innerHTML = '<p class="hint">Set a goal and log a few days to see remaining targets.</p>';
     return;
   }
 
   const rows = [
-    { key: 'calories', label: 'Calories', unit: '', current: totals.calories, target: targets.calories },
-    { key: 'protein', label: 'Protein', unit: 'g', current: totals.protein, target: targets.protein },
-    { key: 'carbs', label: 'Carbs', unit: 'g', current: totals.carbs, target: targets.carbs },
-    { key: 'fat', label: 'Fat', unit: 'g', current: totals.fat, target: targets.fat }
+    { key: 'protein', label: 'Protein', color: '#16a34a', current: totals.protein, target: targets.protein },
+    { key: 'carbs', label: 'Net Carbs', color: '#2563eb', current: totals.carbs, target: targets.carbs },
+    { key: 'fat', label: 'Fat', color: '#d97706', current: totals.fat, target: targets.fat }
   ];
 
   el.innerHTML = rows
     .map((r) => {
       const pct = r.target ? Math.min(100, Math.round((r.current / r.target) * 100)) : 0;
       const over = r.target && r.current > r.target;
-      const remaining = r.target ? Math.round(r.target - r.current) : null;
       return `
         <div class="macro-bar-card">
           <div class="macro-label">
-            <span>${r.label}</span>
-            <span>${Math.round(r.current)}${r.unit}${r.target ? ' / ' + r.target + r.unit : ''}</span>
+            <span><i class="macro-dot" style="background:${r.color}"></i>${r.label}</span>
+            <span>${Math.round(r.current)} / ${r.target}g</span>
           </div>
           <div class="bar-track">
-            <div class="bar-fill ${over ? 'over' : ''}" style="width:${pct}%"></div>
-          </div>
-          <div class="hint" style="margin-top:4px">
-            ${remaining == null ? '' : remaining >= 0 ? remaining + r.unit + ' remaining' : Math.abs(remaining) + r.unit + ' over'}
+            <div class="bar-fill ${over ? 'over' : ''}" style="width:${pct}%;background:${over ? '' : r.color}"></div>
           </div>
         </div>`;
     })
@@ -892,19 +893,14 @@ async function loadFoodLog() {
 
     renderMacroProgress(data.totals, data.targets);
 
+    const targetCal = data.targets?.calories;
     totalsEl.innerHTML = `
-      <span>${Math.round(data.totals.calories)} kcal</span>
+      <span>${Math.round(data.totals.calories)}${targetCal ? ' / ' + targetCal : ''} kcal eaten</span>
       <span>P ${data.totals.protein.toFixed(0)}g</span>
       <span>C ${data.totals.carbs.toFixed(0)}g</span>
       <span>F ${data.totals.fat.toFixed(0)}g</span>
     `;
 
-    if (!data.logs.length) {
-      listEl.innerHTML = '<div class="empty">No food logged for this day. Use Quick Add or search below.</div>';
-      return;
-    }
-
-    // Group by meal
     const order = ['breakfast', 'lunch', 'dinner', 'snack', 'other'];
     const groups = {};
     data.logs.forEach((l) => {
@@ -913,25 +909,24 @@ async function loadFoodLog() {
     });
 
     listEl.innerHTML = order
-      .filter((m) => groups[m])
       .map((meal) => {
-        const mealLogs = groups[meal];
+        const mealLogs = groups[meal] || [];
         const mealCals = mealLogs.reduce((s, l) => s + l.calories, 0);
-        const items = mealLogs
-          .map(
-            (l) => `
-          <div class="food-log-item">
+        const items = mealLogs.length
+          ? mealLogs
+              .map(
+                (l) => `
+          <div class="diary-item">
             <div class="info">
               <div class="name">${l.foodName}${l.isManual ? ' <span class="badge-manual">manual</span>' : ''}</div>
-              <div class="meta">${l.isManual ? '' : l.servings + ' serving' + (l.servings === 1 ? '' : 's') + ' · '}P${l.protein}g C${l.carbs}g F${l.fat}g</div>
+              <div class="meta">${l.isManual ? '' : l.servings + ' · '}P${l.protein} C${l.carbs} F${l.fat}</div>
             </div>
-            <div class="cals">${l.calories} kcal</div>
-            <div class="actions">
-              <button class="btn btn-danger" data-id="${l._id}">×</button>
-            </div>
+            <div class="cals">${l.calories}</div>
+            <button class="btn btn-danger btn-sm" data-id="${l._id}" aria-label="Remove">×</button>
           </div>`
-          )
-          .join('');
+              )
+              .join('')
+          : '<div class="diary-empty">Nothing logged</div>';
         return `
           <div class="meal-group" data-meal="${meal}">
             <button type="button" class="meal-toggle" aria-expanded="true">
@@ -939,7 +934,10 @@ async function loadFoodLog() {
               <span class="meal-toggle-cals">${mealCals} kcal</span>
               <span class="meal-chevron">▾</span>
             </button>
-            <div class="meal-items">${items}</div>
+            <div class="meal-items">
+              ${items}
+              <button type="button" class="add-meal-btn" data-add-meal="${meal}">+ Add food</button>
+            </div>
           </div>`;
       })
       .join('');
@@ -950,6 +948,14 @@ async function loadFoodLog() {
         const open = btn.getAttribute('aria-expanded') === 'true';
         btn.setAttribute('aria-expanded', open ? 'false' : 'true');
         group.classList.toggle('collapsed', open);
+      });
+    });
+
+    listEl.querySelectorAll('[data-add-meal]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.getElementById('food-meal').value = btn.dataset.addMeal;
+        document.getElementById('food-search').focus();
+        document.getElementById('food-search').scrollIntoView({ behavior: 'smooth', block: 'center' });
       });
     });
 
@@ -1023,6 +1029,16 @@ async function loadQuickAdd() {
 }
 
 document.getElementById('food-date').addEventListener('change', loadFoodLog);
+
+function shiftFoodDate(days) {
+  const input = document.getElementById('food-date');
+  const d = new Date((input.value || todayStr()) + 'T12:00:00');
+  d.setDate(d.getDate() + days);
+  input.value = d.toISOString().slice(0, 10);
+  loadFoodLog();
+}
+document.getElementById('food-prev').addEventListener('click', () => shiftFoodDate(-1));
+document.getElementById('food-next').addEventListener('click', () => shiftFoodDate(1));
 
 // ========== Goals ==========
 async function loadGoal() {
@@ -1124,11 +1140,13 @@ function addExerciseToWorkout(id, name) {
     exerciseId: id,
     exerciseName: name,
     suggestion: '',
+    previous: [],
     sets: [{ weight: 0, reps: 8, logged: false }]
   };
   currentWorkoutExercises.push(entry);
   renderWorkoutExercises();
   document.getElementById('btn-save-workout').disabled = false;
+  startWorkoutTimer();
   loadSuggestion(currentWorkoutExercises.length - 1);
 }
 
@@ -1137,12 +1155,13 @@ async function loadSuggestion(idx) {
   if (!ex) return;
   try {
     const data = await api(`/workouts/suggest-load?exerciseId=${encodeURIComponent(ex.exerciseId)}`);
+    ex.previous = data.lastSets || [];
     if (data.ready && data.suggestion) {
       ex.sets[0].weight = data.suggestion.weight || 0;
       ex.sets[0].reps = data.suggestion.reps || 8;
-      ex.suggestion = `Suggested ${data.suggestion.weight} × ${data.suggestion.reps}. ${data.suggestion.note}`;
+      ex.suggestion = `Target ${data.suggestion.weight} × ${data.suggestion.reps}`;
     } else {
-      ex.suggestion = 'No prior sets for this exercise. Start with a weight you can do for about 8 reps.';
+      ex.suggestion = 'No history yet';
     }
     renderWorkoutExercises();
   } catch (err) {
@@ -1151,10 +1170,61 @@ async function loadSuggestion(idx) {
   }
 }
 
+let workoutTimerId = null;
+let workoutStartedAt = null;
+function startWorkoutTimer() {
+  if (workoutTimerId) return;
+  workoutStartedAt = Date.now();
+  const el = document.getElementById('wo-timer');
+  workoutTimerId = setInterval(() => {
+    const s = Math.floor((Date.now() - workoutStartedAt) / 1000);
+    const m = String(Math.floor(s / 60)).padStart(2, '0');
+    const sec = String(s % 60).padStart(2, '0');
+    if (el) el.textContent = `${m}:${sec}`;
+  }, 1000);
+}
+function stopWorkoutTimer() {
+  clearInterval(workoutTimerId);
+  workoutTimerId = null;
+  workoutStartedAt = null;
+  const el = document.getElementById('wo-timer');
+  if (el) el.textContent = '00:00';
+}
+
+let restTimerId = null;
+function startRest(seconds) {
+  clearInterval(restTimerId);
+  const banner = document.getElementById('wo-rest');
+  let left = seconds;
+  const tick = () => {
+    if (!banner) return;
+    banner.style.display = 'flex';
+    banner.innerHTML = `<span>Rest ${left}s</span><button type="button" class="btn btn-secondary btn-sm" id="rest-skip">Skip</button>`;
+    const skip = document.getElementById('rest-skip');
+    if (skip) skip.onclick = () => { clearInterval(restTimerId); banner.style.display = 'none'; };
+  };
+  tick();
+  restTimerId = setInterval(() => {
+    left -= 1;
+    if (left <= 0) {
+      clearInterval(restTimerId);
+      if (banner) banner.style.display = 'none';
+      return;
+    }
+    tick();
+  }, 1000);
+}
+
+function previousLabel(ex, si) {
+  const prev = ex.previous && ex.previous[si];
+  if (!prev || prev.weight == null) return '—';
+  return `${prev.weight}×${prev.reps || 0}`;
+}
+
 function renderWorkoutExercises() {
   const el = document.getElementById('wo-exercise-list');
   if (!currentWorkoutExercises.length) {
-    el.innerHTML = '<div class="empty">Add an exercise to start logging sets.</div>';
+    el.innerHTML = '<div class="empty">Add an exercise to start the session.</div>';
     return;
   }
   el.innerHTML = currentWorkoutExercises
@@ -1162,27 +1232,30 @@ function renderWorkoutExercises() {
       (ex, idx) => `
     <div class="wo-ex-card" data-idx="${idx}">
       <div class="flex-between">
-        <strong>${ex.exerciseName}</strong>
+        <div>
+          <strong>${ex.exerciseName}</strong>
+          ${ex.suggestion ? `<div class="hint">${ex.suggestion}</div>` : ''}
+        </div>
         <div style="display:flex;gap:6px">
           <button type="button" class="btn btn-secondary btn-sm" data-swap="${idx}">Swap</button>
           <button type="button" class="btn btn-danger btn-sm" data-remove="${idx}">×</button>
         </div>
       </div>
-      ${ex.suggestion ? `<div class="hint" style="margin:6px 0">${ex.suggestion}</div>` : ''}
       <table class="set-table">
-        <thead><tr><th>Set</th><th>Weight</th><th>Reps</th><th></th></tr></thead>
+        <thead><tr><th>Set</th><th>Previous</th><th>Weight</th><th>Reps</th><th></th></tr></thead>
         <tbody>
           ${ex.sets
             .map(
               (s, si) => `
             <tr class="${s.logged ? 'set-logged' : ''}">
               <td>${si + 1}</td>
+              <td class="prev-cell">${previousLabel(ex, si)}</td>
               <td><input type="number" class="set-weight" data-ex="${idx}" data-set="${si}" value="${s.weight}" min="0" step="2.5" ${s.logged ? 'disabled' : ''} /></td>
               <td><input type="number" class="set-reps" data-ex="${idx}" data-set="${si}" value="${s.reps}" min="0" ${s.logged ? 'disabled' : ''} /></td>
               <td>
                 ${s.logged
-                  ? '<span class="check">✓</span>'
-                  : `<button type="button" class="btn btn-primary btn-sm" data-log-set="${idx}" data-set="${si}">Log</button>`}
+                  ? '<span class="set-check done">✓</span>'
+                  : `<button type="button" class="set-check" data-log-set="${idx}" data-set="${si}" aria-label="Log set"></button>`}
               </td>
             </tr>`
             )
@@ -1194,7 +1267,6 @@ function renderWorkoutExercises() {
     )
     .join('');
 
-  // Wire events
   el.querySelectorAll('[data-remove]').forEach((btn) => {
     btn.addEventListener('click', () => {
       currentWorkoutExercises.splice(parseInt(btn.dataset.remove, 10), 1);
@@ -1221,6 +1293,7 @@ function renderWorkoutExercises() {
       const r = parseInt(row.querySelector('.set-reps').value, 10) || 0;
       currentWorkoutExercises[ex].sets[set] = { weight: w, reps: r, logged: true };
       renderWorkoutExercises();
+      startRest(90);
     });
   });
 
@@ -1252,7 +1325,10 @@ function renderWorkoutExercises() {
           const chosen = data.swaps[n - 1];
           currentWorkoutExercises[idx].exerciseId = chosen._id;
           currentWorkoutExercises[idx].exerciseName = chosen.name;
+          currentWorkoutExercises[idx].previous = [];
+          currentWorkoutExercises[idx].suggestion = '';
           renderWorkoutExercises();
+          loadSuggestion(idx);
           toast('Swapped to ' + chosen.name);
         }
       } catch (err) {
@@ -1295,6 +1371,7 @@ document.getElementById('btn-save-workout').addEventListener('click', async () =
     document.getElementById('wo-name').value = '';
     renderWorkoutExercises();
     document.getElementById('btn-save-workout').disabled = true;
+    stopWorkoutTimer();
     loadWorkoutHistory();
   } catch (err) {
     toast(err.message);
@@ -1357,6 +1434,8 @@ async function loadRoutines() {
         currentWorkoutExercises = r.exercises.map((e) => ({
           exerciseId: e.exercise,
           exerciseName: e.exerciseName,
+          suggestion: '',
+          previous: [],
           sets: Array.from({ length: e.targetSets || 3 }, () => ({
             weight: 0,
             reps: e.targetReps || 8,
@@ -1366,6 +1445,8 @@ async function loadRoutines() {
         document.getElementById('wo-name').value = r.name;
         renderWorkoutExercises();
         document.getElementById('btn-save-workout').disabled = false;
+        startWorkoutTimer();
+        currentWorkoutExercises.forEach((_, i) => loadSuggestion(i));
         toast('Loaded ' + r.name);
       });
     });
