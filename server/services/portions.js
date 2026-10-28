@@ -21,7 +21,7 @@ function amountToServings(amount, chosenUnit, food) {
     const amountGrams = chosen === 'oz' || chosen === 'ounces' ? amount * G_PER_OZ : amount;
     return amountGrams / baseGrams;
   }
-  return amount;
+  return null;
 }
 
 module.exports = { amountToServings, isWeightUnit, toGrams, G_PER_OZ };

@@ -60,7 +60,7 @@ router.get('/', async (req, res) => {
 //   { date, meal, manual: true, foodName, calories, protein, carbs, fat } – blank
 router.post('/', async (req, res) => {
   try {
-    const { date, meal, foodId, servings, note, manual, foodName, calories, protein, carbs, fat, fiber } = req.body;
+    const { date, meal, foodId, servings, amount, amountUnit, note, manual, foodName, calories, protein, carbs, fat, fiber } = req.body;
     if (!date) {
       return res.status(400).json({ error: 'date is required' });
     }
@@ -109,6 +109,8 @@ router.post('/', async (req, res) => {
       food: food._id,
       foodName: food.name,
       servings: qty,
+      amount: amount != null ? Number(amount) : null,
+      amountUnit: amountUnit || '',
       calories: Math.round(food.calories * qty),
       protein: +(food.protein * qty).toFixed(1),
       carbs: +(food.carbs * qty).toFixed(1),

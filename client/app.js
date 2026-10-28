@@ -540,16 +540,15 @@ function toGrams(size, unit) {
 /** Convert amount in the chosen unit into "number of base servings" */
 function amountToServings(amount, chosenUnit, food) {
   const baseUnit = (food.servingUnit || 'serving').toLowerCase();
-  if (chosenUnit === 'serving' || chosenUnit === baseUnit) {
-    return amount;
-  }
-  // Weight conversion: food defined per X g (or oz)
-  if (isWeightUnit(baseUnit) && (chosenUnit === 'g' || chosenUnit === 'oz')) {
-    const baseGrams = toGrams(food.servingSize, baseUnit);
-    const amountGrams = chosenUnit === 'oz' ? amount * G_PER_OZ : amount;
+  const chosen = (chosenUnit || 'serving').toLowerCase();
+  if (chosen === 'serving' || chosen === baseUnit) return amount;
+  if (isWeightUnit(baseUnit) && (chosen === 'g' || chosen === 'grams' || chosen === 'oz' || chosen === 'ounces')) {
+    const baseGrams = toGrams(food.servingSize, baseUnit) || 1;
+    const amountGrams = chosen === 'oz' || chosen === 'ounces' ? amount * G_PER_OZ : amount;
     return amountGrams / baseGrams;
   }
-  return amount;
+  // Grams on a food that is not defined by weight would otherwise be counted as servings.
+  return null;
 }
 
 function buildUnitOptions(food) {
@@ -642,12 +641,18 @@ function updateServingPreview() {
   const amount = parseFloat(document.getElementById('food-servings').value) || 0;
   const unit = document.getElementById('food-amount-unit').value;
   const servings = amountToServings(amount, unit, selectedFood);
+  const box = document.getElementById('food-serving-preview');
+  if (servings == null) {
+    box.textContent = 'This food is not measured in ' + unit;
+    document.getElementById('btn-log-food').disabled = true;
+    return;
+  }
+  document.getElementById('btn-log-food').disabled = false;
   const cal = Math.round(selectedFood.calories * servings);
   const p = +(selectedFood.protein * servings).toFixed(1);
   const c = +(selectedFood.carbs * servings).toFixed(1);
   const f = +(selectedFood.fat * servings).toFixed(1);
-  document.getElementById('food-serving-preview').textContent =
-    `${cal} kcal · P${p}g C${c}g F${f}g`;
+  box.textContent = `${amount} ${unit} = ${cal} kcal · P${p}g C${c}g F${f}g`;
 }
 
 document.getElementById('food-servings').addEventListener('input', updateServingPreview);
@@ -817,11 +822,12 @@ document.getElementById('btn-log-food').addEventListener('click', async () => {
   const amount = parseFloat(document.getElementById('food-servings').value) || 1;
   const unit = document.getElementById('food-amount-unit').value;
   const servings = amountToServings(amount, unit, selectedFood);
+  if (servings == null) return toast('Pick a unit this food is measured in');
 
   try {
     await api('/food-logs', {
       method: 'POST',
-      body: JSON.stringify({ date, meal, foodId: selectedFood.id, servings })
+      body: JSON.stringify({ date, meal, foodId: selectedFood.id, servings, amount, amountUnit: unit })
     });
     selectedFood = null;
     document.getElementById('food-selected-row').style.display = 'none';
@@ -913,6 +919,11 @@ document.getElementById('btn-copy-yesterday').addEventListener('click', async ()
   }
 });
 
+function amountLabel(log) {
+  if (log.amount && log.amountUnit) return `${log.amount} ${log.amountUnit}`;
+  return `${log.servings} serving${log.servings === 1 ? '' : 's'}`;
+}
+
 function renderMacroProgress(totals, targets) {
   const el = document.getElementById('macro-progress');
   const remEl = document.getElementById('energy-remaining');
@@ -985,7 +996,7 @@ async function loadFoodLog() {
           <div class="diary-item">
             <div class="info">
               <div class="name">${l.foodName}${l.isManual ? ' <span class="badge-manual">manual</span>' : ''}</div>
-              <div class="meta">${l.isManual ? '' : l.servings + ' · '}P${l.protein} C${l.carbs} F${l.fat}</div>
+              <div class="meta">${l.isManual ? '' : amountLabel(l) + ' · '}P${l.protein} C${l.carbs} F${l.fat}</div>
             </div>
             <div class="cals">${l.calories}</div>
             <button class="btn btn-danger btn-sm" data-id="${l._id}" aria-label="Remove">×</button>

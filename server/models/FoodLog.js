@@ -8,6 +8,8 @@ const foodLogSchema = new mongoose.Schema({
   food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food', default: null },
   foodName: { type: String, required: true },
   servings: { type: Number, required: true, min: 0.01, default: 1 },
+  amount: { type: Number, default: null },
+  amountUnit: { type: String, default: '' },
   calories: { type: Number, required: true },
   protein: { type: Number, default: 0 },
   carbs: { type: Number, default: 0 },
