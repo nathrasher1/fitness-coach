@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fitness Coach</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- ========== AUTH SCREEN ========== -->
+  <div id="auth-screen" class="auth-screen">
+    <div class="auth-card">
+      <h1>Fitness Coach</h1>
+      <p class="auth-sub">Weight · Nutrition · Training</p>
+
+      <div class="auth-tabs">
+        <button id="tab-login" class="active">Log in</button>
+        <button id="tab-register">Create account</button>
+      </div>
+
+      <form id="login-form" class="auth-form">
+        <label>Username</label>
+        <input type="text" id="login-username" required autocomplete="username" />
+        <label>Password</label>
+        <input type="password" id="login-password" required autocomplete="current-password" />
+        <button type="submit" class="btn btn-primary btn-block">Log in</button>
+        <p id="login-error" class="error-msg"></p>
+      </form>
+
+      <form id="register-form" class="auth-form" style="display:none">
+        <label>Username</label>
+        <input type="text" id="reg-username" required minlength="3" autocomplete="username" />
+        <label>Display name (optional)</label>
+        <input type="text" id="reg-displayname" autocomplete="name" />
+        <label>Password</label>
+        <input type="password" id="reg-password" required minlength="6" autocomplete="new-password" />
+        <button type="submit" class="btn btn-primary btn-block">Create account</button>
+        <p id="reg-error" class="error-msg"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========== MAIN APP ========== -->
+  <div id="app" class="app" style="display:none">
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo">FC</span>
+        <div>
+          <div class="brand-title">Fitness Coach</div>
+          <div class="brand-user" id="header-user"></div>
+        </div>
+      </div>
+      <button id="btn-logout" class="btn btn-ghost">Log out</button>
+    </header>
+
+    <nav class="nav" id="main-nav">
+      <button data-panel="dashboard" class="active">Dashboard</button>
+      <button data-panel="calendar">Calendar</button>
+      <button data-panel="weight">Weight</button>
+      <button data-panel="food">Food</button>
+      <button data-panel="recipes">Recipes</button>
+      <button data-panel="workouts">Workouts</button>
+      <button data-panel="body">Body</button>
+      <button data-panel="goals">Goals</button>
+      <button data-panel="settings">Settings</button>
+    </nav>
+
+    <main class="content">
+      <!-- DASHBOARD -->
+      <section id="dashboard" class="panel active">
+        <div class="card">
+          <h2>Overview</h2>
+          <div class="period-tabs" id="avg-period-tabs">
+            <button data-days="7" class="active">7-day</button>
+            <button data-days="14">14-day</button>
+            <button data-days="30">30-day</button>
+            <button data-days="90">90-day</button>
+          </div>
+          <div class="stats-grid" id="overview-stats"></div>
+          <p class="hint" id="avg-details"></p>
+        </div>
+
+        <div class="card">
+          <h2>Today’s Intake</h2>
+          <div id="today-intake" class="macro-progress"></div>
+        </div>
+
+        <div class="card">
+          <h2>Recommended Daily Targets</h2>
+          <div id="recommendation">
+            <div class="empty">Log some weight and food/calories to get recommendations.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CALENDAR -->
+      <section id="calendar" class="panel">
+        <div class="card">
+          <div class="flex-between" style="margin-bottom:12px">
+            <h2 style="margin:0">Log Calendar</h2>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn btn-secondary btn-sm" id="cal-prev">‹</button>
+              <span id="cal-month-label" style="font-weight:600;min-width:120px;text-align:center"></span>
+              <button class="btn btn-secondary btn-sm" id="cal-next">›</button>
+            </div>
+          </div>
+          <div id="calendar-grid" class="calendar-grid"></div>
+        </div>
+        <div class="card" id="calendar-day-detail" style="display:none">
+          <h2 id="calendar-day-title">Day Detail</h2>
+          <div id="calendar-day-content"></div>
+        </div>
+      </section>
+
+      <!-- WEIGHT -->
+      <section id="weight" class="panel">
+        <div class="card">
+          <h2>Log Weight</h2>
+          <div class="grid-2">
+            <div class="form-row">
+              <label for="weight-date">Date</label>
+              <input type="date" id="weight-date" />
+            </div>
+            <div class="form-row">
+              <label for="weight-value">Weight</label>
+              <input type="number" id="weight-value" step="0.1" min="50" max="500" placeholder="e.g. 185.2" />
+            </div>
+          </div>
+          <div class="form-row">
+            <label for="weight-note">Note (optional)</label>
+            <input type="text" id="weight-note" placeholder="Morning, post-workout…" />
+          </div>
+          <button class="btn btn-primary btn-block" id="btn-save-weight">Save Weight</button>
+        </div>
+
+        <div class="card">
+          <h2>Weight History</h2>
+          <div id="weight-history"></div>
+        </div>
+      </section>
+
+      <!-- WORKOUTS -->
+      <section id="workouts" class="panel">
+        <div class="card">
+          <div class="flex-between" style="margin-bottom:12px">
+            <h2 style="margin:0">Session</h2>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-secondary btn-sm" id="btn-quick-workout">Quick Log</button>
+              <button class="btn btn-secondary btn-sm" id="btn-load-routine">Load Routine</button>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="form-row">
+              <label for="wo-date">Date</label>
+              <input type="date" id="wo-date" />
+            </div>
+            <div class="form-row">
+              <label for="wo-name">Session name</label>
+              <input type="text" id="wo-name" placeholder="e.g. Upper A or Quick" />
+            </div>
+          </div>
+          <div class="form-row">
+            <label for="wo-ex-search">Add exercise</label>
+            <input type="text" id="wo-ex-search" placeholder="Search exercises…" autocomplete="off" />
+            <div id="wo-ex-results" class="search-results"></div>
+          </div>
+          <div id="wo-exercise-list"></div>
+          <button class="btn btn-primary btn-block" id="btn-save-workout" disabled>Finish & Save Workout</button>
+        </div>
+
+        <div class="card">
+          <h2>My Routines</h2>
+          <div id="wo-routines"></div>
+          <div class="form-row" style="margin-top:12px">
+            <input type="text" id="routine-name" placeholder="New routine name" />
+          </div>
+          <button class="btn btn-secondary btn-block" id="btn-save-as-routine">Save Current Session as Routine</button>
+        </div>
+
+        <div class="card">
+          <h2>Suggested Programs</h2>
+          <div class="form-row">
+            <label for="wo-program-focus">Focus</label>
+            <select id="wo-program-focus">
+              <option value="">All</option>
+              <option value="general">General</option>
+              <option value="jiu-jitsu">Jiu-Jitsu</option>
+              <option value="football">Football</option>
+              <option value="softball">Softball</option>
+              <option value="wakeboarding">Wakeboarding</option>
+            </select>
+          </div>
+          <div id="wo-programs"></div>
+        </div>
+
+        <div class="card">
+          <h2>Recent Workouts</h2>
+          <div id="wo-history"></div>
+        </div>
+      </section>
+
+      <!-- BODY METRICS -->
+      <section id="body" class="panel">
+        <div class="card">
+          <h2>Log Body Metrics</h2>
+          <div class="grid-2">
+            <div class="form-row">
+              <label for="bm-date">Date</label>
+              <input type="date" id="bm-date" />
+            </div>
+            <div class="form-row">
+              <label for="bm-bf">Body fat %</label>
+              <input type="number" id="bm-bf" step="0.1" min="1" max="70" placeholder="e.g. 18.5" />
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="form-row">
+              <label for="bm-height">Height (cm)</label>
+              <input type="number" id="bm-height" step="0.1" min="100" max="250" placeholder="e.g. 178" />
+            </div>
+            <div class="form-row">
+              <label>BMI</label>
+              <div id="bm-bmi" class="selected-food">—</div>
+            </div>
+          </div>
+          <h3 style="margin:12px 0 8px;font-size:0.95rem;">Circumferences (cm)</h3>
+          <div class="grid-3">
+            <div class="form-row"><label for="bm-chest">Chest</label><input type="number" id="bm-chest" step="0.1" min="0" /></div>
+            <div class="form-row"><label for="bm-shoulders">Shoulders</label><input type="number" id="bm-shoulders" step="0.1" min="0" /></div>
+            <div class="form-row"><label for="bm-waist">Waist</label><input type="number" id="bm-waist" step="0.1" min="0" /></div>
+            <div class="form-row"><label for="bm-hips">Hips</label><input type="number" id="bm-hips" step="0.1" min="0" /></div>
+            <div class="form-row"><label for="bm-larm">Left arm</label><input type="number" id="bm-larm" step="0.1" min="0" /></div>
+            <div class="form-row"><label for="bm-rarm">Right arm</label><input type="number" id="bm-rarm" step="0.1" min="0" /></div>
+            <div class="form-row"><label for="bm-lthigh">Left thigh</label><input type="number" id="bm-lthigh" step="0.1" min="0" /></div>
+            <div class="form-row"><label for="bm-rthigh">Right thigh</label><input type="number" id="bm-rthigh" step="0.1" min="0" /></div>
+            <div class="form-row"><label for="bm-neck">Neck</label><input type="number" id="bm-neck" step="0.1" min="0" /></div>
+          </div>
+          <div class="form-row">
+            <label for="bm-note">Note</label>
+            <input type="text" id="bm-note" placeholder="Optional" />
+          </div>
+          <button class="btn btn-primary btn-block" id="btn-save-body">Save Metrics</button>
+        </div>
+
+        <div class="card">
+          <h2>Latest Snapshot</h2>
+          <div id="bm-latest"></div>
+        </div>
+
+        <div class="card">
+          <h2>History</h2>
+          <div id="bm-history"></div>
+        </div>
+      </section>
+
+      <!-- FOOD -->
+      <section id="food" class="panel">
+        <div class="card">
+          <div class="flex-between" style="margin-bottom: 12px;">
+            <h2 style="margin-bottom:0">Daily Log</h2>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <input type="date" id="food-date" style="width:auto;" />
+              <button class="btn btn-secondary" id="btn-copy-yesterday" title="Copy previous day's food">Copy yesterday</button>
+            </div>
+          </div>
+
+          <div id="macro-progress" class="macro-progress"></div>
+
+          <div id="food-day-totals" class="day-totals"></div>
+          <div id="food-log-list"></div>
+        </div>
+
+        <div class="card">
+          <h2>Quick Add</h2>
+          <div class="form-row">
+            <label>Favorites</label>
+            <div id="favorites-chips" class="chip-row"></div>
+          </div>
+          <div class="form-row">
+            <label>Recent</label>
+            <div id="recent-chips" class="chip-row"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Log Food</h2>
+          <div class="form-row">
+            <label for="food-meal">Meal</label>
+            <select id="food-meal">
+              <option value="breakfast">Breakfast</option>
+              <option value="lunch">Lunch</option>
+              <option value="dinner">Dinner</option>
+              <option value="snack">Snack</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="food-search">Search foods</label>
+            <input type="text" id="food-search" placeholder="Start typing a food name…" autocomplete="off" />
+            <div id="food-search-results" class="search-results"></div>
+          </div>
+          <div id="food-selected-row" style="display:none">
+            <div class="form-row">
+              <label>Selected</label>
+              <div id="food-selected-name" class="selected-food"></div>
+              <div id="food-selected-meta" class="hint" style="margin-top:4px"></div>
+            </div>
+            <div class="grid-2">
+              <div class="form-row">
+                <label for="food-servings">Amount</label>
+                <div class="serving-input-row">
+                  <input type="number" id="food-servings" step="0.25" min="0.01" value="1" />
+                  <select id="food-amount-unit" class="serving-unit-select"></select>
+                </div>
+              </div>
+              <div class="form-row">
+                <label>This entry</label>
+                <div id="food-serving-preview" class="selected-food" style="background:#f0fdf4;color:#15803d;">—</div>
+              </div>
+            </div>
+            <div class="quick-serving-btns" id="quick-serving-btns">
+              <button type="button" class="btn btn-secondary btn-sm" data-amt="0.5">½</button>
+              <button type="button" class="btn btn-secondary btn-sm" data-amt="1">1</button>
+              <button type="button" class="btn btn-secondary btn-sm" data-amt="1.5">1½</button>
+              <button type="button" class="btn btn-secondary btn-sm" data-amt="2">2</button>
+              <button type="button" class="btn btn-secondary btn-sm" data-amt="3">3</button>
+              <button type="button" class="btn btn-secondary btn-sm" data-amt="4">4</button>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-block" id="btn-log-food" disabled style="margin-top:12px">Add to Log</button>
+        </div>
+
+        <div class="card">
+          <h2>Create Custom Food</h2>
+          <div class="grid-2">
+            <div class="form-row">
+              <label for="cf-name">Name</label>
+              <input type="text" id="cf-name" placeholder="e.g. Homemade chili" />
+            </div>
+            <div class="form-row">
+              <label for="cf-calories">Calories (per serving)</label>
+              <input type="number" id="cf-calories" min="0" />
+            </div>
+          </div>
+          <div class="grid-3">
+            <div class="form-row">
+              <label for="cf-protein">Protein (g)</label>
+              <input type="number" id="cf-protein" step="0.1" min="0" />
+            </div>
+            <div class="form-row">
+              <label for="cf-carbs">Carbs (g)</label>
+              <input type="number" id="cf-carbs" step="0.1" min="0" />
+            </div>
+            <div class="form-row">
+              <label for="cf-fat">Fat (g)</label>
+              <input type="number" id="cf-fat" step="0.1" min="0" />
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-block" id="btn-create-food">Save Custom Food</button>
+        </div>
+
+        <div class="card">
+          <h2>Manual Entry (blank calories / macros)</h2>
+          <p class="hint">Log calories without picking a food — restaurant meals, estimates, etc.</p>
+          <div class="grid-2">
+            <div class="form-row">
+              <label for="manual-name">Label</label>
+              <input type="text" id="manual-name" placeholder="e.g. Restaurant dinner" />
+            </div>
+            <div class="form-row">
+              <label for="manual-calories">Calories</label>
+              <input type="number" id="manual-calories" min="0" placeholder="e.g. 650" />
+            </div>
+          </div>
+          <div class="grid-3">
+            <div class="form-row">
+              <label for="manual-protein">Protein (g)</label>
+              <input type="number" id="manual-protein" step="0.1" min="0" value="0" />
+            </div>
+            <div class="form-row">
+              <label for="manual-carbs">Carbs (g)</label>
+              <input type="number" id="manual-carbs" step="0.1" min="0" value="0" />
+            </div>
+            <div class="form-row">
+              <label for="manual-fat">Fat (g)</label>
+              <input type="number" id="manual-fat" step="0.1" min="0" value="0" />
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-block" id="btn-manual-entry">Add Manual Entry</button>
+        </div>
+      </section>
+
+      <!-- RECIPES -->
+      <section id="recipes" class="panel">
+        <div class="card">
+          <h2 id="recipe-form-title">New Recipe</h2>
+          <p class="hint">Build a recipe from foods already in the app. One serving below is what gets logged.</p>
+          <div class="grid-2">
+            <div class="form-row">
+              <label for="recipe-name">Name</label>
+              <input type="text" id="recipe-name" placeholder="e.g. Turkey chili" />
+            </div>
+            <div class="form-row">
+              <label for="recipe-servings">Servings this recipe makes</label>
+              <input type="number" id="recipe-servings" min="0.25" step="1" value="1" />
+            </div>
+          </div>
+          <div class="form-row">
+            <label style="display:flex;align-items:center;gap:8px;font-weight:500">
+              <input type="checkbox" id="recipe-public" style="width:auto" />
+              Make this recipe public (other accounts can find and log it)
+            </label>
+          </div>
+          <div class="form-row">
+            <label for="recipe-food-search">Add ingredient</label>
+            <input type="text" id="recipe-food-search" placeholder="Search foods already in the app…" autocomplete="off" />
+            <div id="recipe-food-results" class="search-results"></div>
+          </div>
+          <div id="recipe-ingredient-editor" style="display:none" class="form-row">
+            <div id="recipe-ingredient-name" class="selected-food"></div>
+            <div class="serving-input-row" style="margin-top:8px">
+              <input type="number" id="recipe-ingredient-amount" min="0.01" step="1" value="100" />
+              <select id="recipe-ingredient-unit" class="serving-unit-select"></select>
+              <button type="button" class="btn btn-secondary" id="btn-add-ingredient">Add</button>
+            </div>
+          </div>
+          <div id="recipe-draft-list"></div>
+          <div id="recipe-draft-totals" class="hint" style="margin:8px 0 12px"></div>
+          <button class="btn btn-primary btn-block" id="btn-save-recipe">Save Recipe</button>
+          <button class="btn btn-ghost btn-block" id="btn-cancel-recipe" style="display:none;margin-top:8px">Cancel edit</button>
+        </div>
+
+        <div class="card">
+          <h2>My Recipes</h2>
+          <div id="my-recipes"></div>
+        </div>
+
+        <div class="card">
+          <h2>Public Recipes</h2>
+          <div id="public-recipes"></div>
+        </div>
+      </section>
+
+      <!-- GOALS -->
+      <section id="goals" class="panel">
+        <div class="card">
+          <h2>Your Goal</h2>
+          <div id="current-goal-display"></div>
+
+          <div class="form-row">
+            <label for="goal-type">Goal type</label>
+            <select id="goal-type">
+              <option value="lose">Lose weight</option>
+              <option value="gain">Gain weight</option>
+              <option value="maintain">Maintain weight</option>
+            </select>
+          </div>
+          <div class="grid-2">
+            <div class="form-row">
+              <label for="goal-amount">Amount (lbs)</label>
+              <input type="number" id="goal-amount" step="0.5" min="0" placeholder="e.g. 10" />
+            </div>
+            <div class="form-row">
+              <label for="goal-weeks">Timeframe (weeks)</label>
+              <input type="number" id="goal-weeks" step="1" min="1" placeholder="e.g. 12" />
+            </div>
+          </div>
+          <div class="form-row">
+            <label for="goal-start-weight">Starting weight (optional)</label>
+            <input type="number" id="goal-start-weight" step="0.1" placeholder="Uses latest if blank" />
+          </div>
+          <button class="btn btn-primary btn-block" id="btn-save-goal">Save Goal</button>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section id="settings" class="panel">
+        <div class="card">
+          <h2>Preferences</h2>
+          <div class="form-row">
+            <label for="unit-pref">Body weight unit</label>
+            <select id="unit-pref">
+              <option value="lbs">Pounds (lbs)</option>
+              <option value="kg">Kilograms (kg)</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="cal-avg-days">Days to average for calorie recommendation</label>
+            <select id="cal-avg-days">
+              <option value="7">Last 7 days</option>
+              <option value="14" selected>Last 14 days</option>
+              <option value="30">Last 30 days</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="btn-save-settings">Save Settings</button>
+        </div>
+
+        <div class="card">
+          <h2>Share Access</h2>
+          <p class="hint" style="margin-bottom:12px">Grant someone (by email) view access to your data. Useful for a coach or family member.</p>
+          <div class="grid-2">
+            <div class="form-row">
+              <label for="share-email">Email</label>
+              <input type="email" id="share-email" placeholder="coach@example.com" />
+            </div>
+            <div class="form-row">
+              <label for="share-note">Note (optional)</label>
+              <input type="text" id="share-note" placeholder="e.g. My coach" />
+            </div>
+          </div>
+          <div class="form-row">
+            <label>What they can see</label>
+            <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:6px">
+              <label style="display:flex;align-items:center;gap:4px;font-weight:400"><input type="checkbox" id="share-weight" checked /> Weight</label>
+              <label style="display:flex;align-items:center;gap:4px;font-weight:400"><input type="checkbox" id="share-workouts" checked /> Workouts</label>
+              <label style="display:flex;align-items:center;gap:4px;font-weight:400"><input type="checkbox" id="share-food" /> Food</label>
+              <label style="display:flex;align-items:center;gap:4px;font-weight:400"><input type="checkbox" id="share-body" /> Body</label>
+              <label style="display:flex;align-items:center;gap:4px;font-weight:400"><input type="checkbox" id="share-goals" /> Goals</label>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-block" id="btn-grant-share">Grant Access</button>
+          <div id="share-list" style="margin-top:16px"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>
