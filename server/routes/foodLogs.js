@@ -109,10 +109,10 @@ router.post('/', async (req, res) => {
     if (!qty || qty <= 0) {
       return res.status(400).json({ error: 'That unit does not match this food' });
     }
-    const calories = Math.round(food.calories * qty);
+    const entryCalories = Math.round(food.calories * qty);
     if (isWeightUnit(food.servingUnit) && amount != null && isWeightUnit(amountUnit || 'g')) {
       const grams = (amountUnit || 'g') === 'oz' ? Number(amount) * 28.3495 : Number(amount);
-      const kcalPerGram = grams > 0 ? calories / grams : 0;
+      const kcalPerGram = grams > 0 ? entryCalories / grams : 0;
       if (kcalPerGram > 10) {
         return res.status(400).json({
           error: `That would be ${Math.round(kcalPerGram)} kcal per gram, which is not possible. Try again or log it manually.`
@@ -128,7 +128,7 @@ router.post('/', async (req, res) => {
       servings: qty,
       amount: amount != null ? Number(amount) : null,
       amountUnit: amountUnit || '',
-      calories: Math.round(food.calories * qty),
+      calories: entryCalories,
       protein: +(food.protein * qty).toFixed(1),
       carbs: +(food.carbs * qty).toFixed(1),
       fat: +(food.fat * qty).toFixed(1),
