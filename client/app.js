@@ -1,6 +1,6 @@
 // ========== State ==========
 let currentUser = null;
-let settings = { unit: 'lbs', calAvgDays: 14 };
+let settings = { unit: 'lbs', calAvgDays: 14, interests: [] };
 let selectedFood = null;
 let currentPeriodDays = 7;
 
@@ -173,12 +173,60 @@ document.getElementById('avg-period-tabs').addEventListener('click', (e) => {
 });
 
 // ========== Settings ==========
+const INTEREST_GROUPS = [
+  {
+    label: 'Sports',
+    items: [
+      'Brazilian jiu-jitsu', 'Wrestling', 'Boxing', 'Muay Thai', 'MMA',
+      'Football', 'Basketball', 'Baseball', 'Softball', 'Soccer',
+      'Hockey', 'Lacrosse', 'Volleyball', 'Tennis', 'Golf',
+      'Track and field', 'Swimming', 'Wakeboarding', 'Skiing', 'Snowboarding'
+    ]
+  },
+  {
+    label: 'Training',
+    items: [
+      'Strength training', 'Powerlifting', 'Olympic lifting', 'Bodybuilding',
+      'CrossFit', 'Running', 'Cycling', 'Rock climbing', 'Hiking', 'Yoga'
+    ]
+  },
+  {
+    label: 'Other activities',
+    items: ['Coaching', 'Music', 'Guitar', 'Spanish', 'Homeschool', 'Gardening']
+  }
+];
+
+function renderInterestChecks() {
+  const box = document.getElementById('interest-groups');
+  if (!box) return;
+  const selected = new Set(settings.interests || []);
+  box.innerHTML = INTEREST_GROUPS.map((group) => `
+    <div style="margin-bottom:12px">
+      <div style="font-weight:600;margin-bottom:6px">${group.label}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px 14px">
+        ${group.items.map((item) => `
+          <label style="display:flex;align-items:center;gap:4px;font-weight:400">
+            <input type="checkbox" class="interest-check" value="${item}" ${selected.has(item) ? 'checked' : ''} style="width:auto" />
+            ${item}
+          </label>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function selectedInterests() {
+  return Array.from(document.querySelectorAll('.interest-check:checked')).map((el) => el.value);
+}
+
 async function loadSettings() {
   try {
     settings = await api('/settings');
-    document.getElementById('unit-pref').value = settings.unit || 'lbs';
-    document.getElementById('food-weight-unit').value = settings.foodWeightUnit || 'g';
-    document.getElementById('cal-avg-days').value = settings.calAvgDays || 14;
+    const unit = document.getElementById('unit-pref');
+    const foodUnit = document.getElementById('food-weight-unit');
+    const days = document.getElementById('cal-avg-days');
+    if (unit) unit.value = settings.unit || 'lbs';
+    if (foodUnit) foodUnit.value = settings.foodWeightUnit || 'g';
+    if (days) days.value = settings.calAvgDays || 14;
+    renderInterestChecks();
   } catch (e) {
     console.error(e);
   }
@@ -190,12 +238,30 @@ document.getElementById('btn-save-settings').addEventListener('click', async () 
       method: 'PUT',
       body: JSON.stringify({
         unit: document.getElementById('unit-pref').value,
-        foodWeightUnit: document.getElementById('food-weight-unit').value,
-        calAvgDays: parseInt(document.getElementById('cal-avg-days').value, 10)
+        foodWeightUnit: document.getElementById('food-weight-unit')?.value || 'g',
+        calAvgDays: parseInt(document.getElementById('cal-avg-days').value, 10),
+        interests: selectedInterests()
       })
     });
     toast('Settings saved');
     renderAll();
+  } catch (err) {
+    toast(err.message);
+  }
+});
+
+document.getElementById('btn-save-interests').addEventListener('click', async () => {
+  try {
+    settings = await api('/settings', {
+      method: 'PUT',
+      body: JSON.stringify({
+        unit: document.getElementById('unit-pref').value,
+        foodWeightUnit: document.getElementById('food-weight-unit')?.value || settings.foodWeightUnit || 'g',
+        calAvgDays: parseInt(document.getElementById('cal-avg-days').value, 10),
+        interests: selectedInterests()
+      })
+    });
+    toast('Interests saved');
   } catch (err) {
     toast(err.message);
   }
@@ -1054,13 +1120,35 @@ async function searchExercises(q) {
 }
 
 function addExerciseToWorkout(id, name) {
-  currentWorkoutExercises.push({
+  const entry = {
     exerciseId: id,
     exerciseName: name,
+    suggestion: '',
     sets: [{ weight: 0, reps: 8, logged: false }]
-  });
+  };
+  currentWorkoutExercises.push(entry);
   renderWorkoutExercises();
   document.getElementById('btn-save-workout').disabled = false;
+  loadSuggestion(currentWorkoutExercises.length - 1);
+}
+
+async function loadSuggestion(idx) {
+  const ex = currentWorkoutExercises[idx];
+  if (!ex) return;
+  try {
+    const data = await api(`/workouts/suggest-load?exerciseId=${encodeURIComponent(ex.exerciseId)}`);
+    if (data.ready && data.suggestion) {
+      ex.sets[0].weight = data.suggestion.weight || 0;
+      ex.sets[0].reps = data.suggestion.reps || 8;
+      ex.suggestion = `Suggested ${data.suggestion.weight} × ${data.suggestion.reps}. ${data.suggestion.note}`;
+    } else {
+      ex.suggestion = 'No prior sets for this exercise. Start with a weight you can do for about 8 reps.';
+    }
+    renderWorkoutExercises();
+  } catch (err) {
+    ex.suggestion = '';
+    renderWorkoutExercises();
+  }
 }
 
 function renderWorkoutExercises() {
@@ -1080,6 +1168,7 @@ function renderWorkoutExercises() {
           <button type="button" class="btn btn-danger btn-sm" data-remove="${idx}">×</button>
         </div>
       </div>
+      ${ex.suggestion ? `<div class="hint" style="margin:6px 0">${ex.suggestion}</div>` : ''}
       <table class="set-table">
         <thead><tr><th>Set</th><th>Weight</th><th>Reps</th><th></th></tr></thead>
         <tbody>
