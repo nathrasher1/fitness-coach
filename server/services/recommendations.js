@@ -112,15 +112,26 @@ async function computeCalorieRecommendation(userId) {
   if (goal && goal.type !== 'maintain') {
     goalType = goal.type;
     const amount = goal.amountLbs || 0;
-    const weeks = Math.max(1, goal.weeks || 12);
-    ratePerWeek = amount / weeks;
+    const start = goal.startWeight || first.weight;
+    const targetWeight = goal.type === 'lose' ? start - amount : start + amount;
+    const remainingLbs = goal.type === 'lose'
+      ? Math.max(0, last.weight - targetWeight)
+      : Math.max(0, targetWeight - last.weight);
+
+    let daysLeft = null;
+    if (goal.targetDate) {
+      daysLeft = Math.max(1, daysBetween(new Date().toISOString().slice(0, 10), goal.targetDate));
+    }
+    const weeksLeft = daysLeft ? daysLeft / 7 : Math.max(1, goal.weeks || 12);
+    ratePerWeek = remainingLbs / weeksLeft;
     const desiredDailySurplus =
       (goal.type === 'lose' ? -ratePerWeek : ratePerWeek) * 3500 / 7;
     targetDaily = estimatedMaintenance + desiredDailySurplus;
+    const by = goal.targetDate ? ' by ' + goal.targetDate : '';
     goalNote =
       goal.type === 'lose'
-        ? 'Lose ~' + ratePerWeek.toFixed(2) + ' lbs/week'
-        : 'Gain ~' + ratePerWeek.toFixed(2) + ' lbs/week';
+        ? `${remainingLbs.toFixed(1)} lbs left${by} (~${ratePerWeek.toFixed(2)} lbs/week)`
+        : `${remainingLbs.toFixed(1)} lbs left${by} (~${ratePerWeek.toFixed(2)} lbs/week)`;
   }
 
   targetDaily = Math.max(1200, Math.round(targetDaily));

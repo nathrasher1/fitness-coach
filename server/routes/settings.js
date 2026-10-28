@@ -21,15 +21,19 @@ router.get('/', async (req, res) => {
 // PUT /api/settings
 router.put('/', async (req, res) => {
   try {
-    const { unit, foodWeightUnit, calAvgDays, interests } = req.body;
+    const { unit, foodWeightUnit, calAvgDays, interests, lengthUnit, trainingFocus } = req.body;
     const update = {
       unit: unit || 'lbs',
       foodWeightUnit: foodWeightUnit === 'oz' ? 'oz' : 'g',
       calAvgDays: calAvgDays || 14,
+      lengthUnit: lengthUnit === 'cm' ? 'cm' : 'in',
       updatedAt: new Date()
     };
     if (Array.isArray(interests)) {
       update.interests = interests.map((s) => String(s).trim()).filter(Boolean);
+    }
+    if (Array.isArray(trainingFocus)) {
+      update.trainingFocus = trainingFocus.map((s) => String(s).trim()).filter(Boolean);
     }
     const settings = await Settings.findOneAndUpdate(
       { user: req.session.userId },

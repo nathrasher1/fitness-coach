@@ -150,6 +150,7 @@ document.getElementById('main-nav').addEventListener('click', (e) => {
   if (btn.dataset.panel === 'workouts') {
     loadPrograms();
     loadWorkoutHistory();
+    renderRecommendedLifts();
     if (!document.getElementById('wo-date').value) {
       document.getElementById('wo-date').value = todayStr();
     }
@@ -163,6 +164,12 @@ document.getElementById('main-nav').addEventListener('click', (e) => {
   if (btn.dataset.panel === 'settings') loadShares();
 });
 
+document.getElementById('nav-toggle').addEventListener('click', () => {
+  document.getElementById('main-nav').classList.toggle('open');
+});
+document.getElementById('main-nav').addEventListener('click', (e) => {
+  if (e.target.closest('button')) document.getElementById('main-nav').classList.remove('open');
+});
 document.getElementById('avg-period-tabs').addEventListener('click', (e) => {
   const btn = e.target.closest('button');
   if (!btn) return;
@@ -213,6 +220,23 @@ function renderInterestChecks() {
     </div>`).join('');
 }
 
+const TRAINING_FOCUS = ['Strength', 'Power', 'Hypertrophy', 'Conditioning', 'Endurance'];
+
+function renderTrainingFocus() {
+  const box = document.getElementById('training-focus');
+  if (!box) return;
+  const selected = new Set(settings.trainingFocus || []);
+  box.innerHTML = TRAINING_FOCUS.map((item) => `
+    <label style="display:flex;align-items:center;gap:4px;font-weight:400">
+      <input type="checkbox" class="focus-check" value="${item.toLowerCase()}" ${selected.has(item.toLowerCase()) ? 'checked' : ''} style="width:auto" />
+      ${item}
+    </label>`).join('');
+}
+
+function selectedFocus() {
+  return Array.from(document.querySelectorAll('.focus-check:checked')).map((el) => el.value);
+}
+
 function selectedInterests() {
   return Array.from(document.querySelectorAll('.interest-check:checked')).map((el) => el.value);
 }
@@ -226,7 +250,11 @@ async function loadSettings() {
     if (unit) unit.value = settings.unit || 'lbs';
     if (foodUnit) foodUnit.value = settings.foodWeightUnit || 'g';
     if (days) days.value = settings.calAvgDays || 14;
+    const length = document.getElementById('length-unit');
+    if (length) length.value = settings.lengthUnit || 'in';
     renderInterestChecks();
+    renderTrainingFocus();
+    renderRecommendedLifts();
   } catch (e) {
     console.error(e);
   }
@@ -240,7 +268,9 @@ document.getElementById('btn-save-settings').addEventListener('click', async () 
         unit: document.getElementById('unit-pref').value,
         foodWeightUnit: document.getElementById('food-weight-unit')?.value || 'g',
         calAvgDays: parseInt(document.getElementById('cal-avg-days').value, 10),
-        interests: selectedInterests()
+        lengthUnit: document.getElementById('length-unit')?.value || 'in',
+        interests: selectedInterests(),
+        trainingFocus: selectedFocus()
       })
     });
     toast('Settings saved');
@@ -258,7 +288,9 @@ document.getElementById('btn-save-interests').addEventListener('click', async ()
         unit: document.getElementById('unit-pref').value,
         foodWeightUnit: document.getElementById('food-weight-unit')?.value || settings.foodWeightUnit || 'g',
         calAvgDays: parseInt(document.getElementById('cal-avg-days').value, 10),
-        interests: selectedInterests()
+        lengthUnit: document.getElementById('length-unit')?.value || settings.lengthUnit || 'in',
+        interests: selectedInterests(),
+        trainingFocus: selectedFocus()
       })
     });
     toast('Interests saved');
@@ -652,7 +684,7 @@ function updateServingPreview() {
   const p = +(selectedFood.protein * servings).toFixed(1);
   const c = +(selectedFood.carbs * servings).toFixed(1);
   const f = +(selectedFood.fat * servings).toFixed(1);
-  box.textContent = `${amount} ${unit} = ${cal} kcal · P${p}g C${c}g F${f}g`;
+  box.textContent = `${amount} ${unit} = ${cal} kcal (${(selectedFood.calories / (toGrams(selectedFood.servingSize, selectedFood.servingUnit) || 1)).toFixed(2)} kcal/g) · P${p} C${c} F${f}`;
 }
 
 document.getElementById('food-servings').addEventListener('input', updateServingPreview);
@@ -1126,17 +1158,17 @@ async function loadGoal() {
       el.innerHTML = '<div class="empty" style="padding:12px 0">No active goal set.</div>';
     } else {
       const typeLabel = goal.type === 'lose' ? 'Lose' : goal.type === 'gain' ? 'Gain' : 'Maintain';
-      const rate = goal.weeks ? (goal.amountLbs / goal.weeks).toFixed(2) : '—';
+      const by = goal.targetDate ? ' by ' + goal.targetDate : ` in ${goal.weeks} weeks`;
       el.innerHTML = `
         <div class="goal-summary">
-          <div class="target">${typeLabel} ${goal.type === 'maintain' ? '' : goal.amountLbs + ' lbs'} in ${goal.weeks} weeks</div>
-          <div style="margin-top:4px;font-size:0.9rem;color:var(--text-muted)">≈ ${rate} lbs / week</div>
+          <div class="target">${typeLabel} ${goal.type === 'maintain' ? '' : goal.amountLbs + ' lbs'}${by}</div>
+          <div style="margin-top:4px;font-size:0.9rem;color:var(--text-muted)">Calories update from remaining weight and days left.</div>
         </div>
       `;
     }
     document.getElementById('goal-type').value = goal.type || 'maintain';
     document.getElementById('goal-amount').value = goal.amountLbs || '';
-    document.getElementById('goal-weeks').value = goal.weeks || 12;
+    document.getElementById('goal-date').value = goal.targetDate || '';
     if (goal.startWeight) {
       document.getElementById('goal-start-weight').value =
         settings.unit === 'kg' ? (goal.startWeight / 2.20462).toFixed(1) : goal.startWeight.toFixed(1);
@@ -1149,7 +1181,7 @@ async function loadGoal() {
 document.getElementById('btn-save-goal').addEventListener('click', async () => {
   const type = document.getElementById('goal-type').value;
   const amount = parseFloat(document.getElementById('goal-amount').value) || 0;
-  const weeks = parseInt(document.getElementById('goal-weeks').value, 10) || 12;
+  const targetDate = document.getElementById('goal-date').value;
   let startWeight = parseFloat(document.getElementById('goal-start-weight').value);
   if (!isNaN(startWeight)) startWeight = fromInputWeight(startWeight);
   else startWeight = undefined;
@@ -1157,7 +1189,7 @@ document.getElementById('btn-save-goal').addEventListener('click', async () => {
   try {
     await api('/goals', {
       method: 'PUT',
-      body: JSON.stringify({ type, amountLbs: amount, weeks, startWeight })
+      body: JSON.stringify({ type, amountLbs: amount, targetDate, startWeight })
     });
     toast('Goal saved');
     loadGoal();
@@ -1167,8 +1199,45 @@ document.getElementById('btn-save-goal').addEventListener('click', async () => {
   }
 });
 
-// ========== Workouts ==========
-let currentWorkoutExercises = [];
+const LIFT_MAP = {
+  'brazilian jiu-jitsu': ['Pull-Up', 'Romanian Deadlift', 'Farmer Carry', 'Pallof Press'],
+  wrestling: ['Power Clean', 'Back Squat', 'Farmer Carry', 'Pull-Up'],
+  football: ['Back Squat', 'Trap Bar Deadlift', 'Bench Press', 'Box Jump'],
+  softball: ['Landmine Press', 'Pallof Press', 'Front Squat', 'Single-Arm Dumbbell Row'],
+  wakeboarding: ['Romanian Deadlift', 'Pull-Up', 'Kettlebell Swing', 'Farmer Carry'],
+  'strength training': ['Back Squat', 'Bench Press', 'Barbell Row', 'Overhead Press'],
+  powerlifting: ['Back Squat', 'Bench Press', 'Deadlift'],
+  'olympic lifting': ['Power Clean', 'Snatch', 'Front Squat', 'Push Press'],
+  bodybuilding: ['Incline Dumbbell Press', 'Lat Pulldown', 'Lateral Raise', 'Leg Curl'],
+  running: ['Romanian Deadlift', 'Calf Raise', 'Front Squat', 'Dead Bug'],
+  climbing: ['Pull-Up', 'Dead Hang', 'Farmer Carry', 'Front Squat']
+};
+
+function renderRecommendedLifts() {
+  const el = document.getElementById('wo-recommended');
+  if (!el) return;
+  const interests = settings.interests || [];
+  const lifts = [];
+  interests.forEach((name) => {
+    const key = name.toLowerCase();
+    const match = Object.keys(LIFT_MAP).find((k) => key.includes(k) || k.includes(key));
+    if (match) lifts.push(...LIFT_MAP[match]);
+  });
+  const unique = [...new Set(lifts)];
+  if (!unique.length) {
+    el.innerHTML = '<div class="empty">Turn on sports or training interests in Settings.</div>';
+    return;
+  }
+  el.innerHTML = unique.map((name) => `<button type="button" class="chip" data-lift="${name}">${name}</button>`).join(' ');
+  el.querySelectorAll('[data-lift]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const found = await api(`/workouts/exercises?q=${encodeURIComponent(btn.dataset.lift)}`);
+      const match = found.find((ex) => ex.name.toLowerCase() === btn.dataset.lift.toLowerCase()) || found[0];
+      if (!match) return toast('Exercise not in the library yet');
+      addExerciseToWorkout(match._id, match.name);
+    });
+  });
+}
 let swapTargetIdx = null;
 
 document.getElementById('wo-ex-search').addEventListener('input', (e) => {
@@ -1608,21 +1677,51 @@ async function loadWorkoutHistory() {
 }
 
 // ========== Body Metrics ==========
+document.getElementById('length-unit').addEventListener('change', async () => {
+  settings.lengthUnit = document.getElementById('length-unit').value;
+  await api('/settings', {
+    method: 'PUT',
+    body: JSON.stringify({
+      unit: settings.unit || 'lbs',
+      foodWeightUnit: settings.foodWeightUnit || 'g',
+      calAvgDays: settings.calAvgDays || 14,
+      lengthUnit: settings.lengthUnit,
+      interests: settings.interests || [],
+      trainingFocus: settings.trainingFocus || []
+    })
+  });
+  loadBodyMetrics();
+});
+function lengthUnit() { return settings.lengthUnit || 'in'; }
+function toCm(value) {
+  const n = Number(value);
+  if (!n) return null;
+  return lengthUnit() === 'in' ? +(n * CM_PER_IN).toFixed(1) : n;
+}
+function fromCm(cm) {
+  if (cm == null) return '';
+  return lengthUnit() === 'in' ? (cm / CM_PER_IN).toFixed(1) : String(cm);
+}
+function lengthLabel(cm) {
+  if (cm == null) return '';
+  return lengthUnit() === 'in' ? `${(cm / CM_PER_IN).toFixed(1)} in` : `${cm} cm`;
+}
+
 document.getElementById('btn-save-body').addEventListener('click', async () => {
   const date = document.getElementById('bm-date').value || todayStr();
   const body = {
     date,
     bodyFatPct: document.getElementById('bm-bf').value || null,
-    heightCm: document.getElementById('bm-height').value || null,
-    chestCm: document.getElementById('bm-chest').value || null,
-    shouldersCm: document.getElementById('bm-shoulders').value || null,
-    waistCm: document.getElementById('bm-waist').value || null,
-    hipsCm: document.getElementById('bm-hips').value || null,
-    leftArmCm: document.getElementById('bm-larm').value || null,
-    rightArmCm: document.getElementById('bm-rarm').value || null,
-    leftThighCm: document.getElementById('bm-lthigh').value || null,
-    rightThighCm: document.getElementById('bm-rthigh').value || null,
-    neckCm: document.getElementById('bm-neck').value || null,
+    heightCm: toCm(document.getElementById('bm-height').value),
+    chestCm: toCm(document.getElementById('bm-chest').value),
+    shouldersCm: toCm(document.getElementById('bm-shoulders').value),
+    waistCm: toCm(document.getElementById('bm-waist').value),
+    hipsCm: toCm(document.getElementById('bm-hips').value),
+    leftArmCm: toCm(document.getElementById('bm-larm').value),
+    rightArmCm: toCm(document.getElementById('bm-rarm').value),
+    leftThighCm: toCm(document.getElementById('bm-lthigh').value),
+    rightThighCm: toCm(document.getElementById('bm-rthigh').value),
+    neckCm: toCm(document.getElementById('bm-neck').value),
     note: document.getElementById('bm-note').value.trim()
   };
   // Remove nulls
@@ -1657,10 +1756,10 @@ async function loadBodyMetrics() {
       const m = latest.metric;
       const parts = [];
       if (m.bodyFatPct) parts.push(`Body fat: ${m.bodyFatPct}%`);
-      if (m.heightCm) parts.push(`Height: ${m.heightCm} cm`);
-      if (m.chestCm) parts.push(`Chest: ${m.chestCm} cm`);
-      if (m.waistCm) parts.push(`Waist: ${m.waistCm} cm`);
-      if (m.shouldersCm) parts.push(`Shoulders: ${m.shouldersCm} cm`);
+      if (m.heightCm) parts.push(`Height: ${lengthLabel(m.heightCm)}`);
+      if (m.chestCm) parts.push(`Chest: ${lengthLabel(m.chestCm)}`);
+      if (m.waistCm) parts.push(`Waist: ${lengthLabel(m.waistCm)}`);
+      if (m.shouldersCm) parts.push(`Shoulders: ${lengthLabel(m.shouldersCm)}`);
       el.innerHTML = `<div class="hint">${formatDate(m.date)}</div><div>${parts.join(' · ') || 'No measurements'}</div>`;
     }
 
@@ -1680,8 +1779,8 @@ async function loadBodyMetrics() {
         </div>
         <div class="hint">
           ${m.bodyFatPct ? 'BF ' + m.bodyFatPct + '% · ' : ''}
-          ${m.waistCm ? 'Waist ' + m.waistCm + 'cm · ' : ''}
-          ${m.chestCm ? 'Chest ' + m.chestCm + 'cm' : ''}
+          ${m.waistCm ? 'Waist ' + lengthLabel(m.waistCm) + ' · ' : ''}
+          ${m.chestCm ? 'Chest ' + lengthLabel(m.chestCm) : ''}
         </div>
       </div>`
       )

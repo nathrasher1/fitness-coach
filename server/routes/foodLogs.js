@@ -2,6 +2,7 @@ const express = require('express');
 const FoodLog = require('../models/FoodLog');
 const Food = require('../models/Food');
 const { requireAuth } = require('../middleware/auth');
+const { amountToServings } = require('../services/portions');
 const { computeCalorieRecommendation } = require('../services/recommendations');
 
 const router = express.Router();
@@ -101,7 +102,13 @@ router.post('/', async (req, res) => {
       return res.status(403).json({ error: 'Not allowed' });
     }
 
-    const qty = Number(servings) || 1;
+    const qtyFromAmount = amount != null
+      ? amountToServings(Number(amount), amountUnit || 'serving', food)
+      : null;
+    const qty = qtyFromAmount != null ? qtyFromAmount : Number(servings) || 1;
+    if (!qty || qty <= 0) {
+      return res.status(400).json({ error: 'That unit does not match this food' });
+    }
     const log = await FoodLog.create({
       user: req.session.userId,
       date,

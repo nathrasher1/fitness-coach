@@ -22,7 +22,8 @@ function isBadBarcodeFood(food) {
   const unit = (food.servingUnit || '').toLowerCase();
   const grams = unit === 'oz' ? size * 28.3495 : unit === 'g' || unit === 'gram' || unit === 'grams' ? size : 0;
   if (!grams) return false;
-  return food.calories / grams > 10;
+  if (food.calories / grams > 10) return true;
+  return grams <= 1 && food.calories >= 20;
 }
 
 function fromOpenFoodFacts(p, code) {

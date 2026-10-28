@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
 // PUT /api/goals
 router.put('/', async (req, res) => {
   try {
-    const { type, amountLbs, weeks, startWeight, proteinG, carbsG, fatG } = req.body;
+    const { type, amountLbs, weeks, targetDate, startWeight, proteinG, carbsG, fatG } = req.body;
 
     const goal = await Goal.findOneAndUpdate(
       { user: req.session.userId },
@@ -29,6 +29,7 @@ router.put('/', async (req, res) => {
         type: type || 'maintain',
         amountLbs: amountLbs != null ? Number(amountLbs) : 0,
         weeks: weeks != null ? Number(weeks) : 12,
+        targetDate: targetDate || '',
         startWeight: startWeight != null ? Number(startWeight) : undefined,
         proteinG,
         carbsG,

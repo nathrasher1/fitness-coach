@@ -2,6 +2,7 @@ const express = require('express');
 const Exercise = require('../models/Exercise');
 const Routine = require("../models/Routine");
 const WorkoutLog = require('../models/WorkoutLog');
+const Settings = require('../models/Settings');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -43,7 +44,7 @@ router.get('/exercises/:id/swaps', async (req, res) => {
 });
 
 // GET /api/workouts/programs – suggested splits by sport focus
-router.get('/programs', (req, res) => {
+router.get('/programs', async (req, res) => {
   const programs = [
     {
       id: 'full_body_3day',
@@ -107,8 +108,15 @@ router.get('/programs', (req, res) => {
       ]
     }
   ];
+  const settings = await Settings.findOne({ user: req.session.userId });
+  const interests = (settings?.interests || []).map((s) => s.toLowerCase());
   const focus = req.query.focus;
-  res.json(focus ? programs.filter((p) => p.focus === focus || p.focus === 'general') : programs);
+  const matched = programs.filter((p) => {
+    if (focus) return p.focus === focus || p.focus === 'general';
+    if (!interests.length) return true;
+    return p.focus === 'general' || interests.some((i) => i.includes(p.focus) || p.focus.includes(i.split(' ')[0]));
+  });
+  res.json(matched.length ? matched : programs);
 });
 
 // GET /api/workouts – recent workout logs
@@ -191,8 +199,23 @@ router.get('/suggest-load', async (req, res) => {
       }
     }
 
+    const settings = await Settings.findOne({ user: req.session.userId });
+    const focus = (settings?.trainingFocus || [])[0] || 'hypertrophy';
+    const ranges = {
+      strength: { low: 3, high: 6, bump: 5 },
+      power: { low: 2, high: 5, bump: 5 },
+      hypertrophy: { low: 8, high: 12, bump: 5 },
+      conditioning: { low: 12, high: 20, bump: 0 },
+      endurance: { low: 15, high: 20, bump: 0 }
+    };
+    const range = ranges[focus] || ranges.hypertrophy;
+
     if (!lastSets) {
-      return res.json({ ready: false, reason: 'No prior sets for this exercise' });
+      return res.json({
+        ready: false,
+        reason: 'No prior sets for this exercise',
+        suggestion: { reps: range.low, note: `${focus}: start around ${range.low}–${range.high} reps` }
+      });
     }
 
     const top = lastSets.reduce((best, s) => {
@@ -203,15 +226,14 @@ router.get('/suggest-load', async (req, res) => {
       return best;
     }, null);
 
-    // Simple linear progression suggestion
-    let suggestedWeight = top?.weight;
-    let suggestedReps = top?.reps || 8;
-    if (top?.reps >= 10 && top.weight) {
-      suggestedWeight = Math.round((top.weight + 5) * 2) / 2; // +5 lbs
-      suggestedReps = 6;
-    } else if (top?.reps >= 8 && top.weight) {
+    let suggestedWeight = top?.weight || 0;
+    let suggestedReps = range.low;
+    if (top?.reps >= range.high && top.weight && range.bump) {
+      suggestedWeight = Math.round((top.weight + range.bump) * 2) / 2;
+      suggestedReps = range.low;
+    } else if (top?.reps) {
       suggestedWeight = top.weight;
-      suggestedReps = top.reps + 1;
+      suggestedReps = Math.min(range.high, top.reps + 1);
     }
 
     res.json({
@@ -220,7 +242,7 @@ router.get('/suggest-load', async (req, res) => {
       suggestion: {
         weight: suggestedWeight,
         reps: suggestedReps,
-        note: 'Based on your most recent top set — adjust for how you feel.'
+        note: `${focus}: aim for ${range.low}–${range.high} reps`
       }
     });
   } catch (err) {

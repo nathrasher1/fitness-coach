@@ -50,6 +50,7 @@
           <div class="brand-user" id="header-user"></div>
         </div>
       </div>
+      <button type="button" class="btn btn-ghost nav-toggle" id="nav-toggle" aria-label="Menu">☰</button>
       <button id="btn-logout" class="btn btn-ghost">Log out</button>
     </header>
 
@@ -165,6 +166,12 @@
         </div>
 
         <div class="card">
+          <h2>Recommended lifts</h2>
+          <p class="hint">Based on your interests and training goal.</p>
+          <div id="wo-recommended"></div>
+        </div>
+
+        <div class="card">
           <h2>My Routines</h2>
           <div id="wo-routines"></div>
           <div class="form-row" style="margin-top:12px">
@@ -199,6 +206,13 @@
       <section id="body" class="panel">
         <div class="card">
           <h2>Log Body Metrics</h2>
+          <div class="form-row">
+            <label for="length-unit">Measurement unit</label>
+            <select id="length-unit">
+              <option value="in">Inches</option>
+              <option value="cm">Centimeters</option>
+            </select>
+          </div>
           <div class="grid-2">
             <div class="form-row">
               <label for="bm-date">Date</label>
@@ -211,15 +225,15 @@
           </div>
           <div class="grid-2">
             <div class="form-row">
-              <label for="bm-height">Height (cm)</label>
-              <input type="number" id="bm-height" step="0.1" min="100" max="250" placeholder="e.g. 178" />
+              <label for="bm-height">Height</label>
+              <input type="number" id="bm-height" step="0.1" min="0" placeholder="e.g. 70" />
             </div>
             <div class="form-row">
               <label>BMI</label>
               <div id="bm-bmi" class="selected-food">—</div>
             </div>
           </div>
-          <h3 style="margin:12px 0 8px;font-size:0.95rem;">Circumferences (cm)</h3>
+          <h3 style="margin:12px 0 8px;font-size:0.95rem;">Circumferences</h3>
           <div class="grid-3">
             <div class="form-row"><label for="bm-chest">Chest</label><input type="number" id="bm-chest" step="0.1" min="0" /></div>
             <div class="form-row"><label for="bm-shoulders">Shoulders</label><input type="number" id="bm-shoulders" step="0.1" min="0" /></div>
@@ -459,8 +473,8 @@
               <input type="number" id="goal-amount" step="0.5" min="0" placeholder="e.g. 10" />
             </div>
             <div class="form-row">
-              <label for="goal-weeks">Timeframe (weeks)</label>
-              <input type="number" id="goal-weeks" step="1" min="1" placeholder="e.g. 12" />
+              <label for="goal-date">Reach by</label>
+              <input type="date" id="goal-date" />
             </div>
           </div>
           <div class="form-row">
@@ -489,6 +503,10 @@
               <option value="14" selected>Last 14 days</option>
               <option value="30">Last 30 days</option>
             </select>
+          </div>
+          <div class="form-row">
+            <label>Training goal</label>
+            <div id="training-focus" style="display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:6px"></div>
           </div>
           <button class="btn btn-primary" id="btn-save-settings">Save Settings</button>
         </div>
