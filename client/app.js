@@ -246,8 +246,43 @@ function selectedFocus() {
   return Array.from(document.querySelectorAll('.focus-check:checked')).map((el) => el.value);
 }
 
+// Themes: each has a main and an accent colour (defined in styles.css).
+const THEMES = [
+  ['sage', 'Sage'], ['ocean', 'Ocean'], ['slate', 'Slate'], ['forest', 'Forest'],
+  ['sunset', 'Sunset'], ['berry', 'Berry'], ['desert', 'Desert'], ['lavender', 'Lavender'],
+  ['dark', 'Dark'], ['midnight', 'Midnight']
+];
+// Old or unknown saved names fall back to a current theme.
+const THEME_ALIASES = { default: 'sage', light: 'sage', blue: 'ocean', green: 'sage', gray: 'slate', grey: 'slate', night: 'midnight' };
+function normalizeTheme(name) {
+  const key = String(name || '').toLowerCase();
+  if (THEMES.some(([id]) => id === key)) return key;
+  return THEME_ALIASES[key] || 'sage';
+}
+
 function applyTheme(name) {
-  document.documentElement.dataset.theme = name || 'sage';
+  const theme = normalizeTheme(name);
+  document.documentElement.dataset.theme = theme;
+  const select = document.getElementById('theme-pref');
+  if (select) select.value = theme;
+  document.querySelectorAll('#theme-picker .theme-option').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.value === theme);
+    btn.setAttribute('aria-checked', btn.dataset.value === theme ? 'true' : 'false');
+  });
+}
+
+function renderThemePicker() {
+  const box = document.getElementById('theme-picker');
+  if (!box || box.childElementCount) return;
+  box.innerHTML = THEMES.map(([id, label]) => `
+    <button type="button" class="theme-option" role="radio" data-value="${id}" aria-label="${label} theme">
+      <span class="theme-swatch" data-theme="${id}"><i class="sw-main"></i><i class="sw-accent"></i></span>
+      <span class="theme-name">${label}</span>
+    </button>`).join('');
+  box.addEventListener('click', (e) => {
+    const btn = e.target.closest('.theme-option');
+    if (btn) applyTheme(btn.dataset.value);
+  });
 }
 
 function selectedInterests() {
@@ -265,9 +300,8 @@ async function loadSettings() {
     if (days) days.value = settings.calAvgDays || 14;
     const length = document.getElementById('length-unit');
     if (length) length.value = settings.lengthUnit || 'in';
-    const theme = document.getElementById('theme-pref');
-    if (theme) theme.value = settings.theme || 'sage';
-    applyTheme(settings.theme || 'sage');
+    renderThemePicker();
+    applyTheme(settings.theme);
     renderInterestChecks();
     renderTrainingFocus();
     renderRecommendedLifts();
@@ -401,7 +435,7 @@ function renderTodayIntake(totals, rec) {
             <span>${Math.round(r.current)}${r.unit}${r.target ? ' / ' + r.target + r.unit : ''}</span>
           </div>
           <div class="bar-track">
-            <div class="bar-fill ${over ? 'over' : ''}" style="width:${pct}%"></div>
+            <div class="bar-fill bar-${r.key} ${over ? 'over' : ''}" style="width:${pct}%"></div>
           </div>
           <div class="hint" style="margin-top:4px">
             ${remaining == null ? '' : remaining >= 0 ? remaining + r.unit + ' remaining' : Math.abs(remaining) + r.unit + ' over'}
@@ -994,9 +1028,9 @@ function renderMacroProgress(totals, targets) {
   }
 
   const rows = [
-    { key: 'protein', label: 'Protein', color: '#16a34a', current: totals.protein, target: targets.protein },
-    { key: 'carbs', label: 'Net Carbs', color: '#2563eb', current: totals.carbs, target: targets.carbs },
-    { key: 'fat', label: 'Fat', color: '#d97706', current: totals.fat, target: targets.fat }
+    { key: 'protein', label: 'Protein', color: 'var(--main)', current: totals.protein, target: targets.protein },
+    { key: 'carbs', label: 'Net Carbs', color: 'var(--accent-strong)', current: totals.carbs, target: targets.carbs },
+    { key: 'fat', label: 'Fat', color: 'var(--chart-3)', current: totals.fat, target: targets.fat }
   ];
 
   el.innerHTML = rows

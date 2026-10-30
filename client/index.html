@@ -346,7 +346,7 @@
               </div>
               <div class="form-row">
                 <label>This entry</label>
-                <div id="food-serving-preview" class="selected-food" style="background:#f0fdf4;color:#15803d;">—</div>
+                <div id="food-serving-preview" class="selected-food">—</div>
               </div>
             </div>
             <div class="quick-serving-btns" id="quick-serving-btns">
@@ -509,13 +509,21 @@
         <div class="card">
           <h2>Preferences</h2>
           <div class="form-row">
-            <label for="theme-pref">Color theme</label>
-            <select id="theme-pref">
+            <label>Color theme</label>
+            <div id="theme-picker" class="theme-picker" role="radiogroup" aria-label="Color theme"></div>
+            <select id="theme-pref" hidden>
               <option value="sage">Sage</option>
               <option value="ocean">Ocean</option>
               <option value="slate">Slate</option>
+              <option value="forest">Forest</option>
+              <option value="sunset">Sunset</option>
+              <option value="berry">Berry</option>
+              <option value="desert">Desert</option>
+              <option value="lavender">Lavender</option>
               <option value="dark">Dark</option>
+              <option value="midnight">Midnight</option>
             </select>
+            <p class="hint" style="margin-top:6px">Tap a theme to preview it, then Save Settings to keep it.</p>
           </div>
           <div class="form-row">
             <label for="unit-pref">Body weight unit</label>
