@@ -16,8 +16,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    const existing = await User.findOne({ username: username.trim() });
-    if (existing) {
+    if (await User.usernameTaken(username)) {
       return res.status(409).json({ error: 'Username already taken' });
     }
 
@@ -57,8 +56,13 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    const user = await User.findOne({ username: username.trim() });
-    if (!user || !(await user.verifyPassword(password))) {
+    // Case-insensitive: try the exact-case account first, then any others
+    // that differ only by case (older data may contain such duplicates).
+    let user = null;
+    for (const candidate of await User.findUsernameCandidates(username)) {
+      if (await candidate.verifyPassword(String(password))) { user = candidate; break; }
+    }
+    if (!user) {
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 

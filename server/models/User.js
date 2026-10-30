@@ -45,4 +45,35 @@ userSchema.statics.hashPassword = async function (password) {
   return bcrypt.hash(password, 12);
 };
 
+// Usernames are matched without regard to case. Accounts keep the casing they
+// were created with (for display). Exact match wins; otherwise a
+// case-insensitive match (collation strength 2). If older data has several
+// accounts that differ only by case, the exact match is tried first, then the
+// others oldest first.
+const CI_COLLATION = { locale: 'en', strength: 2 };
+
+// All accounts matching a username ignoring case, exact match first (max 5).
+userSchema.statics.findUsernameCandidates = async function (username) {
+  const name = String(username || '').trim();
+  if (!name) return [];
+  const matches = await this.find({ username: name })
+    .collation(CI_COLLATION)
+    .sort({ createdAt: 1, _id: 1 })
+    .limit(5);
+  const exactIdx = matches.findIndex((u) => u.username === name);
+  if (exactIdx > 0) matches.unshift(matches.splice(exactIdx, 1)[0]);
+  if (exactIdx === -1) {
+    const exact = await this.findOne({ username: name });
+    if (exact) matches.unshift(exact);
+  }
+  return matches;
+};
+
+userSchema.statics.usernameTaken = async function (username) {
+  const name = String(username || '').trim();
+  if (!name) return false;
+  const found = await this.findOne({ username: name }).collation(CI_COLLATION).select('_id');
+  return !!found;
+};
+
 module.exports = mongoose.model('User', userSchema);
