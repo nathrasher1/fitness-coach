@@ -51,6 +51,7 @@ async function checkAuth() {
     showApp();
     await loadSettings();
     renderAll();
+    restoreWorkoutDraft();
   } catch {
     showAuth();
   }
@@ -100,6 +101,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     showApp();
     await loadSettings();
     renderAll();
+    restoreWorkoutDraft();
   } catch (err) {
     errEl.textContent = err.message;
   }
@@ -122,13 +124,18 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
     showApp();
     await loadSettings();
     renderAll();
+    restoreWorkoutDraft();
   } catch (err) {
     errEl.textContent = err.message;
   }
 });
 
 document.getElementById('btn-logout').addEventListener('click', async () => {
+  flushDraft();
   await api('/auth/logout', { method: 'POST' });
+  draftReady = false; draftCheckedFor = null; draftHasSaved = false;
+  currentWorkoutExercises = []; woPlanDay = ''; woEditing = null;
+  stopWorkoutTimer(); stopRest(false); renderWorkoutExercises();
   currentUser = null;
   showAuth();
 });
@@ -1340,6 +1347,12 @@ let woPlanDay = '';
 let woHistoryCache = [];
 let woEditing = null; // { ex, set }
 let woUid = 0;
+// autosave state (see 'Autosave of the in-progress workout')
+let draftReady = false;        // false until we've checked for a draft to restore (prevents wiping it on boot)
+let draftCheckedFor = null;
+let draftSyncTimer = null;
+let draftHasSaved = false;
+let draftPending = null;
 
 function esc(v) {
   return String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -1521,9 +1534,9 @@ function markPRs(ex) {
 // ---------- Workout clock ----------
 let workoutTimerId = null;
 let workoutStartedAt = null;
-function startWorkoutTimer() {
+function startWorkoutTimer(startedAt) {
   if (workoutTimerId) return;
-  workoutStartedAt = Date.now();
+  workoutStartedAt = startedAt || Date.now();
   const el = document.getElementById('wo-timer');
   workoutTimerId = setInterval(() => {
     const s = Math.floor((Date.now() - workoutStartedAt) / 1000);
@@ -1570,10 +1583,12 @@ function startRest(seconds, label = '') {
   rest = { endsAt: Date.now() + seconds * 1000, total: seconds, label };
   localStorage.setItem('fc-rest-active', JSON.stringify(rest));
   renderRest();
+  scheduleDraftSave();
 }
 function stopRest(done) {
   rest = null;
   localStorage.removeItem('fc-rest-active');
+  scheduleDraftSave();
   clearInterval(restTick); restTick = null;
   const bar = document.getElementById('wo-rest');
   if (!bar) return;
@@ -1613,6 +1628,7 @@ document.getElementById('wo-rest').addEventListener('click', (e) => {
   rest.total = Math.max(rest.total + Number(v), 1);
   localStorage.setItem('fc-rest-active', JSON.stringify(rest));
   renderRest();
+  scheduleDraftSave();
 });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && rest) renderRest(); });
 if (rest) renderRest();
@@ -1621,6 +1637,7 @@ if (rest) renderRest();
 const REST_OPTIONS = [0, 30, 45, 60, 75, 90, 120, 150, 180, 240, 300];
 
 function renderWorkoutExercises() {
+  scheduleDraftSave();
   const el = document.getElementById('wo-exercise-list');
   if (!currentWorkoutExercises.length) {
     el.innerHTML = '<div class="empty">Start a day from your plan below, or add an exercise to begin.</div>';
@@ -1843,6 +1860,7 @@ document.getElementById('btn-save-workout').addEventListener('click', async () =
         }))
       })
     });
+    clearWorkoutDraft();
     showWorkoutSummary({ name, durationMin, exercises: done });
     currentWorkoutExercises = [];
     woPlanDay = '';
@@ -2047,7 +2065,7 @@ function renderDayView() {
           <button type="button" class="btn btn-ghost btn-sm" data-dd-swap="${i}">Swap</button>
         </div>`).join('')}
     </div>
-    <p class="hint dd-hint">Drag ⠿ to reorder${v.routineId ? ' (saved to this routine)' : ' (applies when you start)'}.</p>
+    <p class="hint dd-hint">Drag ⠿ to reorder (saved${v.routineId ? ' to this routine' : ' for you'}).</p>
     <button type="button" class="btn btn-primary btn-block btn-lg dd-start" data-dd="start">Start Workout</button>`;
 }
 
@@ -2056,7 +2074,15 @@ document.getElementById('wo-routines').addEventListener('click', (e) => { const 
 
 async function persistDayOrder() {
   const v = woDayView;
-  if (!v || !v.routineId) return;
+  if (!v) return;
+  if (!v.routineId) {
+    try {
+      await api('/workouts/program-order', { method: 'PUT', body: JSON.stringify({ planDay: v.planDay, exercises: v.details.map((d) => d.name) }) });
+      const day = woPlanDays.get(v.planDay);
+      if (day) day.details = v.details.map((d) => ({ ...d }));
+    } catch (err) { toast(err.message); }
+    return;
+  }
   try {
     await api(`/workouts/routines/${v.routineId}`, {
       method: 'PUT',
@@ -2148,6 +2174,159 @@ function startDay(day) {
   window.scrollTo({ top: 0 });
   toast(`Started ${day.name}`);
 }
+
+// ---------- Autosave of the in-progress workout ----------
+// Every change writes the full session to localStorage (per user) right away, and a debounced
+// copy goes to the server (PUT /workouts/draft) so it survives reloads and device switches.
+const DRAFT_SYNC_MS = 3000;
+const DRAFT_STALE_MS = 24 * 60 * 60 * 1000;
+
+function draftKey() { return currentUser ? `fc-wo-draft:${currentUser.id || currentUser._id || currentUser.username}` : null; }
+
+function snapshotWorkout() {
+  if (!currentWorkoutExercises.length) return null;
+  return {
+    v: 1,
+    name: document.getElementById('wo-name').value,
+    date: document.getElementById('wo-date').value,
+    planDay: woPlanDay || '',
+    startedAt: workoutStartedAt || Date.now(),
+    rest: rest && rest.endsAt > Date.now() ? { ...rest } : null,
+    exercises: currentWorkoutExercises.map((e) => ({
+      exerciseId: e.exerciseId, exerciseName: e.exerciseName, pattern: e.pattern,
+      primaryMuscles: e.primaryMuscles, equipment: e.equipment, imageUrl: e.imageUrl, isLower: e.isLower,
+      repMin: e.repMin, repMax: e.repMax, restSec: e.restSec,
+      lastSets: e.lastSets, lastDate: e.lastDate, lastE1rm: e.lastE1rm, bestE1rm: e.bestE1rm, suggestion: e.suggestion,
+      touched: !!e.touched,
+      sets: e.sets.map((s) => ({ type: P.setType(s), weight: Number(s.weight) || 0, reps: Number(s.reps) || 0, logged: !!s.logged }))
+    }))
+  };
+}
+
+function readLocalDraft() {
+  const k = draftKey();
+  if (!k) return null;
+  try { const d = JSON.parse(localStorage.getItem(k) || 'null'); return d && d.data && Array.isArray(d.data.exercises) ? d : null; } catch { return null; }
+}
+
+function scheduleDraftSave() {
+  if (!draftReady || !currentUser) return;
+  const data = snapshotWorkout();
+  const k = draftKey();
+  if (!data) {
+    if (draftHasSaved) clearWorkoutDraft();
+    return;
+  }
+  const savedAt = new Date().toISOString();
+  try { localStorage.setItem(k, JSON.stringify({ data, savedAt })); } catch {}
+  draftHasSaved = true;
+  draftPending = { data, savedAt };
+  clearTimeout(draftSyncTimer);
+  draftSyncTimer = setTimeout(flushDraft, DRAFT_SYNC_MS);
+}
+
+function flushDraft(keepalive = false) {
+  clearTimeout(draftSyncTimer); draftSyncTimer = null;
+  if (!draftPending) return;
+  const body = JSON.stringify(draftPending);
+  draftPending = null;
+  fetch('/api/workouts/draft', { method: 'PUT', credentials: 'include', keepalive: keepalive && body.length < 60000, headers: { 'Content-Type': 'application/json' }, body }).catch(() => {});
+}
+
+function clearWorkoutDraft() {
+  const k = draftKey();
+  if (k) localStorage.removeItem(k);
+  clearTimeout(draftSyncTimer); draftSyncTimer = null; draftPending = null;
+  draftHasSaved = false;
+  fetch(`/api/workouts/draft?at=${encodeURIComponent(new Date().toISOString())}`, { method: 'DELETE', credentials: 'include' }).catch(() => {});
+}
+
+function resetWorkoutSession() {
+  currentWorkoutExercises = [];
+  woPlanDay = '';
+  woEditing = null;
+  document.getElementById('wo-name').value = '';
+  document.getElementById('btn-save-workout').disabled = true;
+  stopWorkoutTimer();
+  stopRest(false);
+  renderWorkoutExercises();
+}
+
+function applyDraft(d) {
+  currentWorkoutExercises = d.exercises.map((e) => ({
+    ...e, uid: ++woUid,
+    primaryMuscles: e.primaryMuscles || [], equipment: e.equipment || [], lastSets: e.lastSets || [],
+    sets: (e.sets || []).map((s) => ({ type: P.setType(s), weight: Number(s.weight) || 0, reps: Number(s.reps) || 0, logged: !!s.logged }))
+  }));
+  woPlanDay = d.planDay || '';
+  woEditing = null;
+  document.getElementById('wo-name').value = d.name || 'Workout';
+  document.getElementById('wo-date').value = d.date || todayStr();
+  document.getElementById('btn-save-workout').disabled = !currentWorkoutExercises.length;
+  stopWorkoutTimer();
+  startWorkoutTimer(Number(d.startedAt) || Date.now());
+  if (d.rest && d.rest.endsAt > Date.now()) {
+    rest = { endsAt: d.rest.endsAt, total: d.rest.total || 90, label: d.rest.label || '' };
+    localStorage.setItem('fc-rest-active', JSON.stringify(rest));
+    renderRest();
+  }
+  renderWorkoutExercises();
+}
+
+function draftTimeText(ms) {
+  const d = new Date(ms);
+  const sameDay = d.toDateString() === new Date().toDateString();
+  const t = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return sameDay ? t : `${d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}, ${t}`;
+}
+
+function showDraftBanner(html, buttons, autoHideMs) {
+  let el = document.getElementById('draft-toast');
+  if (!el) { el = document.createElement('div'); el.id = 'draft-toast'; el.className = 'draft-toast'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
+  el.innerHTML = `<span class="draft-msg">${html}</span>${buttons.map((b, i) => `<button type="button" class="btn btn-sm ${b.primary ? 'btn-primary' : 'btn-ghost'}" data-draft-btn="${i}">${b.label}</button>`).join('')}`;
+  el.hidden = false;
+  clearTimeout(el._t);
+  el.onclick = (e) => { const b = e.target.closest('[data-draft-btn]'); if (!b) return; el.hidden = true; buttons[Number(b.dataset.draftBtn)].run(); };
+  if (autoHideMs) el._t = setTimeout(() => { el.hidden = true; }, autoHideMs);
+}
+
+async function restoreWorkoutDraft() {
+  if (!currentUser) return;
+  const uid = currentUser.id || currentUser._id || currentUser.username;
+  if (draftCheckedFor === uid) return;
+  draftCheckedFor = uid;
+  draftReady = false;
+  const local = readLocalDraft();
+  let server = null; let clearedAt = null;
+  try { const r = await api('/workouts/draft'); server = r.draft; clearedAt = r.clearedAt; } catch {}
+  const t = (x) => (x ? new Date(x.savedAt).getTime() || 0 : 0);
+  let pick = t(server) >= t(local) ? server : local;
+  // finished or discarded on another device after this local copy was saved
+  if (pick === local && local && clearedAt && new Date(clearedAt).getTime() >= t(local)) { localStorage.removeItem(draftKey()); pick = null; }
+  if (pick && currentWorkoutExercises.some((e) => e.sets.some((s) => s.logged))) pick = null; // never clobber a live session
+  draftReady = true;
+  if (!pick || !pick.data.exercises.length) return;
+  draftHasSaved = true;
+  const when = draftTimeText(Number(pick.data.startedAt) || t(pick));
+  const discard = () => { clearWorkoutDraft(); resetWorkoutSession(); toast('Workout discarded'); };
+  if (Date.now() - t(pick) > DRAFT_STALE_MS) {
+    showDraftBanner(`Unfinished workout from ${esc(when)}. Resume or discard?`, [
+      { label: 'Resume', primary: true, run: () => { applyDraft(pick.data); toast('Workout resumed'); } },
+      { label: 'Discard', run: discard }
+    ]);
+    return;
+  }
+  applyDraft(pick.data);
+  if (pick === server && pick !== local) { try { localStorage.setItem(draftKey(), JSON.stringify(pick)); } catch {} }
+  showDraftBanner(`Resumed your workout from ${esc(when)}`, [{ label: 'Discard', run: discard }, { label: 'OK', primary: true, run: () => {} }], 10000);
+}
+
+['input', 'change'].forEach((ev) => {
+  document.getElementById('wo-name').addEventListener(ev, scheduleDraftSave);
+  document.getElementById('wo-date').addEventListener(ev, scheduleDraftSave);
+});
+window.addEventListener('pagehide', () => flushDraft(true));
+document.addEventListener('visibilitychange', () => { if (document.hidden) flushDraft(true); });
 
 document.getElementById('wo-program-focus').addEventListener('change', loadPlans);
 

@@ -3,6 +3,7 @@ const Exercise = require('../models/Exercise');
 const Routine = require("../models/Routine");
 const WorkoutLog = require('../models/WorkoutLog');
 const Settings = require('../models/Settings');
+const WorkoutDraft = require('../models/WorkoutDraft');
 const { requireAuth } = require('../middleware/auth');
 const P = require('../../client/lib/progression');
 
@@ -158,19 +159,98 @@ router.get('/programs', async (req, res) => {
     const focusName = (settings?.trainingFocus || [])[0];
     const range = P.rangeFor({ focus: focusName });
     const defaults = { sets: range.focus === 'strength' || range.focus === 'power' ? 4 : 3, low: range.low, high: range.high };
-    const lookup = await exerciseLookup(chosen.flatMap((p) => p.days.flatMap((d) => d.exercises)), req.session.userId);
+    const orders = settings?.programOrders || null;
+    const customNames = orders ? [...orders.values()].flat() : [];
+    const lookup = await exerciseLookup([...chosen.flatMap((p) => p.days.flatMap((d) => d.exercises)), ...customNames], req.session.userId);
     res.json(chosen.map((p) => ({
       ...p,
-      days: p.days.map((d, i) => ({
-        ...d,
-        number: i + 1,
-        planDay: `${p.id}:${d.name}`,
-        details: d.exercises.map((n) => detailFor(n, lookup.get(n.toLowerCase()), defaults))
-      }))
+      days: p.days.map((d, i) => {
+        const planDay = `${p.id}:${d.name}`;
+        const custom = orders && orders.get(planDay);
+        const exercises = custom && custom.length ? custom : d.exercises;
+        return {
+          ...d,
+          exercises,
+          customized: !!(custom && custom.length),
+          number: i + 1,
+          planDay,
+          details: exercises.map((n) => detailFor(n, lookup.get(n.toLowerCase()), defaults))
+        };
+      })
     })));
   } catch (err) {
     console.error(err);
     res.json(chosen);
+  }
+});
+
+// ---------- In-progress workout draft (autosave) ----------
+const MAX_DRAFT_BYTES = 200 * 1024;
+
+// GET /api/workouts/draft – the user's unfinished session, or { draft: null }
+router.get('/draft', async (req, res) => {
+  try {
+    const d = await WorkoutDraft.findOne({ user: req.session.userId }).lean();
+    if (!d || !d.data) return res.json({ draft: null, clearedAt: d ? d.savedAt : null });
+    res.json({ draft: { data: d.data, savedAt: d.savedAt } });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load draft' });
+  }
+});
+
+// PUT /api/workouts/draft { data, savedAt } – upsert unless the stored copy is newer
+router.put('/draft', async (req, res) => {
+  try {
+    const { data } = req.body || {};
+    if (!data || typeof data !== 'object' || Array.isArray(data) || !Array.isArray(data.exercises)) {
+      return res.status(400).json({ error: 'data.exercises array required' });
+    }
+    if (Buffer.byteLength(JSON.stringify(data)) > MAX_DRAFT_BYTES) return res.status(413).json({ error: 'Draft too large' });
+    const t = new Date(req.body.savedAt || Date.now());
+    const savedAt = Number.isNaN(t.getTime()) ? new Date() : new Date(Math.min(t.getTime(), Date.now() + 60000));
+    const existing = await WorkoutDraft.findOne({ user: req.session.userId }).lean();
+    if (existing && existing.savedAt > savedAt) {
+      return res.status(409).json({ error: 'A newer draft exists', stale: true, savedAt: existing.savedAt });
+    }
+    await WorkoutDraft.updateOne({ user: req.session.userId }, { $set: { data, savedAt } }, { upsert: true });
+    res.json({ ok: true, savedAt });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save draft' });
+  }
+});
+
+// DELETE /api/workouts/draft – clear (Finish/Discard); leaves a tombstone timestamp
+router.delete('/draft', async (req, res) => {
+  try {
+    const t = new Date(req.query.at || Date.now());
+    const savedAt = Number.isNaN(t.getTime()) ? new Date() : new Date(Math.min(t.getTime(), Date.now() + 60000));
+    await WorkoutDraft.updateOne({ user: req.session.userId }, { $set: { data: null, savedAt } }, { upsert: true });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to clear draft' });
+  }
+});
+
+// PUT /api/workouts/program-order { planDay, exercises: [names] } – remember a reordered/swapped program day
+router.put('/program-order', async (req, res) => {
+  try {
+    const planDay = String(req.body.planDay || '');
+    const [pid, ...rest] = planDay.split(':');
+    const prog = PROGRAMS.find((p) => p.id === pid);
+    const day = prog && prog.days.find((d) => d.name === rest.join(':'));
+    if (!day || /[.$]/.test(planDay)) return res.status(400).json({ error: 'Unknown program day' });
+    const list = Array.isArray(req.body.exercises) ? req.body.exercises : null;
+    const key = `programOrders.${planDay}`;
+    if (!list || !list.length) {
+      await Settings.updateOne({ user: req.session.userId }, { $unset: { [key]: 1 } });
+      return res.json({ planDay, exercises: day.exercises, reset: true });
+    }
+    const names = list.map((n) => String(n || '').trim().slice(0, 80)).filter(Boolean).slice(0, 20);
+    if (!names.length) return res.status(400).json({ error: 'exercises required' });
+    await Settings.findOneAndUpdate({ user: req.session.userId }, { $set: { [key]: names } }, { upsert: true, setDefaultsOnInsert: true });
+    res.json({ planDay, exercises: names });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save order' });
   }
 });
 

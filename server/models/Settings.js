@@ -11,6 +11,8 @@ const settingsSchema = new mongoose.Schema({
   interests: [{ type: String }],
   // Per-exercise rest timer in seconds, keyed by exercise id (or name for custom entries)
   restTimers: { type: Map, of: Number, default: undefined },
+  // Per-user exercise order (names) for suggested program days, keyed by planDay ("programId:Day name")
+  programOrders: { type: Map, of: [String], default: undefined },
   favoriteFoodIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Food' }],
   updatedAt: { type: Date, default: Date.now }
 });

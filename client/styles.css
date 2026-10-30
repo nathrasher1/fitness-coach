@@ -1832,3 +1832,26 @@ tr:last-child td { border-bottom: none; }
 .dd-row .btn { min-height: 40px; color: var(--main-text); font-weight: 700; }
 .dd-hint { margin-top: 8px; }
 .dd-start { margin-top: 12px; position: sticky; bottom: 12px; }
+
+/* Autosave resume banner */
+.draft-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 120;
+  width: min(560px, calc(100vw - 24px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 10px 10px 16px;
+  border-radius: 16px;
+  background: var(--nav);
+  color: #fff;
+  border-bottom: 3px solid var(--accent);
+  box-shadow: var(--shadow-md);
+}
+.draft-toast .draft-msg { flex: 1; font-weight: 600; font-size: 0.92rem; line-height: 1.3; }
+.draft-toast .btn { min-height: 40px; }
+.draft-toast .btn-ghost { color: var(--nav-text); }
+.draft-toast .btn-ghost:hover { color: #fff; background: rgba(255,255,255,0.12); }
