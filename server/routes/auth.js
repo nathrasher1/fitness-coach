@@ -106,7 +106,8 @@ router.get('/me', requireAuth, async (req, res) => {
         email: user.email,
         sex: user.sex,
         birthYear: user.birthYear,
-        heightCm: user.heightCm
+        heightCm: user.heightCm,
+        avatar: user.avatar || ''
       }
     });
   } catch (err) {

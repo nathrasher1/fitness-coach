@@ -4,7 +4,7 @@ const bodyMetricSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   date: { type: String, required: true }, // YYYY-MM-DD
   bodyFatPct: { type: Number, min: 1, max: 70 },
-  heightCm: { type: Number, min: 100, max: 250 },
+  heightCm: { type: Number, min: 40, max: 250 },
   // Circumference measurements in cm
   chestCm: { type: Number, min: 0 },
   shouldersCm: { type: Number, min: 0 },

@@ -1,4 +1,4 @@
-:root {
+:root, [data-theme="sage"] {
   --bg: #f6f3ee;
   --surface: #ffffff;
   --surface2: #f1eee8;
@@ -8,13 +8,51 @@
   --accent: #0f766e;
   --accent-hover: #0d5f59;
   --accent-soft: #d1fae5;
+  --nav: #1b2230;
+}
+[data-theme="ocean"] {
+  --bg: #eef5fb;
+  --surface: #ffffff;
+  --surface2: #e4eef7;
+  --border: #d5e4f0;
+  --text: #16324f;
+  --text-muted: #5b738a;
+  --accent: #1d4ed8;
+  --accent-hover: #1e40af;
+  --accent-soft: #dbeafe;
+  --nav: #12314d;
+}
+[data-theme="slate"] {
+  --bg: #f3f4f6;
+  --surface: #ffffff;
+  --surface2: #e5e7eb;
+  --border: #d1d5db;
+  --text: #111827;
+  --text-muted: #6b7280;
+  --accent: #374151;
+  --accent-hover: #1f2937;
+  --accent-soft: #e5e7eb;
+  --nav: #111827;
+}
+[data-theme="dark"] {
+  --bg: #111827;
+  --surface: #1f2937;
+  --surface2: #374151;
+  --border: #4b5563;
+  --text: #f9fafb;
+  --text-muted: #d1d5db;
+  --accent: #14b8a6;
+  --accent-hover: #0f766e;
+  --accent-soft: #134e4a;
+  --nav: #0b1220;
+}
+:root {
   --success: #16a34a;
   --warning: #d97706;
   --danger: #dc2626;
   --radius: 12px;
   --shadow: 0 1px 2px rgba(0,0,0,0.04);
   --shadow-md: 0 8px 24px rgba(0,0,0,0.06);
-  --nav: #1b2230;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -205,7 +243,17 @@ body {
   margin-left: 240px;
 }
 
-.nav-toggle { display: none; }
+.nav-toggle { display: inline-flex; font-size: 1.3rem; width: 40px; height: 40px; }
+.logo img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
+.profile-row { display: flex; gap: 14px; align-items: flex-start; }
+.avatar-presets { display: flex; gap: 8px; }
+.avatar-presets button {
+  width: 32px; height: 32px; border-radius: 8px; border: 2px solid transparent; cursor: pointer;
+}
+.photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 12px; }
+.photo-card { background: var(--surface2); border-radius: 10px; overflow: hidden; }
+.photo-card img { width: 100%; height: 140px; object-fit: cover; display: block; }
+.photo-card .meta { padding: 8px; font-size: 0.75rem; color: var(--text-muted); }
 
 @media (max-width: 768px) {
   .nav-toggle { display: inline-flex; }

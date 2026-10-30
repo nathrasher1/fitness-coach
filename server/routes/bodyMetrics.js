@@ -62,7 +62,7 @@ router.post('/', async (req, res) => {
     res.status(201).json(metric);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to save body metrics' });
+    res.status(500).json({ error: err.message || 'Failed to save body metrics' });
   }
 });
 

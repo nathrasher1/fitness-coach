@@ -65,6 +65,9 @@ function showApp() {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   document.getElementById('header-user').textContent = currentUser.displayName || currentUser.username;
+  paintAvatar(document.getElementById('header-avatar'), currentUser);
+  paintAvatar(document.getElementById('profile-avatar'), currentUser);
+  renderAvatarPresets();
 }
 
 document.getElementById('tab-login').addEventListener('click', () => {
@@ -157,6 +160,7 @@ document.getElementById('main-nav').addEventListener('click', (e) => {
   }
   if (btn.dataset.panel === 'body') {
     loadBodyMetrics();
+    loadProgressPhotos();
     if (!document.getElementById('bm-date').value) {
       document.getElementById('bm-date').value = todayStr();
     }
@@ -165,10 +169,15 @@ document.getElementById('main-nav').addEventListener('click', (e) => {
 });
 
 document.getElementById('nav-toggle').addEventListener('click', () => {
-  document.getElementById('main-nav').classList.toggle('open');
+  const nav = document.getElementById('main-nav');
+  const open = nav.classList.toggle('open');
+  document.getElementById('nav-toggle').textContent = open ? '×' : '☰';
 });
 document.getElementById('main-nav').addEventListener('click', (e) => {
-  if (e.target.closest('button')) document.getElementById('main-nav').classList.remove('open');
+  if (e.target.closest('button')) {
+    document.getElementById('main-nav').classList.remove('open');
+    document.getElementById('nav-toggle').textContent = '☰';
+  }
 });
 document.getElementById('avg-period-tabs').addEventListener('click', (e) => {
   const btn = e.target.closest('button');
@@ -237,6 +246,10 @@ function selectedFocus() {
   return Array.from(document.querySelectorAll('.focus-check:checked')).map((el) => el.value);
 }
 
+function applyTheme(name) {
+  document.documentElement.dataset.theme = name || 'sage';
+}
+
 function selectedInterests() {
   return Array.from(document.querySelectorAll('.interest-check:checked')).map((el) => el.value);
 }
@@ -252,6 +265,9 @@ async function loadSettings() {
     if (days) days.value = settings.calAvgDays || 14;
     const length = document.getElementById('length-unit');
     if (length) length.value = settings.lengthUnit || 'in';
+    const theme = document.getElementById('theme-pref');
+    if (theme) theme.value = settings.theme || 'sage';
+    applyTheme(settings.theme || 'sage');
     renderInterestChecks();
     renderTrainingFocus();
     renderRecommendedLifts();
@@ -269,6 +285,7 @@ document.getElementById('btn-save-settings').addEventListener('click', async () 
         foodWeightUnit: document.getElementById('food-weight-unit')?.value || 'g',
         calAvgDays: parseInt(document.getElementById('cal-avg-days').value, 10),
         lengthUnit: document.getElementById('length-unit')?.value || 'in',
+        theme: document.getElementById('theme-pref')?.value || 'sage',
         interests: selectedInterests(),
         trainingFocus: selectedFocus()
       })
@@ -1119,25 +1136,17 @@ async function loadQuickAdd() {
       });
     }
 
-    const recentEl = document.getElementById('recent-chips');
+    const recentEl = document.getElementById('recent-select');
     if (!recent.length) {
-      recentEl.innerHTML = '<div class="chip-empty">Foods you log will appear here</div>';
+      recentEl.innerHTML = '<option value="">No recent foods yet</option>';
     } else {
-      recentEl.innerHTML = recent
-        .map(
-          (f) => `
-        <button class="chip" data-id="${f._id}">
-          ${f.name}
-          <span class="chip-cal">${f.calories != null ? f.calories + ' kcal' : ''}</span>
-        </button>`
-        )
+      recentEl.innerHTML = '<option value="">Choose a recent food</option>' + recent
+        .map((f) => `<option value="${f._id}">${f.name}${f.calories != null ? ' · ' + f.calories + ' kcal' : ''}</option>`)
         .join('');
-      recentEl.querySelectorAll('.chip').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const food = recent.find((f) => f._id === btn.dataset.id);
-          if (food) selectFoodForLog(food);
-        });
-      });
+      recentEl.onchange = () => {
+        const food = recent.find((f) => f._id === recentEl.value);
+        if (food) selectFoodForLog(food);
+      };
     }
   } catch (err) {
     console.error(err);
@@ -1693,12 +1702,14 @@ document.getElementById('length-unit').addEventListener('change', async () => {
       foodWeightUnit: settings.foodWeightUnit || 'g',
       calAvgDays: settings.calAvgDays || 14,
       lengthUnit: settings.lengthUnit,
+      theme: settings.theme || 'sage',
       interests: settings.interests || [],
       trainingFocus: settings.trainingFocus || []
     })
   });
   loadBodyMetrics();
 });
+const CM_PER_IN = 2.54;
 function lengthUnit() { return settings.lengthUnit || 'in'; }
 function toCm(value) {
   const n = Number(value);
@@ -1743,6 +1754,102 @@ document.getElementById('btn-save-body').addEventListener('click', async () => {
   } catch (err) {
     toast(err.message);
   }
+});
+
+function compressImage(file, max = 800) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', 0.7));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+function paintAvatar(target, user) {
+  if (!target) return;
+  if (user?.avatar && user.avatar.startsWith('data:')) {
+    target.innerHTML = `<img src="${user.avatar}" alt="" />`;
+    target.style.background = 'transparent';
+  } else if (user?.avatar && user.avatar.startsWith('#')) {
+    target.textContent = (user.displayName || user.username || 'FC').slice(0, 2).toUpperCase();
+    target.style.background = user.avatar;
+  } else {
+    target.textContent = (user?.displayName || user?.username || 'FC').slice(0, 2).toUpperCase();
+  }
+}
+
+const AVATAR_COLORS = ['#0f766e', '#1d4ed8', '#b45309', '#be123c', '#374151'];
+function renderAvatarPresets() {
+  const box = document.getElementById('avatar-presets');
+  if (!box) return;
+  box.innerHTML = AVATAR_COLORS.map((c) => `<button type="button" data-color="${c}" style="background:${c}"></button>`).join('');
+  box.querySelectorAll('button').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const data = await api('/profile/avatar', { method: 'PUT', body: JSON.stringify({ avatar: btn.dataset.color }) });
+      currentUser.avatar = data.avatar;
+      paintAvatar(document.getElementById('header-avatar'), currentUser);
+      paintAvatar(document.getElementById('profile-avatar'), currentUser);
+    });
+  });
+}
+
+async function loadProgressPhotos() {
+  const list = document.getElementById('photo-list');
+  if (!list) return;
+  const photos = await api('/profile/photos');
+  if (!photos.length) {
+    list.innerHTML = '<div class="empty">No progress photos yet.</div>';
+    return;
+  }
+  list.innerHTML = photos.map((p) => `
+    <div class="photo-card">
+      <img src="${p.image}" alt="" />
+      <div class="meta">${p.date}${p.note ? ' · ' + p.note : ''} <button class="btn btn-danger btn-sm" data-id="${p._id}">×</button></div>
+    </div>`).join('');
+  list.querySelectorAll('[data-id]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      await api(`/profile/photos/${btn.dataset.id}`, { method: 'DELETE' });
+      loadProgressPhotos();
+    });
+  });
+}
+
+document.getElementById('avatar-file').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const avatar = await compressImage(file, 400);
+  const data = await api('/profile/avatar', { method: 'PUT', body: JSON.stringify({ avatar }) });
+  currentUser.avatar = data.avatar;
+  paintAvatar(document.getElementById('header-avatar'), currentUser);
+  paintAvatar(document.getElementById('profile-avatar'), currentUser);
+  toast('Profile photo saved');
+});
+
+document.getElementById('btn-save-photo').addEventListener('click', async () => {
+  const file = document.getElementById('photo-file').files[0];
+  if (!file) return toast('Choose a photo first');
+  const image = await compressImage(file);
+  await api('/profile/photos', {
+    method: 'POST',
+    body: JSON.stringify({
+      image,
+      date: document.getElementById('photo-date').value || todayStr(),
+      note: document.getElementById('photo-note').value
+    })
+  });
+  document.getElementById('photo-file').value = '';
+  document.getElementById('photo-note').value = '';
+  toast('Photo saved');
+  loadProgressPhotos();
 });
 
 async function loadBodyMetrics() {

@@ -43,14 +43,14 @@
   <!-- ========== MAIN APP ========== -->
   <div id="app" class="app" style="display:none">
     <header class="topbar">
+      <button type="button" class="btn btn-ghost nav-toggle" id="nav-toggle" aria-label="Menu">☰</button>
       <div class="brand">
-        <span class="logo">FC</span>
+        <span class="logo" id="header-avatar">FC</span>
         <div>
           <div class="brand-title">Fitness Coach</div>
           <div class="brand-user" id="header-user"></div>
         </div>
       </div>
-      <button type="button" class="btn btn-ghost nav-toggle" id="nav-toggle" aria-label="Menu">☰</button>
       <button id="btn-logout" class="btn btn-ghost">Log out</button>
     </header>
 
@@ -253,6 +253,23 @@
         </div>
 
         <div class="card">
+          <h2>Progress photos</h2>
+          <div class="grid-2">
+            <div class="form-row">
+              <label for="photo-date">Date</label>
+              <input type="date" id="photo-date" />
+            </div>
+            <div class="form-row">
+              <label for="photo-note">Note</label>
+              <input type="text" id="photo-note" placeholder="Morning, front, etc." />
+            </div>
+          </div>
+          <input type="file" id="photo-file" accept="image/*" />
+          <button class="btn btn-secondary btn-block" id="btn-save-photo" style="margin-top:10px">Save Photo</button>
+          <div id="photo-list" class="photo-grid"></div>
+        </div>
+
+        <div class="card">
           <h2>Latest Snapshot</h2>
           <div id="bm-latest"></div>
         </div>
@@ -290,8 +307,10 @@
             <div id="favorites-chips" class="chip-row"></div>
           </div>
           <div class="form-row">
-            <label>Recent</label>
-            <div id="recent-chips" class="chip-row"></div>
+            <label for="recent-select">Recent</label>
+            <select id="recent-select">
+              <option value="">Choose a recent food</option>
+            </select>
           </div>
           <div class="form-row">
             <label for="food-meal">Meal</label>
@@ -490,6 +509,15 @@
         <div class="card">
           <h2>Preferences</h2>
           <div class="form-row">
+            <label for="theme-pref">Color theme</label>
+            <select id="theme-pref">
+              <option value="sage">Sage</option>
+              <option value="ocean">Ocean</option>
+              <option value="slate">Slate</option>
+              <option value="dark">Dark</option>
+            </select>
+          </div>
+          <div class="form-row">
             <label for="unit-pref">Body weight unit</label>
             <select id="unit-pref">
               <option value="lbs">Pounds (lbs)</option>
@@ -509,6 +537,21 @@
             <div id="training-focus" style="display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:6px"></div>
           </div>
           <button class="btn btn-primary" id="btn-save-settings">Save Settings</button>
+        </div>
+
+        <div class="card">
+          <h2>Profile</h2>
+          <div class="profile-row">
+            <div id="profile-avatar" class="logo">FC</div>
+            <div style="flex:1">
+              <div class="form-row">
+                <label>Avatar color</label>
+                <div id="avatar-presets" class="avatar-presets"></div>
+              </div>
+              <label for="avatar-file">Or upload a photo</label>
+              <input type="file" id="avatar-file" accept="image/*" />
+            </div>
+          </div>
         </div>
 
         <div class="card">

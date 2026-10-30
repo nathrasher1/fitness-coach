@@ -33,6 +33,7 @@ const userSchema = new mongoose.Schema({
   sex: { type: String, enum: ['male', 'female', 'other', ''], default: '' },
   birthYear: { type: Number, min: 1920, max: 2020 },
   heightCm: { type: Number, min: 100, max: 250 },
+  avatar: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now }
 });
 

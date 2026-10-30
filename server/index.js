@@ -31,7 +31,7 @@ app.use(cors({
   origin: true,
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '8mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use(session({
@@ -63,6 +63,7 @@ app.use('/api/body-metrics', bodyMetricRoutes);
 app.use('/api/workouts', workoutRoutes);
 app.use('/api/shares', shareRoutes);
 app.use('/api/recipes', recipeRoutes);
+app.use('/api/profile', require('./routes/profile'));
 
 // ---------- Static frontend ----------
 app.use(express.static(path.join(__dirname, '../client')));

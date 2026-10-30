@@ -6,6 +6,7 @@ const settingsSchema = new mongoose.Schema({
   foodWeightUnit: { type: String, enum: ['g', 'oz'], default: 'g' },
   calAvgDays: { type: Number, enum: [7, 14, 30], default: 14 },
   lengthUnit: { type: String, enum: ['cm', 'in'], default: 'in' },
+  theme: { type: String, default: 'sage' },
   trainingFocus: [{ type: String }],
   interests: [{ type: String }],
   favoriteFoodIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Food' }],
