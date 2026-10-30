@@ -151,8 +151,9 @@ document.getElementById('main-nav').addEventListener('click', (e) => {
   if (btn.dataset.panel === 'goals') loadGoal();
   if (btn.dataset.panel === 'calendar') loadCalendar();
   if (btn.dataset.panel === 'workouts') {
-    loadPrograms();
+    loadPlans();
     loadWorkoutHistory();
+    renderWorkoutExercises();
     renderRecommendedLifts();
     if (!document.getElementById('wo-date').value) {
       document.getElementById('wo-date').value = todayStr();
@@ -1284,7 +1285,7 @@ function renderRecommendedLifts() {
       const found = await api(`/workouts/exercises?q=${encodeURIComponent(btn.dataset.lift)}`);
       const match = found.find((ex) => ex.name.toLowerCase() === btn.dataset.lift.toLowerCase()) || found[0];
       if (!match) return toast('Exercise not in the library yet');
-      addExerciseToWorkout(match._id, match.name);
+      addExerciseToWorkout({ ...match, exerciseId: match._id, exerciseName: match.name });
     });
   });
 }
@@ -1312,7 +1313,7 @@ async function searchExercises(q) {
     el.innerHTML = exercises
       .map(
         (ex) => `
-      <div class="search-item" data-id="${ex._id}" data-name="${ex.name}" data-pattern="${ex.pattern || ''}">
+      <div class="search-item" data-idx="${exercises.indexOf(ex)}" data-id="${ex._id}" data-name="${esc(ex.name)}" data-pattern="${ex.pattern || ''}">
         <div>${ex.name}</div>
         <div class="meta">${ex.pattern || ''} · ${(ex.equipment || []).join(', ')}</div>
       </div>`
@@ -1321,7 +1322,8 @@ async function searchExercises(q) {
     el.classList.add('open');
     el.querySelectorAll('.search-item').forEach((item) => {
       item.addEventListener('click', () => {
-        addExerciseToWorkout(item.dataset.id, item.dataset.name);
+        const picked = exercises[Number(item.dataset.idx)];
+        addExerciseToWorkout(picked ? { ...picked, exerciseId: picked._id, exerciseName: picked.name } : { exerciseId: item.dataset.id, exerciseName: item.dataset.name });
         el.classList.remove('open');
         document.getElementById('wo-ex-search').value = '';
       });
@@ -1331,41 +1333,192 @@ async function searchExercises(q) {
   }
 }
 
-function addExerciseToWorkout(id, name) {
-  const entry = {
-    exerciseId: id,
-    exerciseName: name,
-    suggestion: '',
-    previous: [],
-    sets: [{ weight: 0, reps: 8, logged: false }]
+// ========== Workouts v2: set grid, set types, rest timer, progression, plan cards ==========
+const P = window.Progression;
+let currentWorkoutExercises = [];
+let woPlanDay = '';
+let woHistoryCache = [];
+let woEditing = null; // { ex, set }
+let woUid = 0;
+
+function esc(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function woUnit() { return settings.unit === 'kg' ? 'kg' : 'lbs'; }
+function woUnitLabel() { return settings.unit === 'kg' ? 'kg' : 'lb'; }
+function woDisp(lbs) { return P.displayLoad(Number(lbs) || 0, woUnit()); }
+function woToLbs(v) { return woUnit() === 'kg' ? Number(v) * P.LB_PER_KG : Number(v); }
+function woStep() { return woUnit() === 'kg' ? 2.5 : 5; }
+function woFocus() { return (settings.trainingFocus || [])[0] || 'hypertrophy'; }
+function restKey(ex) { return String(ex.exerciseId || ex.exerciseName || '').toLowerCase().replace(/[.$]/g, '_'); }
+function fmtClock(sec) {
+  const s = Math.max(0, Math.round(sec));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+function daysAgoText(date) {
+  if (!date) return 'Not done yet';
+  const d = Math.round((new Date(todayStr() + 'T12:00:00') - new Date(date + 'T12:00:00')) / 86400000);
+  if (d <= 0) return 'Last done today';
+  if (d === 1) return 'Last done yesterday';
+  return `Last done ${d} days ago`;
+}
+
+// ---------- Body map ----------
+const MUSCLE_REGIONS = {
+  chest: ['chest'], pecs: ['chest'],
+  shoulders: ['delts-f', 'delts-b'], delts: ['delts-f', 'delts-b'], 'rear delts': ['delts-b'],
+  triceps: ['triceps'], biceps: ['biceps'], forearms: ['forearms'], grip: ['forearms'],
+  core: ['abs'], abs: ['abs'], obliques: ['abs'],
+  quads: ['quads'], adductors: ['quads'], hamstrings: ['hams'], glutes: ['glutes'], calves: ['calves'],
+  back: ['lats', 'lowback'], lats: ['lats'], 'upper back': ['traps'], traps: ['traps'], 'lower back': ['lowback'],
+  legs: ['quads', 'hams', 'glutes', 'calves'],
+  'full body': ['quads', 'hams', 'glutes', 'lats', 'delts-f', 'delts-b', 'abs', 'traps']
+};
+const PATTERN_REGIONS = {
+  horizontal_push: ['chest', 'triceps', 'delts-f'], vertical_push: ['delts-f', 'triceps'],
+  horizontal_pull: ['lats', 'traps', 'biceps'], vertical_pull: ['lats', 'biceps'],
+  squat: ['quads', 'glutes'], hinge: ['hams', 'glutes', 'lowback'], lunge: ['quads', 'glutes'],
+  carry: ['forearms', 'traps', 'abs'], core: ['abs'], olympic: ['quads', 'glutes', 'traps', 'hams']
+};
+function regionsFor(details) {
+  const set = new Set();
+  (details || []).forEach((d) => {
+    const muscles = (d.primaryMuscles || []).map((m) => String(m).toLowerCase());
+    let hit = false;
+    muscles.forEach((m) => (MUSCLE_REGIONS[m] || []).forEach((r) => { set.add(r); hit = true; }));
+    if (!hit) (PATTERN_REGIONS[d.pattern] || []).forEach((r) => set.add(r));
+  });
+  return set;
+}
+function bodyMapSvg(details, cls = '') {
+  const on = regionsFor(details);
+  const r = (key, shape) => `<g class="${on.has(key) ? 'bm-on' : 'bm-off'}">${shape}</g>`;
+  const fig = (dx) => `
+    <circle cx="${30 + dx}" cy="9" r="6"/>
+    <rect x="${27 + dx}" y="14" width="6" height="4"/>
+    <rect x="${18 + dx}" y="17" width="24" height="30" rx="6"/>
+    <rect x="${19 + dx}" y="44" width="22" height="10" rx="4"/>
+    <rect x="${11 + dx}" y="19" width="6" height="17" rx="3"/><rect x="${43 + dx}" y="19" width="6" height="17" rx="3"/>
+    <rect x="${9 + dx}" y="35" width="6" height="17" rx="3"/><rect x="${45 + dx}" y="35" width="6" height="17" rx="3"/>
+    <rect x="${19.5 + dx}" y="52" width="10" height="27" rx="4.5"/><rect x="${30.5 + dx}" y="52" width="10" height="27" rx="4.5"/>
+    <rect x="${20.5 + dx}" y="78" width="8" height="25" rx="3.5"/><rect x="${31.5 + dx}" y="78" width="8" height="25" rx="3.5"/>`;
+  const front = [
+    r('delts-f', '<ellipse cx="16" cy="21" rx="4.6" ry="4"/><ellipse cx="44" cy="21" rx="4.6" ry="4"/>'),
+    r('chest', '<path d="M20.5,21.5 Q25,19 29.5,20.5 L29.5,30 Q24,32 20.5,28.5 Z"/><path d="M39.5,21.5 Q35,19 30.5,20.5 L30.5,30 Q36,32 39.5,28.5 Z"/>'),
+    r('biceps', '<ellipse cx="14" cy="28" rx="2.8" ry="6"/><ellipse cx="46" cy="28" rx="2.8" ry="6"/>'),
+    r('forearms', '<ellipse cx="12" cy="43" rx="2.6" ry="6.5"/><ellipse cx="48" cy="43" rx="2.6" ry="6.5"/>'),
+    r('abs', '<rect x="25" y="32" width="10" height="14" rx="2.5"/><ellipse cx="21.6" cy="38" rx="2.3" ry="6"/><ellipse cx="38.4" cy="38" rx="2.3" ry="6"/>'),
+    r('quads', '<ellipse cx="24.5" cy="64" rx="4.4" ry="10.5"/><ellipse cx="35.5" cy="64" rx="4.4" ry="10.5"/>'),
+    r('calves', '<ellipse cx="24.5" cy="88" rx="2.6" ry="8"/><ellipse cx="35.5" cy="88" rx="2.6" ry="8"/>')
+  ].join('');
+  const back = [
+    r('traps', '<path d="M84,17.5 Q90,14.5 96,17.5 L94,24 Q90,26 86,24 Z"/>'),
+    r('delts-b', '<ellipse cx="76" cy="21" rx="4.6" ry="4"/><ellipse cx="104" cy="21" rx="4.6" ry="4"/>'),
+    r('lats', '<path d="M79.5,24 Q84.5,23 89.3,27 L89.3,38 Q84,40 80.5,34 Z"/><path d="M100.5,24 Q95.5,23 90.7,27 L90.7,38 Q96,40 99.5,34 Z"/>'),
+    r('lowback', '<rect x="86" y="37.5" width="8" height="8.5" rx="2"/>'),
+    r('triceps', '<ellipse cx="74" cy="28" rx="2.8" ry="6"/><ellipse cx="106" cy="28" rx="2.8" ry="6"/>'),
+    r('forearms', '<ellipse cx="72" cy="43" rx="2.6" ry="6.5"/><ellipse cx="108" cy="43" rx="2.6" ry="6.5"/>'),
+    r('glutes', '<ellipse cx="85.2" cy="50.5" rx="4.9" ry="5"/><ellipse cx="94.8" cy="50.5" rx="4.9" ry="5"/>'),
+    r('hams', '<ellipse cx="84.5" cy="66" rx="4.2" ry="9.5"/><ellipse cx="95.5" cy="66" rx="4.2" ry="9.5"/>'),
+    r('calves', '<ellipse cx="84.5" cy="87" rx="3.1" ry="8"/><ellipse cx="95.5" cy="87" rx="3.1" ry="8"/>')
+  ].join('');
+  const names = [...on].map((k) => k.replace(/-[fb]$/, '')).filter((v, i, a) => a.indexOf(v) === i);
+  return `<svg class="body-map ${cls}" viewBox="0 0 120 105" role="img" aria-label="Muscles worked: ${esc(names.join(', ') || 'none')}">
+    <g class="bm-base">${fig(0)}${fig(60)}</g>${front}${back}</svg>`;
+}
+
+function exThumb(ex, size = '') {
+  if (ex.imageUrl) return `<img class="ex-thumb ${size}" src="${esc(ex.imageUrl)}" alt="" loading="lazy" />`;
+  const eq = (ex.equipment || [])[0] || '';
+  const icons = {
+    barbell: '<rect x="4" y="15" width="32" height="2.4" rx="1"/><rect x="7" y="9" width="3.4" height="14" rx="1"/><rect x="29.6" y="9" width="3.4" height="14" rx="1"/><rect x="3" y="11.5" width="3" height="9" rx="1"/><rect x="34" y="11.5" width="3" height="9" rx="1"/>',
+    dumbbell: '<rect x="11" y="15" width="18" height="2.6" rx="1"/><rect x="7" y="10" width="5" height="12.6" rx="1.5"/><rect x="28" y="10" width="5" height="12.6" rx="1.5"/>',
+    kettlebell: '<path d="M14 12 Q20 3 26 12" fill="none" stroke-width="2.6"/><circle cx="20" cy="20" r="8"/>',
+    cable: '<rect x="18.8" y="3" width="2.4" height="16"/><circle cx="20" cy="22" r="4"/><rect x="12" y="25" width="16" height="3" rx="1.5"/>',
+    machine: '<rect x="8" y="5" width="4" height="24" rx="1"/><rect x="12" y="12" width="16" height="4" rx="1"/><rect x="24" y="16" width="4" height="13" rx="1"/>'
   };
+  const pick = icons[eq] || icons[{ trap_bar: 'barbell', safety_bar: 'barbell', machine: 'machine', cable: 'cable' }[eq]] || null;
+  if (pick) return `<span class="ex-thumb ${size}" aria-hidden="true"><svg viewBox="0 0 40 32">${pick}</svg></span>`;
+  const initials = String(ex.exerciseName || ex.name || '?').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+  return `<span class="ex-thumb ${size} ex-thumb-text" aria-hidden="true">${esc(initials)}</span>`;
+}
+
+// ---------- Session state ----------
+function makeEntry(info) {
+  const repMin = Number(info.repMin) || null;
+  const repMax = Number(info.repMax) || null;
+  const range = P.rangeFor({ focus: woFocus(), repMin, repMax });
+  const targetReps = Number(info.targetReps) || range.low;
+  const targetSets = Number(info.targetSets) || 3;
+  const cachedRest = Number(localStorage.getItem('fc-rest:' + restKey(info)));
+  return {
+    uid: ++woUid,
+    exerciseId: info.exerciseId || info._id || null,
+    exerciseName: info.exerciseName || info.name,
+    pattern: info.pattern || '',
+    primaryMuscles: info.primaryMuscles || [],
+    equipment: info.equipment || [],
+    imageUrl: info.imageUrl || '',
+    isLower: info.isLower,
+    repMin, repMax,
+    restSec: Number.isFinite(Number(info.restSec)) && info.restSec != null ? Number(info.restSec)
+      : (Number.isFinite(cachedRest) && localStorage.getItem('fc-rest:' + restKey(info)) != null ? cachedRest : 90),
+    lastSets: [], lastDate: null, lastE1rm: 0, bestE1rm: 0, suggestion: null,
+    touched: false,
+    sets: Array.from({ length: targetSets }, () => ({ type: 'working', weight: Number(info.targetWeight) || 0, reps: targetReps, logged: false }))
+  };
+}
+
+function addExerciseToWorkout(idOrInfo, maybeName) {
+  const info = typeof idOrInfo === 'object' && idOrInfo ? idOrInfo : { exerciseId: idOrInfo, exerciseName: maybeName };
+  const entry = makeEntry(info);
   currentWorkoutExercises.push(entry);
   renderWorkoutExercises();
   document.getElementById('btn-save-workout').disabled = false;
   startWorkoutTimer();
-  loadSuggestion(currentWorkoutExercises.length - 1);
+  loadSuggestion(entry.uid);
+  return entry;
 }
 
-async function loadSuggestion(idx) {
-  const ex = currentWorkoutExercises[idx];
+async function loadSuggestion(uid) {
+  const ex = currentWorkoutExercises.find((e) => e.uid === uid);
   if (!ex) return;
+  const q = new URLSearchParams();
+  if (ex.exerciseId) q.set('exerciseId', ex.exerciseId);
+  q.set('name', ex.exerciseName);
+  if (ex.repMin) q.set('repMin', ex.repMin);
+  if (ex.repMax) q.set('repMax', ex.repMax);
   try {
-    const data = await api(`/workouts/suggest-load?exerciseId=${encodeURIComponent(ex.exerciseId)}`);
-    ex.previous = data.lastSets || [];
-    if (data.ready && data.suggestion) {
-      ex.sets[0].weight = data.suggestion.weight || 0;
-      ex.sets[0].reps = data.suggestion.reps || 8;
-      ex.suggestion = `Target ${data.suggestion.weight} × ${data.suggestion.reps}`;
-    } else {
-      ex.suggestion = 'No history yet';
+    const data = await api(`/workouts/suggest-load?${q}`);
+    if (!currentWorkoutExercises.includes(ex)) return;
+    ex.lastSets = data.lastSets || [];
+    ex.lastDate = data.lastDate || null;
+    ex.lastE1rm = data.lastE1rm || 0;
+    ex.bestE1rm = data.bestE1rm || 0;
+    ex.suggestion = data.suggestion || null;
+    if (ex.isLower == null) ex.isLower = data.isLower;
+    if (data.restSec != null && localStorage.getItem('fc-rest:' + restKey(ex)) == null) ex.restSec = data.restSec;
+    if (data.ready && ex.lastSets.length && !ex.touched) {
+      ex.sets = P.prefillFromLast(ex.lastSets, data.suggestion, woUnit());
     }
     renderWorkoutExercises();
   } catch (err) {
-    ex.suggestion = '';
+    ex.suggestion = null;
     renderWorkoutExercises();
   }
 }
 
+function markPRs(ex) {
+  let running = ex.bestE1rm || 0;
+  ex.sets.forEach((s) => {
+    s.pr = false;
+    if (!s.logged || !P.isWorking(s)) return;
+    const v = P.e1rm(s.weight, s.reps);
+    if (ex.bestE1rm > 0 && Math.round(v) > Math.round(running)) { s.pr = true; running = v; }
+  });
+}
+
+// ---------- Workout clock ----------
 let workoutTimerId = null;
 let workoutStartedAt = null;
 function startWorkoutTimer() {
@@ -1374,9 +1527,7 @@ function startWorkoutTimer() {
   const el = document.getElementById('wo-timer');
   workoutTimerId = setInterval(() => {
     const s = Math.floor((Date.now() - workoutStartedAt) / 1000);
-    const m = String(Math.floor(s / 60)).padStart(2, '0');
-    const sec = String(s % 60).padStart(2, '0');
-    if (el) el.textContent = `${m}:${sec}`;
+    if (el) el.textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
   }, 1000);
 }
 function stopWorkoutTimer() {
@@ -1387,155 +1538,282 @@ function stopWorkoutTimer() {
   if (el) el.textContent = '00:00';
 }
 
-let restTimerId = null;
-function startRest(seconds) {
-  clearInterval(restTimerId);
-  const banner = document.getElementById('wo-rest');
-  let left = seconds;
-  const tick = () => {
-    if (!banner) return;
-    banner.style.display = 'flex';
-    banner.innerHTML = `<span>Rest ${left}s</span><button type="button" class="btn btn-secondary btn-sm" id="rest-skip">Skip</button>`;
-    const skip = document.getElementById('rest-skip');
-    if (skip) skip.onclick = () => { clearInterval(restTimerId); banner.style.display = 'none'; };
-  };
-  tick();
-  restTimerId = setInterval(() => {
-    left -= 1;
-    if (left <= 0) {
-      clearInterval(restTimerId);
-      if (banner) banner.style.display = 'none';
-      return;
-    }
-    tick();
-  }, 1000);
+// ---------- Rest timer (timestamp based so it survives backgrounding) ----------
+let rest = JSON.parse(localStorage.getItem('fc-rest-active') || 'null');
+let restTick = null;
+let audioCtx = null;
+function unlockAudio() {
+  try {
+    if (!audioCtx && (window.AudioContext || window.webkitAudioContext)) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  } catch { audioCtx = null; }
 }
+function restChime() {
+  try { if (navigator.vibrate) navigator.vibrate([180, 90, 180]); } catch {}
+  try {
+    if (!audioCtx) return;
+    [0, 0.28].forEach((t) => {
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = 'sine'; o.frequency.value = 880;
+      const at = audioCtx.currentTime + t;
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.exponentialRampToValueAtTime(0.12, at + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + 0.22);
+      o.connect(g).connect(audioCtx.destination);
+      o.start(at); o.stop(at + 0.25);
+    });
+  } catch {}
+}
+function startRest(seconds, label = '') {
+  if (!(seconds > 0)) return;
+  rest = { endsAt: Date.now() + seconds * 1000, total: seconds, label };
+  localStorage.setItem('fc-rest-active', JSON.stringify(rest));
+  renderRest();
+}
+function stopRest(done) {
+  rest = null;
+  localStorage.removeItem('fc-rest-active');
+  clearInterval(restTick); restTick = null;
+  const bar = document.getElementById('wo-rest');
+  if (!bar) return;
+  if (done) {
+    bar.hidden = false;
+    bar.className = 'rest-bar rest-done';
+    bar.innerHTML = '<span class="rest-time">Rest over</span><span class="rest-label">Next set when ready</span><button type="button" class="rest-btn" data-rest="close">OK</button>';
+    setTimeout(() => { if (!rest) bar.hidden = true; }, 4000);
+  } else {
+    bar.hidden = true;
+  }
+}
+function renderRest() {
+  const bar = document.getElementById('wo-rest');
+  if (!bar) return;
+  if (!rest) { bar.hidden = true; return; }
+  const left = (rest.endsAt - Date.now()) / 1000;
+  if (left <= 0) { restChime(); stopRest(true); return; }
+  bar.hidden = false;
+  bar.className = 'rest-bar';
+  const pct = Math.max(0, Math.min(100, (left / rest.total) * 100));
+  bar.innerHTML = `
+    <div class="rest-progress" style="width:${pct}%"></div>
+    <div class="rest-info"><span class="rest-time">${fmtClock(left)}</span><span class="rest-label">Rest${rest.label ? ' · ' + esc(rest.label) : ''}</span></div>
+    <button type="button" class="rest-btn" data-rest="-15" aria-label="Subtract 15 seconds">−15s</button>
+    <button type="button" class="rest-btn" data-rest="15" aria-label="Add 15 seconds">+15s</button>
+    <button type="button" class="rest-btn rest-skip" data-rest="skip">Skip</button>`;
+  if (!restTick) restTick = setInterval(renderRest, 250);
+}
+document.getElementById('wo-rest').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-rest]');
+  if (!b) return;
+  const v = b.dataset.rest;
+  if (v === 'skip' || v === 'close') return stopRest(false);
+  if (!rest) return;
+  rest.endsAt += Number(v) * 1000;
+  rest.total = Math.max(rest.total + Number(v), 1);
+  localStorage.setItem('fc-rest-active', JSON.stringify(rest));
+  renderRest();
+});
+document.addEventListener('visibilitychange', () => { if (!document.hidden && rest) renderRest(); });
+if (rest) renderRest();
 
-function previousLabel(ex, si) {
-  const prev = ex.previous && ex.previous[si];
-  if (!prev || prev.weight == null) return '—';
-  return `${prev.weight}×${prev.reps || 0}`;
-}
+// ---------- Session rendering ----------
+const REST_OPTIONS = [0, 30, 45, 60, 75, 90, 120, 150, 180, 240, 300];
 
 function renderWorkoutExercises() {
   const el = document.getElementById('wo-exercise-list');
   if (!currentWorkoutExercises.length) {
-    el.innerHTML = '<div class="empty">Add an exercise to start the session.</div>';
+    el.innerHTML = '<div class="empty">Start a day from your plan below, or add an exercise to begin.</div>';
     return;
   }
-  el.innerHTML = currentWorkoutExercises
-    .map(
-      (ex, idx) => `
-    <div class="wo-ex-card" data-idx="${idx}">
-      <div class="flex-between">
-        <div>
-          <strong>${ex.exerciseName}</strong>
-          ${ex.suggestion ? `<div class="hint">${ex.suggestion}</div>` : ''}
+  const u = woUnitLabel();
+  el.innerHTML = currentWorkoutExercises.map((ex, idx) => {
+    markPRs(ex);
+    const labels = P.setLabels(ex.sets);
+    const sessionBest = P.bestE1rm(ex.sets.filter((s) => s.logged)).value;
+    const shownE1rm = Math.round(sessionBest || ex.lastE1rm || 0);
+    const isPR = ex.sets.some((s) => s.pr);
+    const sugg = ex.suggestion;
+    const suggText = sugg && sugg.reason ? sugg.reason
+      : sugg && sugg.action === 'start' ? `First time logging this. ${sugg.note || ''}` : '';
+    const restOpts = REST_OPTIONS.concat(REST_OPTIONS.includes(ex.restSec) ? [] : [ex.restSec]).sort((a, b) => a - b)
+      .map((s) => `<option value="${s}" ${s === ex.restSec ? 'selected' : ''}>${s ? fmtClock(s) : 'Off'}</option>`).join('');
+    const rows = ex.sets.map((s, si) => {
+      const lab = labels[si];
+      const editing = woEditing && woEditing.ex === idx && woEditing.set === si;
+      const row = `
+        <div class="wx-row ${s.logged ? 'logged' : ''} ${editing ? 'editing' : ''} t-${lab.type}">
+          <button type="button" class="set-type" data-type="${idx}:${si}" aria-label="Set type: ${lab.type}. Tap to change">${lab.label}</button>
+          <button type="button" class="set-val" data-edit="${idx}:${si}">${woDisp(s.weight)}</button>
+          <button type="button" class="set-val" data-edit="${idx}:${si}">${s.reps}</button>
+          <button type="button" class="set-done ${s.logged ? 'on' : ''}" data-done="${idx}:${si}" aria-label="${s.logged ? 'Undo set' : 'Log set'}">✓</button>
+          ${s.pr ? '<span class="pr-badge" title="New estimated 1RM">PR</span>' : ''}
+        </div>`;
+      if (!editing) return row;
+      return row + `
+        <div class="wx-editor">
+          <div class="stepper">
+            <span class="stepper-label">${u === 'kg' ? 'Kg' : 'Lbs'}</span>
+            <button type="button" class="step-btn" data-step="${idx}:${si}:w:-1" aria-label="Less weight">−</button>
+            <input type="number" inputmode="decimal" class="step-input" data-input="${idx}:${si}:w" value="${woDisp(s.weight)}" step="${woStep()}" min="0" />
+            <button type="button" class="step-btn" data-step="${idx}:${si}:w:1" aria-label="More weight">+</button>
+          </div>
+          <div class="stepper">
+            <span class="stepper-label">Reps</span>
+            <button type="button" class="step-btn" data-step="${idx}:${si}:r:-1" aria-label="Fewer reps">−</button>
+            <input type="number" inputmode="numeric" class="step-input" data-input="${idx}:${si}:r" value="${s.reps}" step="1" min="0" />
+            <button type="button" class="step-btn" data-step="${idx}:${si}:r:1" aria-label="More reps">+</button>
+          </div>
+          <div class="wx-editor-actions">
+            <button type="button" class="btn btn-secondary" data-same="${idx}:${si}" ${si === 0 ? 'disabled' : ''}>Same as last set</button>
+            <button type="button" class="btn btn-primary" data-close-edit="1">Done</button>
+          </div>
+        </div>`;
+    }).join('');
+    return `
+    <div class="wx-card" data-idx="${idx}">
+      <div class="wx-head">
+        ${exThumb(ex)}
+        <div class="wx-title">
+          <div class="wx-name">${esc(ex.exerciseName)}</div>
+          <div class="wx-meta">
+            ${shownE1rm ? `<span class="wx-1rm">Est. 1RM <strong>${woDisp(shownE1rm)} ${u}</strong></span>` : '<span class="wx-1rm">Est. 1RM —</span>'}
+            ${isPR ? '<span class="pr-badge">PR</span>' : ''}
+          </div>
         </div>
-        <div style="display:flex;gap:6px">
-          <button type="button" class="btn btn-secondary btn-sm" data-swap="${idx}">Swap</button>
-          <button type="button" class="btn btn-danger btn-sm" data-remove="${idx}">×</button>
-        </div>
+        <button type="button" class="icon-btn" data-swap="${idx}" aria-label="Swap exercise">⇄</button>
+        <button type="button" class="icon-btn icon-danger" data-remove="${idx}" aria-label="Remove exercise">×</button>
       </div>
-      <table class="set-table">
-        <thead><tr><th>Set</th><th>Previous</th><th>Weight</th><th>Reps</th><th></th></tr></thead>
-        <tbody>
-          ${ex.sets
-            .map(
-              (s, si) => `
-            <tr class="${s.logged ? 'set-logged' : ''}">
-              <td>${si + 1}</td>
-              <td class="prev-cell">${previousLabel(ex, si)}</td>
-              <td><input type="number" class="set-weight" data-ex="${idx}" data-set="${si}" value="${s.weight}" min="0" step="2.5" ${s.logged ? 'disabled' : ''} /></td>
-              <td><input type="number" class="set-reps" data-ex="${idx}" data-set="${si}" value="${s.reps}" min="0" ${s.logged ? 'disabled' : ''} /></td>
-              <td>
-                ${s.logged
-                  ? '<span class="set-check done">✓</span>'
-                  : `<button type="button" class="set-check" data-log-set="${idx}" data-set="${si}" aria-label="Log set"></button>`}
-              </td>
-            </tr>`
-            )
-            .join('')}
-        </tbody>
-      </table>
-      <button type="button" class="btn btn-secondary btn-sm" data-add-set="${idx}" style="margin-top:8px">+ Set</button>
-    </div>`
-    )
-    .join('');
-
-  el.querySelectorAll('[data-remove]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      currentWorkoutExercises.splice(parseInt(btn.dataset.remove, 10), 1);
-      renderWorkoutExercises();
-      document.getElementById('btn-save-workout').disabled = !currentWorkoutExercises.length;
-    });
-  });
-
-  el.querySelectorAll('[data-add-set]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const idx = parseInt(btn.dataset.addSet, 10);
-      const last = currentWorkoutExercises[idx].sets.slice(-1)[0] || { weight: 0, reps: 8 };
-      currentWorkoutExercises[idx].sets.push({ weight: last.weight, reps: last.reps, logged: false });
-      renderWorkoutExercises();
-    });
-  });
-
-  el.querySelectorAll('[data-log-set]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const ex = parseInt(btn.dataset.logSet, 10);
-      const set = parseInt(btn.dataset.set, 10);
-      const row = btn.closest('tr');
-      const w = parseFloat(row.querySelector('.set-weight').value) || 0;
-      const r = parseInt(row.querySelector('.set-reps').value, 10) || 0;
-      currentWorkoutExercises[ex].sets[set] = { weight: w, reps: r, logged: true };
-      renderWorkoutExercises();
-      startRest(90);
-    });
-  });
-
-  el.querySelectorAll('.set-weight, .set-reps').forEach((input) => {
-    input.addEventListener('change', () => {
-      const ex = parseInt(input.dataset.ex, 10);
-      const set = parseInt(input.dataset.set, 10);
-      if (input.classList.contains('set-weight')) {
-        currentWorkoutExercises[ex].sets[set].weight = parseFloat(input.value) || 0;
-      } else {
-        currentWorkoutExercises[ex].sets[set].reps = parseInt(input.value, 10) || 0;
-      }
-    });
-  });
-
-  el.querySelectorAll('[data-swap]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const idx = parseInt(btn.dataset.swap, 10);
-      const ex = currentWorkoutExercises[idx];
-      if (!ex.exerciseId) return toast('No swap data for this exercise');
-      try {
-        const data = await api(`/workouts/exercises/${ex.exerciseId}/swaps`);
-        if (!data.swaps?.length) return toast('No swaps found for this pattern');
-        const choice = prompt(
-          'Swap to:\n' + data.swaps.map((s, i) => `${i + 1}. ${s.name}`).join('\n') + '\n\nEnter number:'
-        );
-        const n = parseInt(choice, 10);
-        if (n >= 1 && n <= data.swaps.length) {
-          const chosen = data.swaps[n - 1];
-          currentWorkoutExercises[idx].exerciseId = chosen._id;
-          currentWorkoutExercises[idx].exerciseName = chosen.name;
-          currentWorkoutExercises[idx].previous = [];
-          currentWorkoutExercises[idx].suggestion = '';
-          renderWorkoutExercises();
-          loadSuggestion(idx);
-          toast('Swapped to ' + chosen.name);
-        }
-      } catch (err) {
-        toast(err.message);
-      }
-    });
-  });
+      ${ex.lastSets.length ? `<div class="wx-last"><span>Last${ex.lastDate ? ' (' + esc(formatDate(ex.lastDate).replace(/, \d{4}$/, '')) + ')' : ''}:</span> ${esc(P.formatSets(ex.lastSets, woUnit(), 5))}</div>` : ''}
+      ${suggText ? `<div class="wx-suggest">${esc(suggText)}</div>` : ''}
+      <div class="wx-grid">
+        <div class="wx-row wx-hdr"><span>Set</span><span>${u === 'kg' ? 'Kg' : 'Lbs'}</span><span>Reps</span><span>✓</span></div>
+        ${rows}
+      </div>
+      <div class="wx-foot">
+        <button type="button" class="btn btn-ghost btn-sm" data-add-set="${idx}">+ Add set</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-del-set="${idx}" ${ex.sets.length ? '' : 'disabled'}>− Remove set</button>
+        <label class="rest-pick">⏱ <select data-rest-sel="${idx}" aria-label="Rest timer for ${esc(ex.exerciseName)}">${restOpts}</select></label>
+      </div>
+    </div>`;
+  }).join('');
 }
 
+function woSetFrom(attr) { const [i, s] = attr.split(':').map(Number); return { i, s, ex: currentWorkoutExercises[i], set: currentWorkoutExercises[i]?.sets[s] }; }
+
+document.getElementById('wo-exercise-list').addEventListener('click', async (e) => {
+  const t = e.target.closest('button');
+  if (!t) return;
+  const d = t.dataset;
+  if (d.type) {
+    const { ex, set } = woSetFrom(d.type);
+    set.type = P.nextSetType(P.setType(set));
+    ex.touched = true;
+  } else if (d.edit) {
+    const { i, s } = woSetFrom(d.edit);
+    woEditing = woEditing && woEditing.ex === i && woEditing.set === s ? null : { ex: i, set: s };
+  } else if (d.done) {
+    const { ex, set } = woSetFrom(d.done);
+    unlockAudio();
+    set.logged = !set.logged;
+    ex.touched = true;
+    woEditing = null;
+    if (set.logged) startRest(ex.restSec, ex.exerciseName);
+  } else if (d.step) {
+    const [i, s, f, dir] = d.step.split(':');
+    const set = currentWorkoutExercises[i].sets[s];
+    if (f === 'w') set.weight = Math.max(0, woToLbs(woDisp(set.weight) + Number(dir) * woStep()));
+    else set.reps = Math.max(0, (Number(set.reps) || 0) + Number(dir));
+    currentWorkoutExercises[i].touched = true;
+  } else if (d.same) {
+    const { ex, s, set } = woSetFrom(d.same);
+    const prev = ex.sets[s - 1];
+    if (prev) { set.weight = prev.weight; set.reps = prev.reps; set.type = P.setType(prev) === 'warmup' ? 'warmup' : 'working'; }
+    ex.touched = true;
+  } else if (d.closeEdit) {
+    woEditing = null;
+  } else if (d.addSet) {
+    const ex = currentWorkoutExercises[d.addSet];
+    const last = ex.sets[ex.sets.length - 1] || { weight: 0, reps: ex.repMin || 8, type: 'working' };
+    ex.sets.push({ type: P.setType(last) === 'warmup' ? 'working' : P.setType(last), weight: last.weight, reps: last.reps, logged: false });
+    ex.touched = true;
+  } else if (d.delSet) {
+    const ex = currentWorkoutExercises[d.delSet];
+    let idx = -1;
+    for (let k = ex.sets.length - 1; k >= 0; k -= 1) if (!ex.sets[k].logged) { idx = k; break; }
+    if (idx < 0) idx = ex.sets.length - 1;
+    if (idx >= 0) ex.sets.splice(idx, 1);
+    woEditing = null; ex.touched = true;
+  } else if (d.remove) {
+    currentWorkoutExercises.splice(Number(d.remove), 1);
+    woEditing = null;
+    document.getElementById('btn-save-workout').disabled = !currentWorkoutExercises.length;
+  } else if (d.swap) {
+    const idx = Number(d.swap);
+    const ex = currentWorkoutExercises[idx];
+    return openSwapSheet(ex, (chosen) => {
+      const fresh = makeEntry({ ...chosen, exerciseId: chosen._id, exerciseName: chosen.name, repMin: ex.repMin, repMax: ex.repMax, targetSets: ex.sets.length, targetReps: ex.sets[0]?.reps });
+      currentWorkoutExercises[idx] = fresh;
+      renderWorkoutExercises();
+      loadSuggestion(fresh.uid);
+      toast('Swapped to ' + chosen.name);
+    });
+  } else return;
+  renderWorkoutExercises();
+});
+
+document.getElementById('wo-exercise-list').addEventListener('change', async (e) => {
+  const t = e.target;
+  if (t.dataset.input) {
+    const [i, s, f] = t.dataset.input.split(':');
+    const set = currentWorkoutExercises[i].sets[s];
+    const v = parseFloat(t.value);
+    if (f === 'w') set.weight = v >= 0 ? woToLbs(v) : 0;
+    else set.reps = v >= 0 ? Math.round(v) : 0;
+    currentWorkoutExercises[i].touched = true;
+    renderWorkoutExercises();
+  } else if (t.dataset.restSel) {
+    const ex = currentWorkoutExercises[t.dataset.restSel];
+    ex.restSec = Number(t.value);
+    localStorage.setItem('fc-rest:' + restKey(ex), String(ex.restSec));
+    try { await api('/settings/rest-timer', { method: 'PUT', body: JSON.stringify({ key: restKey(ex), seconds: ex.restSec }) }); } catch {}
+    toast(`Rest for ${ex.exerciseName}: ${ex.restSec ? fmtClock(ex.restSec) : 'off'}`);
+  }
+});
+
+// ---------- Swap sheet (reuses /exercises/:id/swaps) ----------
+async function openSwapSheet(ex, onPick) {
+  let id = ex.exerciseId;
+  try {
+    if (!id) {
+      const found = await api(`/workouts/exercises?q=${encodeURIComponent(ex.exerciseName || ex.name)}`);
+      id = (found.find((f) => f.name.toLowerCase() === String(ex.exerciseName || ex.name).toLowerCase()) || found[0] || {})._id;
+    }
+    if (!id) return toast('No swap data for this exercise');
+    const data = await api(`/workouts/exercises/${id}/swaps`);
+    if (!data.swaps?.length) return toast('No swaps found for this pattern');
+    const sheet = document.getElementById('wo-sheet');
+    sheet.innerHTML = `<div class="sheet" role="dialog" aria-label="Swap exercise">
+      <div class="sheet-head"><strong>Swap ${esc(ex.exerciseName || ex.name)}</strong><button type="button" class="icon-btn" data-sheet-close aria-label="Close">×</button></div>
+      <p class="hint">Same movement pattern (${esc((data.exercise.pattern || '').replace(/_/g, ' '))})</p>
+      <div class="swap-list">${data.swaps.map((s, i) => `<button type="button" class="swap-item" data-pick="${i}">${exThumb(s, 'sm')}<span><strong>${esc(s.name)}</strong><small>${esc((s.equipment || []).join(', ').replace(/_/g, ' '))}</small></span></button>`).join('')}</div>
+    </div>`;
+    sheet.hidden = false;
+    sheet.onclick = (ev) => {
+      if (ev.target === sheet || ev.target.closest('[data-sheet-close]')) { sheet.hidden = true; return; }
+      const pick = ev.target.closest('[data-pick]');
+      if (pick) { sheet.hidden = true; onPick(data.swaps[Number(pick.dataset.pick)]); }
+    };
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+// ---------- Start / finish ----------
 document.getElementById('btn-quick-workout').addEventListener('click', () => {
   currentWorkoutExercises = [];
+  woPlanDay = '';
+  woEditing = null;
   document.getElementById('wo-name').value = 'Quick Workout';
   document.getElementById('wo-date').value = todayStr();
   renderWorkoutExercises();
@@ -1547,150 +1825,336 @@ document.getElementById('btn-quick-workout').addEventListener('click', () => {
 document.getElementById('btn-save-workout').addEventListener('click', async () => {
   const date = document.getElementById('wo-date').value || todayStr();
   const name = document.getElementById('wo-name').value.trim() || 'Workout';
-  if (!currentWorkoutExercises.length) return toast('Add at least one exercise');
-
+  const done = currentWorkoutExercises
+    .map((e) => ({ ...e, logged: e.sets.filter((s) => s.logged) }))
+    .filter((e) => e.logged.length);
+  if (!done.length) return toast('Check off at least one set first');
+  const durationMin = workoutStartedAt ? Math.max(1, Math.round((Date.now() - workoutStartedAt) / 60000)) : null;
   try {
     await api('/workouts', {
       method: 'POST',
       body: JSON.stringify({
-        date,
-        name,
-        exercises: currentWorkoutExercises.map((e) => ({
+        date, name, durationMin, planDay: woPlanDay,
+        exercises: done.map((e) => ({
           exerciseId: e.exerciseId,
           exerciseName: e.exerciseName,
-          sets: e.sets.filter((s) => s.logged || s.weight || s.reps)
+          restSec: e.restSec,
+          sets: e.logged.map((s) => ({ type: P.setType(s), weight: Math.round(s.weight * 100) / 100, reps: s.reps }))
         }))
       })
     });
-    toast('Workout saved');
+    showWorkoutSummary({ name, durationMin, exercises: done });
     currentWorkoutExercises = [];
+    woPlanDay = '';
+    woEditing = null;
     document.getElementById('wo-name').value = '';
     renderWorkoutExercises();
     document.getElementById('btn-save-workout').disabled = true;
     stopWorkoutTimer();
+    stopRest(false);
     loadWorkoutHistory();
+    loadPlans();
   } catch (err) {
     toast(err.message);
   }
 });
+
+function showWorkoutSummary({ name, durationMin, exercises }) {
+  const u = woUnitLabel();
+  let vol = 0; let setCount = 0; const prs = []; const next = [];
+  exercises.forEach((e) => {
+    const logged = e.logged;
+    vol += P.volume(logged);
+    setCount += P.workingSets(logged).length;
+    let running = e.bestE1rm || 0; let prSet = null;
+    if (running > 0) logged.forEach((s) => { const v = P.isWorking(s) ? P.e1rm(s.weight, s.reps) : 0; if (Math.round(v) > Math.round(running)) { running = v; prSet = s; } });
+    if (prSet) prs.push({ name: e.exerciseName, set: prSet, e1rm: running, prev: e.bestE1rm });
+    const sug = P.suggestNext(logged, { unit: woUnit(), focus: woFocus(), repMin: e.repMin, repMax: e.repMax, isLower: e.isLower, exercise: e });
+    next.push({ name: e.exerciseName, sug });
+  });
+  const sheet = document.getElementById('wo-sheet');
+  sheet.innerHTML = `<div class="sheet summary-sheet" role="dialog" aria-label="Workout summary">
+    <div class="sheet-head"><div><div class="summary-kicker">Workout complete</div><strong class="summary-title">${esc(name)}</strong></div><button type="button" class="icon-btn" data-sheet-close aria-label="Close">×</button></div>
+    <div class="summary-stats">
+      <div><span>${durationMin ? durationMin + ' min' : '—'}</span><small>Duration</small></div>
+      <div><span>${setCount}</span><small>Working sets</small></div>
+      <div><span>${Math.round(woDisp(vol)).toLocaleString()}</span><small>Volume (${u})</small></div>
+      <div><span>${prs.length}</span><small>PRs</small></div>
+    </div>
+    ${prs.length ? `<h3 class="summary-h">New records</h3>${prs.map((p) => `<div class="summary-pr"><span class="pr-badge">PR</span><div><strong>${esc(p.name)}</strong><small>${woDisp(p.set.weight)}×${p.set.reps} → est. 1RM ${woDisp(Math.round(p.e1rm))} ${u} (was ${woDisp(Math.round(p.prev))})</small></div></div>`).join('')}` : ''}
+    <h3 class="summary-h">Next time</h3>
+    ${next.map((n) => `<div class="summary-next"><div class="summary-next-top"><strong>${esc(n.name)}</strong><span class="next-chip next-${n.sug.action}">${n.sug.weight ? woDisp(n.sug.weight) + ' ' + u + ' × ' + n.sug.reps : n.sug.reps + ' reps'}</span></div><small>${esc(String(n.sug.reason || '').replace(/ last time\b/g, ' today'))}</small></div>`).join('')}
+    <button type="button" class="btn btn-primary btn-block btn-lg" data-sheet-close>Done</button>
+  </div>`;
+  sheet.hidden = false;
+  sheet.onclick = (ev) => { if (ev.target === sheet || ev.target.closest('[data-sheet-close]')) sheet.hidden = true; };
+}
 
 document.getElementById('btn-save-as-routine').addEventListener('click', async () => {
   const name = document.getElementById('routine-name').value.trim();
   if (!name) return toast('Enter a routine name');
   if (!currentWorkoutExercises.length) return toast('Add exercises first');
-
   try {
     await api('/workouts/routines', {
       method: 'POST',
       body: JSON.stringify({
         name,
-        exercises: currentWorkoutExercises.map((e) => ({
-          exerciseId: e.exerciseId,
-          exerciseName: e.exerciseName,
-          targetSets: e.sets.length,
-          targetReps: e.sets[0]?.reps || 8
-        }))
+        exercises: currentWorkoutExercises.map((e) => {
+          const work = P.workingSets(e.sets);
+          return {
+            exerciseId: e.exerciseId,
+            exerciseName: e.exerciseName,
+            targetSets: work.length || e.sets.length,
+            targetReps: work[0]?.reps || e.sets[0]?.reps || 8,
+            repMin: e.repMin || undefined,
+            repMax: e.repMax || undefined,
+            restSec: e.restSec
+          };
+        })
       })
     });
     toast('Routine saved');
     document.getElementById('routine-name').value = '';
-    loadRoutines();
+    loadPlans();
   } catch (err) {
     toast(err.message);
   }
 });
 
-async function loadRoutines() {
-  try {
-    const routines = await api('/workouts/routines');
-    const el = document.getElementById('wo-routines');
-    if (!routines.length) {
-      el.innerHTML = '<div class="empty">No saved routines yet.</div>';
-      return;
-    }
-    el.innerHTML = routines
-      .map(
-        (r) => `
-      <div class="program-card">
-        <div class="flex-between">
-          <strong>${r.name}</strong>
-          <div>
-            <button class="btn btn-secondary btn-sm" data-load="${r._id}">Load</button>
-            <button class="btn btn-danger btn-sm" data-del="${r._id}">×</button>
-          </div>
-        </div>
-        <div class="hint">${r.exercises.length} exercise${r.exercises.length === 1 ? '' : 's'}</div>
-      </div>`
-      )
-      .join('');
-    el.querySelectorAll('[data-load]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const r = routines.find((x) => x._id === btn.dataset.load);
-        if (!r) return;
-        currentWorkoutExercises = r.exercises.map((e) => ({
-          exerciseId: e.exercise,
-          exerciseName: e.exerciseName,
-          suggestion: '',
-          previous: [],
-          sets: Array.from({ length: e.targetSets || 3 }, () => ({
-            weight: 0,
-            reps: e.targetReps || 8,
-            logged: false
-          }))
-        }));
-        document.getElementById('wo-name').value = r.name;
-        renderWorkoutExercises();
-        document.getElementById('btn-save-workout').disabled = false;
-        startWorkoutTimer();
-        currentWorkoutExercises.forEach((_, i) => loadSuggestion(i));
-        toast('Loaded ' + r.name);
-      });
-    });
-    el.querySelectorAll('[data-del]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        if (!confirm('Delete this routine?')) return;
-        await api(`/workouts/routines/${btn.dataset.del}`, { method: 'DELETE' });
-        toast('Deleted');
-        loadRoutines();
-      });
-    });
-  } catch (err) {
-    console.error(err);
-  }
+// ---------- Plan overview + day details ----------
+let woPlanDays = new Map();
+let woDayView = null;
+
+function lastDoneFor(day) {
+  const hit = woHistoryCache.find((l) => (l.planDay && l.planDay === day.planDay) ||
+    l.name === day.name || l.name === day.sessionName);
+  return hit ? hit.date : null;
+}
+function dayMinutes(day) {
+  return P.estimateMinutes(day.details.map((d) => ({
+    targetSets: d.targetSets,
+    targetReps: d.targetReps || Math.round(((d.repMin || 8) + (d.repMax || d.repMin || 8)) / 2),
+    restSec: d.restSec != null ? d.restSec : Number(localStorage.getItem('fc-rest:' + restKey({ exerciseId: d.exerciseId, exerciseName: d.name })) || 90)
+  })));
+}
+function dayCard(day) {
+  woPlanDays.set(day.planDay, day);
+  const n = day.details.length;
+  return `<button type="button" class="day-card" data-day="${esc(day.planDay)}">
+    <div class="day-card-main">
+      <span class="day-num">Day ${day.number}</span>
+      <span class="day-name">${esc(day.name)}</span>
+      <span class="day-meta"><span>⏱ ~${dayMinutes(day)} min</span><span>${n} exercise${n === 1 ? '' : 's'}</span></span>
+      <span class="day-last">${daysAgoText(lastDoneFor(day))}</span>
+    </div>
+    ${bodyMapSvg(day.details, 'body-map-sm')}
+  </button>`;
 }
 
-document.getElementById('btn-load-routine').addEventListener('click', () => {
-  loadRoutines();
-  document.getElementById('wo-routines').scrollIntoView({ behavior: 'smooth' });
-});
-
-async function loadPrograms() {
+async function loadPlans() {
+  woPlanDays = new Map();
   try {
     const focus = document.getElementById('wo-program-focus').value;
-    const programs = await api(`/workouts/programs${focus ? '?focus=' + focus : ''}`);
-    const el = document.getElementById('wo-programs');
-    if (!programs.length) {
-      el.innerHTML = '<div class="empty">No programs for this focus.</div>';
-      return;
-    }
-    el.innerHTML = programs
-      .map(
-        (p) => `
-      <div class="program-card">
-        <strong>${p.name}</strong>
-        ${p.notes ? `<p class="hint">${p.notes}</p>` : ''}
-        <ul>
-          ${p.days.map((d) => `<li><strong>${d.name}:</strong> ${d.exercises.join(', ')}</li>`).join('')}
-        </ul>
-      </div>`
-      )
-      .join('');
+    const [programs, routines, history] = await Promise.all([
+      api(`/workouts/programs${focus ? '?focus=' + focus : ''}`),
+      api('/workouts/routines').catch(() => []),
+      api('/workouts?limit=50').catch(() => [])
+    ]);
+    woHistoryCache = history;
+    const rEl = document.getElementById('wo-routines');
+    rEl.innerHTML = routines.length
+      ? `<div class="day-grid">${routines.map((r, i) => dayCard({
+        planDay: r.planDay || `routine:${r._id}`, number: i + 1, name: r.name, sessionName: r.name,
+        details: r.details || r.exercises.map((e) => ({ name: e.exerciseName, exerciseId: e.exercise, targetSets: e.targetSets, targetReps: e.targetReps })),
+        routineId: r._id
+      })).join('')}</div>`
+      : '<div class="empty">No saved routines yet. Finish a session and save it as a routine.</div>';
+    const pEl = document.getElementById('wo-programs');
+    if (!programs.length) { pEl.innerHTML = '<div class="empty">No programs for this focus.</div>'; return; }
+    pEl.innerHTML = programs.map((p) => `
+      <div class="program-block">
+        <div class="program-title"><strong>${esc(p.name)}</strong><span class="hint">${p.days.length} days</span></div>
+        ${p.notes ? `<p class="hint">${esc(p.notes)}</p>` : ''}
+        <div class="day-grid">${p.days.map((d, i) => dayCard({
+          planDay: d.planDay || `${p.id}:${d.name}`, number: d.number || i + 1, name: d.name, programName: p.name,
+          sessionName: `${p.name} · ${d.name}`,
+          details: d.details || d.exercises.map((x) => ({ name: x }))
+        })).join('')}</div>
+      </div>`).join('');
   } catch (err) {
     console.error(err);
   }
 }
 
-document.getElementById('wo-program-focus').addEventListener('change', loadPrograms);
+function lastSetsFromHistory(d) {
+  const name = String(d.name).toLowerCase();
+  for (const log of woHistoryCache) {
+    const e = (log.exercises || []).find((x) => (d.exerciseId && x.exercise && String(x.exercise) === String(d.exerciseId)) || String(x.exerciseName).toLowerCase() === name);
+    if (e && e.sets?.length) return e.sets;
+  }
+  return null;
+}
+function setSummary(d) {
+  const sets = lastSetsFromHistory(d);
+  if (sets) {
+    const work = P.workingSets(sets);
+    const warm = sets.length - work.length;
+    const reps = work.map((s) => s.reps || 0);
+    const main = !reps.length ? '' : reps.every((r) => r === reps[0]) ? `${reps.length} × ${reps[0]} reps` : `${reps.length} × ${reps.join(',')} reps`;
+    const extra = warm ? `${warm} warm-up` : '';
+    if (main || extra) return [main, extra].filter(Boolean).join(' · ');
+  }
+  const lo = d.targetReps || d.repMin || 8; const hi = d.targetReps ? null : d.repMax;
+  return `${d.targetSets || 3} × ${hi && hi !== lo ? `${lo}–${hi}` : lo} reps`;
+}
+
+function openDayView(key) {
+  const day = woPlanDays.get(key);
+  if (!day) return;
+  woDayView = { ...day, details: day.details.map((d) => ({ ...d })) };
+  renderDayView();
+  document.getElementById('workouts').classList.add('day-open');
+  window.scrollTo({ top: 0 });
+}
+function closeDayView() {
+  woDayView = null;
+  document.getElementById('workouts').classList.remove('day-open');
+  document.getElementById('wo-day-view').hidden = true;
+}
+function renderDayView() {
+  const v = woDayView;
+  const el = document.getElementById('wo-day-view');
+  const muscles = [...new Set(v.details.flatMap((d) => d.primaryMuscles || []))];
+  el.hidden = false;
+  el.innerHTML = `
+    <button type="button" class="btn btn-ghost btn-sm dd-back" data-dd="back">‹ Back to plan</button>
+    <div class="dd-head">
+      <div>
+        <div class="day-num">Day ${v.number}${v.programName ? ' · ' + esc(v.programName) : ''}</div>
+        <h2 class="dd-title">${esc(v.name)}</h2>
+        <div class="day-meta"><span>⏱ ~${dayMinutes(v)} min</span><span>${v.details.length} exercises</span></div>
+        <div class="day-last">${daysAgoText(lastDoneFor(v))}</div>
+      </div>
+      ${bodyMapSvg(v.details, 'body-map-lg')}
+    </div>
+    ${muscles.length ? `<div class="dd-muscles">${muscles.map((m) => `<span class="chip chip-static">${esc(m)}</span>`).join('')}</div>` : ''}
+    <div class="dd-list" id="dd-list">
+      ${v.details.map((d, i) => `
+        <div class="dd-row" data-i="${i}">
+          <span class="dd-handle" data-handle="${i}" aria-label="Drag to reorder ${esc(d.name)}" role="button" tabindex="0">⠿</span>
+          ${exThumb({ ...d, exerciseName: d.name })}
+          <div class="dd-text"><strong>${esc(d.name)}</strong><small>${esc(setSummary(d))}</small></div>
+          <button type="button" class="btn btn-ghost btn-sm" data-dd-swap="${i}">Swap</button>
+        </div>`).join('')}
+    </div>
+    <p class="hint dd-hint">Drag ⠿ to reorder${v.routineId ? ' (saved to this routine)' : ' (applies when you start)'}.</p>
+    <button type="button" class="btn btn-primary btn-block btn-lg dd-start" data-dd="start">Start Workout</button>`;
+}
+
+document.getElementById('wo-programs').addEventListener('click', (e) => { const c = e.target.closest('[data-day]'); if (c) openDayView(c.dataset.day); });
+document.getElementById('wo-routines').addEventListener('click', (e) => { const c = e.target.closest('[data-day]'); if (c) openDayView(c.dataset.day); });
+
+async function persistDayOrder() {
+  const v = woDayView;
+  if (!v || !v.routineId) return;
+  try {
+    await api(`/workouts/routines/${v.routineId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ exercises: v.details.map((d) => ({ exerciseId: d.exerciseId, exerciseName: d.name, targetSets: d.targetSets, targetReps: d.targetReps, repMin: d.repMin, repMax: d.repMax, restSec: d.restSec })) })
+    });
+    const day = woPlanDays.get(v.planDay);
+    if (day) day.details = v.details.map((d) => ({ ...d }));
+  } catch (err) { toast(err.message); }
+}
+
+document.getElementById('wo-day-view').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b || !woDayView) return;
+  if (b.dataset.dd === 'back') return closeDayView();
+  if (b.dataset.dd === 'start') return startDay(woDayView);
+  if (b.dataset.ddSwap != null) {
+    const i = Number(b.dataset.ddSwap);
+    const d = woDayView.details[i];
+    openSwapSheet({ exerciseId: d.exerciseId, exerciseName: d.name }, (chosen) => {
+      woDayView.details[i] = { ...d, name: chosen.name, exerciseId: chosen._id, pattern: chosen.pattern, primaryMuscles: chosen.primaryMuscles || [], equipment: chosen.equipment || [], imageUrl: chosen.imageUrl || '' };
+      renderDayView();
+      persistDayOrder();
+      toast('Swapped to ' + chosen.name);
+    });
+  }
+});
+
+// Touch-friendly drag to reorder (pointer events on the handle)
+(function setupDrag() {
+  const host = document.getElementById('wo-day-view');
+  let drag = null;
+  host.addEventListener('pointerdown', (e) => {
+    const h = e.target.closest('[data-handle]');
+    if (!h || !woDayView) return;
+    const row = h.closest('.dd-row');
+    e.preventDefault();
+    h.setPointerCapture(e.pointerId);
+    drag = { row, startY: e.clientY, from: Number(row.dataset.i), handle: h };
+    row.classList.add('dragging');
+  });
+  host.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const dy = e.clientY - drag.startY;
+    drag.row.style.transform = `translateY(${dy}px)`;
+    const list = document.getElementById('dd-list');
+    const rows = [...list.querySelectorAll('.dd-row')].filter((r) => r !== drag.row);
+    const y = drag.row.getBoundingClientRect().top + drag.row.offsetHeight / 2;
+    let to = rows.findIndex((r) => y < r.getBoundingClientRect().top + r.offsetHeight / 2);
+    if (to < 0) to = rows.length;
+    drag.to = to;
+    rows.forEach((r, i) => r.classList.toggle('drop-before', i === to));
+    list.classList.toggle('drop-end', to === rows.length);
+  });
+  const end = () => {
+    if (!drag) return;
+    const { from, to } = drag;
+    drag = null;
+    if (to != null && to !== from) {
+      const [m] = woDayView.details.splice(from, 1);
+      woDayView.details.splice(to, 0, m);
+      persistDayOrder();
+    }
+    renderDayView();
+  };
+  host.addEventListener('pointerup', end);
+  host.addEventListener('pointercancel', end);
+  host.addEventListener('keydown', (e) => {
+    const h = e.target.closest('[data-handle]');
+    if (!h || !woDayView || !['ArrowUp', 'ArrowDown'].includes(e.key)) return;
+    e.preventDefault();
+    const i = Number(h.dataset.handle); const j = i + (e.key === 'ArrowUp' ? -1 : 1);
+    if (j < 0 || j >= woDayView.details.length) return;
+    const [m] = woDayView.details.splice(i, 1); woDayView.details.splice(j, 0, m);
+    renderDayView(); persistDayOrder();
+    document.querySelector(`[data-handle="${j}"]`)?.focus();
+  });
+})();
+
+function startDay(day) {
+  if (currentWorkoutExercises.some((e) => e.sets.some((s) => s.logged)) && !confirm('Replace the current session?')) return;
+  currentWorkoutExercises = [];
+  woEditing = null;
+  woPlanDay = day.planDay;
+  document.getElementById('wo-name').value = day.sessionName || day.name;
+  document.getElementById('wo-date').value = todayStr();
+  stopWorkoutTimer();
+  day.details.forEach((d) => addExerciseToWorkout({ ...d, exerciseName: d.name }));
+  closeDayView();
+  window.scrollTo({ top: 0 });
+  toast(`Started ${day.name}`);
+}
+
+document.getElementById('wo-program-focus').addEventListener('change', loadPlans);
+
+document.getElementById('btn-load-routine').addEventListener('click', () => {
+  loadPlans();
+  document.getElementById('wo-routines').scrollIntoView({ behavior: 'smooth' });
+});
 
 async function loadWorkoutHistory() {
   try {
@@ -1708,7 +2172,7 @@ async function loadWorkoutHistory() {
           <strong>${w.name}</strong>
           <span class="hint">${formatDate(w.date)}</span>
         </div>
-        <div class="hint">${w.exercises.length} exercise${w.exercises.length === 1 ? '' : 's'}</div>
+        <div class="hint">${w.exercises.length} exercise${w.exercises.length === 1 ? '' : 's'} · ${w.exercises.reduce((n, e) => n + P.workingSets(e.sets).length, 0)} working sets · ${Math.round(woDisp(w.exercises.reduce((v, e) => v + P.volume(e.sets), 0))).toLocaleString()} ${woUnitLabel()} volume${w.durationMin ? ` · ${w.durationMin} min` : ''}</div>
         <button class="btn btn-danger btn-sm" data-id="${w._id}" style="margin-top:6px">Delete</button>
       </div>`
       )
@@ -2463,3 +2927,12 @@ function renderAll() {
 }
 
 checkAuth();
+
+// Keep the sticky workout bar tucked right under the (mobile-sticky) top bar.
+function syncTopbarHeight() {
+  const tb = document.querySelector('.topbar');
+  if (tb) document.documentElement.style.setProperty('--topbar-h', `${tb.offsetHeight}px`);
+}
+window.addEventListener('resize', syncTopbarHeight);
+window.addEventListener('load', syncTopbarHeight);
+syncTopbarHeight();

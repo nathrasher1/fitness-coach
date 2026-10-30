@@ -47,4 +47,22 @@ router.put('/', async (req, res) => {
   }
 });
 
+// PUT /api/settings/rest-timer { key, seconds } – remember the rest timer for one exercise
+router.put('/rest-timer', async (req, res) => {
+  try {
+    const key = String(req.body.key || '').trim().slice(0, 120);
+    const seconds = Math.round(Number(req.body.seconds));
+    if (!key || /[.$]/.test(key)) return res.status(400).json({ error: 'valid key required' });
+    if (!(seconds >= 0 && seconds <= 900)) return res.status(400).json({ error: 'seconds must be 0–900' });
+    const settings = await Settings.findOneAndUpdate(
+      { user: req.session.userId },
+      { $set: { [`restTimers.${key}`]: seconds, updatedAt: new Date() } },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    res.json({ key, seconds, restTimers: settings.restTimers });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save rest timer' });
+  }
+});
+
 module.exports = router;

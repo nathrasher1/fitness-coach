@@ -29,6 +29,7 @@ const exerciseSchema = new mongoose.Schema({
   },
   // For swap suggestions – exercises with same pattern are candidates
   difficulty: { type: String, enum: ['beginner', 'intermediate', 'advanced'], default: 'intermediate' },
+  imageUrl: { type: String, default: '' },
   isSystem: { type: Boolean, default: true },
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }
 });

@@ -5,6 +5,10 @@ const routineExerciseSchema = new mongoose.Schema({
   exerciseName: { type: String, required: true },
   targetSets: { type: Number, default: 3 },
   targetReps: { type: Number, default: 8 },
+  repMin: { type: Number, min: 1 },
+  repMax: { type: Number, min: 1 },
+  targetWeight: { type: Number, min: 0 }, // lbs
+  restSec: { type: Number, min: 0, max: 900 },
   notes: { type: String, default: '' }
 }, { _id: false });
 

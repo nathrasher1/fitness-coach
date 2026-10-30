@@ -142,36 +142,34 @@
 
       <!-- WORKOUTS -->
       <section id="workouts" class="panel">
-        <div class="session-bar">
-          <div>
-            <input type="text" id="wo-name" placeholder="Workout name" />
-            <input type="date" id="wo-date" />
+        <div class="wo-sticky">
+          <div class="session-bar">
+            <div class="session-fields">
+              <input type="text" id="wo-name" placeholder="Workout name" />
+              <input type="date" id="wo-date" />
+            </div>
+            <div id="wo-timer" class="wo-timer">00:00</div>
+            <div class="session-actions">
+              <button class="btn btn-secondary btn-sm" id="btn-quick-workout">Quick Log</button>
+              <button class="btn btn-secondary btn-sm" id="btn-load-routine">Routines</button>
+              <button class="btn btn-primary" id="btn-save-workout" disabled>Finish</button>
+            </div>
           </div>
-          <div id="wo-timer" class="wo-timer">00:00</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn btn-secondary btn-sm" id="btn-quick-workout">Quick Log</button>
-            <button class="btn btn-secondary btn-sm" id="btn-load-routine">Routines</button>
-            <button class="btn btn-primary" id="btn-save-workout" disabled>Finish</button>
-          </div>
+          <div id="wo-rest" class="rest-bar" hidden aria-live="polite"></div>
         </div>
-        <div id="wo-rest" class="rest-banner" style="display:none"></div>
 
-        <div class="card">
-          <div class="form-row">
+        <div id="wo-day-view" class="card day-view" hidden></div>
+
+        <div class="card wo-session-card">
+          <div id="wo-exercise-list"></div>
+          <div class="form-row wo-add">
             <label for="wo-ex-search">Add exercise</label>
             <input type="text" id="wo-ex-search" placeholder="Search exercises…" autocomplete="off" />
             <div id="wo-ex-results" class="search-results"></div>
           </div>
-          <div id="wo-exercise-list"></div>
         </div>
 
-        <div class="card">
-          <h2>Recommended lifts</h2>
-          <p class="hint">Based on your interests and training goal.</p>
-          <div id="wo-recommended"></div>
-        </div>
-
-        <div class="card">
+        <div class="card wo-plan-card">
           <h2>My Routines</h2>
           <div id="wo-routines"></div>
           <div class="form-row" style="margin-top:12px">
@@ -180,7 +178,7 @@
           <button class="btn btn-secondary btn-block" id="btn-save-as-routine">Save Current Session as Routine</button>
         </div>
 
-        <div class="card">
+        <div class="card wo-plan-card">
           <h2>Suggested Programs</h2>
           <div class="form-row">
             <label for="wo-program-focus">Focus</label>
@@ -196,10 +194,17 @@
           <div id="wo-programs"></div>
         </div>
 
-        <div class="card">
+        <div class="card wo-plan-card">
+          <h2>Recommended lifts</h2>
+          <p class="hint">Based on your interests and training goal.</p>
+          <div id="wo-recommended"></div>
+        </div>
+
+        <div class="card wo-plan-card">
           <h2>Recent Workouts</h2>
           <div id="wo-history"></div>
         </div>
+        <div id="wo-sheet" class="sheet-backdrop" hidden></div>
       </section>
 
       <!-- BODY METRICS -->
@@ -617,6 +622,7 @@
   </div>
 
   <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="lib/progression.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

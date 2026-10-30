@@ -4,6 +4,7 @@ const Routine = require("../models/Routine");
 const WorkoutLog = require('../models/WorkoutLog');
 const Settings = require('../models/Settings');
 const { requireAuth } = require('../middleware/auth');
+const P = require('../../client/lib/progression');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -43,71 +44,107 @@ router.get('/exercises/:id/swaps', async (req, res) => {
   }
 });
 
+const PROGRAMS = [
+  {
+    id: 'full_body_3day',
+    name: 'Full Body 3×/week',
+    focus: 'general',
+    days: [
+      { name: 'Day A', exercises: ['Back Squat', 'Bench Press', 'Barbell Row', 'Plank'] },
+      { name: 'Day B', exercises: ['Romanian Deadlift', 'Overhead Press', 'Pull-Up', 'Farmer Carry'] },
+      { name: 'Day C', exercises: ['Front Squat', 'Incline Dumbbell Press', 'Seated Cable Row', 'Hanging Leg Raise'] }
+    ]
+  },
+  {
+    id: 'upper_lower',
+    name: 'Upper / Lower 4×/week',
+    focus: 'general',
+    days: [
+      { name: 'Upper A', exercises: ['Bench Press', 'Barbell Row', 'Overhead Press', 'Lat Pulldown', 'Lateral Raise'] },
+      { name: 'Lower A', exercises: ['Back Squat', 'Romanian Deadlift', 'Walking Lunge', 'Calf Raise'] },
+      { name: 'Upper B', exercises: ['Incline Dumbbell Press', 'Pull-Up', 'Dumbbell Shoulder Press', 'Seated Cable Row', 'Face Pull'] },
+      { name: 'Lower B', exercises: ['Trap Bar Deadlift', 'Front Squat', 'Bulgarian Split Squat', 'Leg Curl'] }
+    ]
+  },
+  {
+    id: 'bjj_strength',
+    name: 'BJJ Strength Support',
+    focus: 'jiu-jitsu',
+    notes: 'Prioritize grip, hip hinge, rotational core, and posterior chain. Keep volume moderate on hard mat weeks.',
+    days: [
+      { name: 'Pull + Hinge', exercises: ['Romanian Deadlift', 'Pull-Up', 'Seated Cable Row', 'Farmer Carry', 'Dead Bug'] },
+      { name: 'Push + Squat', exercises: ['Front Squat', 'Bench Press', 'Overhead Press', 'Walking Lunge', 'Pallof Press'] },
+      { name: 'Conditioning', exercises: ['Sled Push', 'Battle Ropes', 'Kettlebell Swing', 'Box Jump'] }
+    ]
+  },
+  {
+    id: 'football',
+    name: 'Football / Power',
+    focus: 'football',
+    days: [
+      { name: 'Lower Power', exercises: ['Back Squat', 'Trap Bar Deadlift', 'Box Jump', 'Sled Push'] },
+      { name: 'Upper Power', exercises: ['Bench Press', 'Barbell Row', 'Push Press', 'Medicine Ball Slam'] },
+      { name: 'Total', exercises: ['Power Clean', 'Front Squat', 'Pull-Up', 'Farmer Carry'] }
+    ]
+  },
+  {
+    id: 'softball',
+    name: 'Softball / Rotational',
+    focus: 'softball',
+    days: [
+      { name: 'Lower', exercises: ['Front Squat', 'Romanian Deadlift', 'Lateral Lunge', 'Calf Raise'] },
+      { name: 'Upper + Rotate', exercises: ['Dumbbell Bench Press', 'Single-Arm Dumbbell Row', 'Landmine Press', 'Pallof Press', 'Face Pull'] }
+    ]
+  },
+  {
+    id: 'wakeboard',
+    name: 'Wakeboard / Water Sports',
+    focus: 'wakeboarding',
+    notes: 'Emphasize grip, posterior chain, and anti-rotation core.',
+    days: [
+      { name: 'Posterior', exercises: ['Romanian Deadlift', 'Kettlebell Swing', 'Pull-Up', 'Farmer Carry'] },
+      { name: 'Legs + Core', exercises: ['Goblet Squat', 'Walking Lunge', 'Pallof Press', 'Dead Bug', 'Box Jump'] }
+    ]
+  }
+];
+
+const MUSCLE_FIELDS = 'name pattern primaryMuscles secondaryMuscles equipment category imageUrl';
+
+/** Look up library exercises by name (case-insensitive) so plan days can show muscles / thumbnails. */
+async function exerciseLookup(names, userId) {
+  const unique = [...new Set(names.filter(Boolean))];
+  if (!unique.length) return new Map();
+  const docs = await Exercise.find({
+    name: { $in: unique },
+    $or: [{ isSystem: true }, { user: userId }]
+  }).collation({ locale: 'en', strength: 2 }).select(MUSCLE_FIELDS).lean();
+  const map = new Map();
+  docs.forEach((d) => map.set(d.name.toLowerCase(), d));
+  return map;
+}
+
+function detailFor(name, doc, defaults) {
+  const isLower = P.isLowerBody(doc || { name });
+  const compound = !doc || doc.category !== 'isolation';
+  return {
+    name,
+    exerciseId: doc ? doc._id : null,
+    pattern: doc?.pattern || '',
+    primaryMuscles: doc?.primaryMuscles || [],
+    secondaryMuscles: doc?.secondaryMuscles || [],
+    imageUrl: doc?.imageUrl || '',
+    equipment: doc?.equipment || [],
+    isLower,
+    targetSets: compound ? defaults.sets : Math.max(2, defaults.sets - 1),
+    repMin: defaults.low,
+    repMax: defaults.high
+  };
+}
+
 // GET /api/workouts/programs – suggested splits by sport focus
+// Each day keeps `exercises` (names, unchanged) and gains `details` (muscles, targets) for plan cards.
 router.get('/programs', async (req, res) => {
-  const programs = [
-    {
-      id: 'full_body_3day',
-      name: 'Full Body 3×/week',
-      focus: 'general',
-      days: [
-        { name: 'Day A', exercises: ['Back Squat', 'Bench Press', 'Barbell Row', 'Plank'] },
-        { name: 'Day B', exercises: ['Romanian Deadlift', 'Overhead Press', 'Pull-Up', 'Farmer Carry'] },
-        { name: 'Day C', exercises: ['Front Squat', 'Incline Dumbbell Press', 'Seated Cable Row', 'Hanging Leg Raise'] }
-      ]
-    },
-    {
-      id: 'upper_lower',
-      name: 'Upper / Lower 4×/week',
-      focus: 'general',
-      days: [
-        { name: 'Upper A', exercises: ['Bench Press', 'Barbell Row', 'Overhead Press', 'Lat Pulldown', 'Lateral Raise'] },
-        { name: 'Lower A', exercises: ['Back Squat', 'Romanian Deadlift', 'Walking Lunge', 'Calf Raise'] },
-        { name: 'Upper B', exercises: ['Incline Dumbbell Press', 'Pull-Up', 'Dumbbell Shoulder Press', 'Seated Cable Row', 'Face Pull'] },
-        { name: 'Lower B', exercises: ['Trap Bar Deadlift', 'Front Squat', 'Bulgarian Split Squat', 'Leg Curl'] }
-      ]
-    },
-    {
-      id: 'bjj_strength',
-      name: 'BJJ Strength Support',
-      focus: 'jiu-jitsu',
-      notes: 'Prioritize grip, hip hinge, rotational core, and posterior chain. Keep volume moderate on hard mat weeks.',
-      days: [
-        { name: 'Pull + Hinge', exercises: ['Romanian Deadlift', 'Pull-Up', 'Seated Cable Row', 'Farmer Carry', 'Dead Bug'] },
-        { name: 'Push + Squat', exercises: ['Front Squat', 'Bench Press', 'Overhead Press', 'Walking Lunge', 'Pallof Press'] },
-        { name: 'Conditioning', exercises: ['Sled Push', 'Battle Ropes', 'Kettlebell Swing', 'Box Jump'] }
-      ]
-    },
-    {
-      id: 'football',
-      name: 'Football / Power',
-      focus: 'football',
-      days: [
-        { name: 'Lower Power', exercises: ['Back Squat', 'Trap Bar Deadlift', 'Box Jump', 'Sled Push'] },
-        { name: 'Upper Power', exercises: ['Bench Press', 'Barbell Row', 'Push Press', 'Medicine Ball Slam'] },
-        { name: 'Total', exercises: ['Power Clean', 'Front Squat', 'Pull-Up', 'Farmer Carry'] }
-      ]
-    },
-    {
-      id: 'softball',
-      name: 'Softball / Rotational',
-      focus: 'softball',
-      days: [
-        { name: 'Lower', exercises: ['Front Squat', 'Romanian Deadlift', 'Lateral Lunge', 'Calf Raise'] },
-        { name: 'Upper + Rotate', exercises: ['Dumbbell Bench Press', 'Single-Arm Dumbbell Row', 'Landmine Press', 'Pallof Press', 'Face Pull'] }
-      ]
-    },
-    {
-      id: 'wakeboard',
-      name: 'Wakeboard / Water Sports',
-      focus: 'wakeboarding',
-      notes: 'Emphasize grip, posterior chain, and anti-rotation core.',
-      days: [
-        { name: 'Posterior', exercises: ['Romanian Deadlift', 'Kettlebell Swing', 'Pull-Up', 'Farmer Carry'] },
-        { name: 'Legs + Core', exercises: ['Goblet Squat', 'Walking Lunge', 'Pallof Press', 'Dead Bug', 'Box Jump'] }
-      ]
-    }
-  ];
+  const programs = PROGRAMS;
   const settings = await Settings.findOne({ user: req.session.userId });
   const interests = (settings?.interests || []).map((s) => s.toLowerCase());
   const focus = req.query.focus;
@@ -116,7 +153,25 @@ router.get('/programs', async (req, res) => {
     if (!interests.length) return true;
     return p.focus === 'general' || interests.some((i) => i.includes(p.focus) || p.focus.includes(i.split(' ')[0]));
   });
-  res.json(matched.length ? matched : programs);
+  const chosen = matched.length ? matched : programs;
+  try {
+    const focusName = (settings?.trainingFocus || [])[0];
+    const range = P.rangeFor({ focus: focusName });
+    const defaults = { sets: range.focus === 'strength' || range.focus === 'power' ? 4 : 3, low: range.low, high: range.high };
+    const lookup = await exerciseLookup(chosen.flatMap((p) => p.days.flatMap((d) => d.exercises)), req.session.userId);
+    res.json(chosen.map((p) => ({
+      ...p,
+      days: p.days.map((d, i) => ({
+        ...d,
+        number: i + 1,
+        planDay: `${p.id}:${d.name}`,
+        details: d.exercises.map((n) => detailFor(n, lookup.get(n.toLowerCase()), defaults))
+      }))
+    })));
+  } catch (err) {
+    console.error(err);
+    res.json(chosen);
+  }
 });
 
 // GET /api/workouts – recent workout logs
@@ -136,6 +191,9 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { date, name, notes, durationMin, exercises } = req.body;
+    if (exercises != null && !Array.isArray(exercises)) {
+      return res.status(400).json({ error: 'exercises must be an array' });
+    }
     if (!date || !exercises?.length) {
       return res.status(400).json({ error: 'date and exercises required' });
     }
@@ -145,11 +203,14 @@ router.post('/', async (req, res) => {
       name: name || 'Workout',
       notes: notes || '',
       durationMin: durationMin || null,
+      planDay: typeof req.body.planDay === 'string' ? req.body.planDay.slice(0, 200) : '',
       exercises: exercises.map((e) => ({
         exercise: e.exerciseId || null,
         exerciseName: e.exerciseName,
         equipment: e.equipment || '',
+        restSec: Number(e.restSec) >= 0 && Number(e.restSec) <= 900 ? Number(e.restSec) : undefined,
         sets: (e.sets || []).map((s) => ({
+          type: P.SET_TYPES.includes(s.type) ? s.type : 'working',
           reps: s.reps != null ? Number(s.reps) : undefined,
           weight: s.weight != null ? Number(s.weight) : undefined,
           rpe: s.rpe != null ? Number(s.rpe) : undefined,
@@ -177,72 +238,80 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// GET /api/workouts/suggest-load?exerciseId= – simple progression from last log
+// GET /api/workouts/suggest-load?exerciseId=&name=&repMin=&repMax=
+// Double progression from the last session (warm-ups ignored), plus last sets, e1RM and best e1RM.
+// Original fields (ready, lastSets, suggestion.weight/reps/note) are kept for older clients.
 router.get('/suggest-load', async (req, res) => {
   try {
-    const exerciseId = req.query.exerciseId;
-    const exerciseName = req.query.name;
+    const exerciseId = req.query.exerciseId && req.query.exerciseId !== 'null' ? String(req.query.exerciseId) : '';
+    const exerciseName = req.query.name ? String(req.query.name) : '';
     if (!exerciseId && !exerciseName) {
       return res.status(400).json({ error: 'exerciseId or name required' });
     }
 
-    const logs = await WorkoutLog.find({ user: req.session.userId }).sort({ date: -1 }).limit(30);
-    let lastSets = null;
+    const [logs, settings, exDoc] = await Promise.all([
+      WorkoutLog.find({ user: req.session.userId }).sort({ date: -1, createdAt: -1 }).limit(60).lean(),
+      Settings.findOne({ user: req.session.userId }).lean(),
+      exerciseId && /^[a-f0-9]{24}$/i.test(exerciseId)
+        ? Exercise.findById(exerciseId).select(MUSCLE_FIELDS).lean()
+        : Promise.resolve(null)
+    ]);
+    const nameLc = (exerciseName || exDoc?.name || '').toLowerCase();
+    const matches = (e) =>
+      (exerciseId && e.exercise && e.exercise.toString() === exerciseId) ||
+      (nameLc && String(e.exerciseName || '').toLowerCase() === nameLc);
+
+    let last = null;
+    let bestE1rm = 0;
+    let lastRestSec = null;
     for (const log of logs) {
-      const match = log.exercises.find((e) =>
-        (exerciseId && e.exercise && e.exercise.toString() === exerciseId) ||
-        (exerciseName && e.exerciseName === exerciseName)
-      );
-      if (match && match.sets?.length) {
-        lastSets = match.sets;
-        break;
+      for (const e of log.exercises || []) {
+        if (!matches(e) || !e.sets?.length) continue;
+        const sets = e.sets.map((x) => ({ ...x, type: P.setType(x) }));
+        if (!last) { last = { date: log.date, sets }; lastRestSec = e.restSec ?? null; }
+        bestE1rm = Math.max(bestE1rm, P.bestE1rm(sets).value);
       }
     }
 
-    const settings = await Settings.findOne({ user: req.session.userId });
     const focus = (settings?.trainingFocus || [])[0] || 'hypertrophy';
-    const ranges = {
-      strength: { low: 3, high: 6, bump: 5 },
-      power: { low: 2, high: 5, bump: 5 },
-      hypertrophy: { low: 8, high: 12, bump: 5 },
-      conditioning: { low: 12, high: 20, bump: 0 },
-      endurance: { low: 15, high: 20, bump: 0 }
-    };
-    const range = ranges[focus] || ranges.hypertrophy;
+    const unit = settings?.unit === 'kg' ? 'kg' : 'lbs';
+    const range = P.rangeFor({ focus, repMin: req.query.repMin, repMax: req.query.repMax });
+    const key = exerciseId || nameLc;
+    const saved = settings?.restTimers ? settings.restTimers[key] : undefined;
+    const restSec = Number.isFinite(saved) ? saved : (lastRestSec ?? 90);
+    const exInfo = exDoc || { name: exerciseName };
+    const isLower = P.isLowerBody(exInfo);
+    const note = `${focus}: aim for ${range.low}–${range.high} reps`;
 
-    if (!lastSets) {
+    if (!last) {
       return res.json({
         ready: false,
         reason: 'No prior sets for this exercise',
-        suggestion: { reps: range.low, note: `${focus}: start around ${range.low}–${range.high} reps` }
+        restSec,
+        isLower,
+        bestE1rm: 0,
+        suggestion: { reps: range.low, note: `${focus}: start around ${range.low}–${range.high} reps`, action: 'start', range }
       });
     }
 
-    const top = lastSets.reduce((best, s) => {
-      if (s.weight == null) return best;
-      if (!best || s.weight > best.weight || (s.weight === best.weight && (s.reps || 0) > (best.reps || 0))) {
-        return s;
-      }
-      return best;
-    }, null);
-
-    let suggestedWeight = top?.weight || 0;
-    let suggestedReps = range.low;
-    if (top?.reps >= range.high && top.weight && range.bump) {
-      suggestedWeight = Math.round((top.weight + range.bump) * 2) / 2;
-      suggestedReps = range.low;
-    } else if (top?.reps) {
-      suggestedWeight = top.weight;
-      suggestedReps = Math.min(range.high, top.reps + 1);
-    }
-
+    const next = P.suggestNext(last.sets, { unit, focus, repMin: req.query.repMin, repMax: req.query.repMax, isLower });
     res.json({
       ready: true,
-      lastSets,
+      lastSets: last.sets,
+      lastDate: last.date,
+      lastE1rm: Math.round(P.bestE1rm(last.sets).value),
+      bestE1rm: Math.round(bestE1rm),
+      restSec,
+      isLower,
       suggestion: {
-        weight: suggestedWeight,
-        reps: suggestedReps,
-        note: `${focus}: aim for ${range.low}–${range.high} reps`
+        weight: next.weight,
+        reps: next.reps,
+        note,
+        reason: next.reason,
+        action: next.action,
+        deltaLbs: next.deltaLbs,
+        factor: next.factor,
+        range: next.range
       }
     });
   } catch (err) {
@@ -253,11 +322,30 @@ router.get('/suggest-load', async (req, res) => {
 
 
 // ========== Routines ==========
+function routineExtras(e) {
+  const out = {};
+  ["repMin", "repMax", "targetWeight", "restSec"].forEach((k) => {
+    const v = Number(e[k]);
+    if (e[k] != null && Number.isFinite(v) && v >= 0) out[k] = v;
+  });
+  return out;
+}
+
 // GET /api/workouts/routines
 router.get("/routines", async (req, res) => {
   try {
-    const routines = await Routine.find({ user: req.session.userId }).sort({ updatedAt: -1 });
-    res.json(routines);
+    const routines = await Routine.find({ user: req.session.userId }).sort({ updatedAt: -1 }).lean();
+    const lookup = await exerciseLookup(routines.flatMap((r) => r.exercises.map((e) => e.exerciseName)), req.session.userId);
+    res.json(routines.map((r) => ({
+      ...r,
+      planDay: `routine:${r._id}`,
+      details: r.exercises.map((e) => {
+        const d = detailFor(e.exerciseName, lookup.get(String(e.exerciseName).toLowerCase()), {
+          sets: e.targetSets || 3, low: e.repMin || e.targetReps || 8, high: e.repMax || e.targetReps || 8
+        });
+        return { ...d, exerciseId: e.exercise || d.exerciseId, targetSets: e.targetSets || 3, targetReps: e.targetReps || 8, restSec: e.restSec };
+      })
+    })));
   } catch (err) {
     res.status(500).json({ error: "Failed to load routines" });
   }
@@ -277,6 +365,7 @@ router.post("/routines", async (req, res) => {
         exerciseName: e.exerciseName,
         targetSets: e.targetSets || 3,
         targetReps: e.targetReps || 8,
+        ...routineExtras(e),
         notes: e.notes || ""
       })),
       updatedAt: new Date()
@@ -285,6 +374,34 @@ router.post("/routines", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to save routine" });
+  }
+});
+
+// PUT /api/workouts/routines/:id – rename / reorder / swap exercises
+router.put("/routines/:id", async (req, res) => {
+  try {
+    const { name, notes, exercises } = req.body;
+    const update = { updatedAt: new Date() };
+    if (typeof name === "string" && name.trim()) update.name = name.trim();
+    if (typeof notes === "string") update.notes = notes;
+    if (exercises != null) {
+      if (!Array.isArray(exercises) || !exercises.length) return res.status(400).json({ error: "exercises must be a non-empty array" });
+      update.exercises = exercises.map((e) => ({
+        exercise: e.exerciseId || e.exercise || null,
+        exerciseName: String(e.exerciseName || ""),
+        targetSets: e.targetSets || 3,
+        targetReps: e.targetReps || 8,
+        ...routineExtras(e),
+        notes: e.notes || ""
+      }));
+      if (update.exercises.some((e) => !e.exerciseName)) return res.status(400).json({ error: "exerciseName required" });
+    }
+    const routine = await Routine.findOneAndUpdate({ _id: req.params.id, user: req.session.userId }, update, { new: true });
+    if (!routine) return res.status(404).json({ error: "Not found" });
+    res.json(routine);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update routine" });
   }
 });
 

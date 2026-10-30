@@ -9,6 +9,8 @@ const settingsSchema = new mongoose.Schema({
   theme: { type: String, default: 'sage' },
   trainingFocus: [{ type: String }],
   interests: [{ type: String }],
+  // Per-exercise rest timer in seconds, keyed by exercise id (or name for custom entries)
+  restTimers: { type: Map, of: Number, default: undefined },
   favoriteFoodIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Food' }],
   updatedAt: { type: Date, default: Date.now }
 });
