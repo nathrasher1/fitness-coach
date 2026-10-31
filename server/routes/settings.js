@@ -31,7 +31,7 @@ router.put('/', async (req, res) => {
       updatedAt: new Date()
     };
     if (Array.isArray(interests)) {
-      update.interests = interests.map((s) => String(s).trim()).filter(Boolean);
+      update.interests = [...new Set(interests.map((s) => String(s).trim().slice(0, 60)).filter(Boolean))].slice(0, 150);
     }
     if (Array.isArray(trainingFocus)) {
       update.trainingFocus = trainingFocus.map((s) => String(s).trim()).filter(Boolean);

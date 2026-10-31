@@ -6,6 +6,7 @@ const Settings = require('../models/Settings');
 const WorkoutDraft = require('../models/WorkoutDraft');
 const { requireAuth } = require('../middleware/auth');
 const P = require('../../client/lib/progression');
+const A = require('../../client/lib/activities');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -106,8 +107,154 @@ const PROGRAMS = [
       { name: 'Posterior', exercises: ['Romanian Deadlift', 'Kettlebell Swing', 'Pull-Up', 'Farmer Carry'] },
       { name: 'Legs + Core', exercises: ['Goblet Squat', 'Walking Lunge', 'Pallof Press', 'Dead Bug', 'Box Jump'] }
     ]
+  },
+  {
+    id: 'striking',
+    name: 'Striker Power & Engine',
+    focus: 'striking',
+    notes: 'Rotational power, shoulder durability, and round-length conditioning. Keep lifting crisp on sparring days.',
+    days: [
+      { name: 'Power', exercises: ['Medicine Ball Slam', 'Trap Bar Deadlift', 'Landmine Press', 'Pull-Up', 'Pallof Press'] },
+      { name: 'Engine', exercises: ['Jump Rope', 'Assault Bike', 'Battle Rope Waves', 'Burpee', 'Plank'] }
+    ]
+  },
+  {
+    id: 'field_speed',
+    name: 'Field Sport Speed',
+    focus: 'field_speed',
+    notes: 'Acceleration, hamstring resilience, and single-leg strength for soccer, lacrosse, and similar sports.',
+    days: [
+      { name: 'Speed + Lower', exercises: ['Broad Jump', 'Trap Bar Deadlift', 'Bulgarian Split Squat', 'Leg Curl', 'Pallof Press'] },
+      { name: 'Total Body', exercises: ['Box Jump', 'Front Squat', 'Push Press', 'Pull-Up', 'Sled Push'] }
+    ]
+  },
+  {
+    id: 'court_jump',
+    name: 'Court & Jump Athlete',
+    focus: 'court',
+    notes: 'Jump height, landing control, and ankle and knee durability.',
+    days: [
+      { name: 'Jump + Legs', exercises: ['Box Jump', 'Front Squat', 'Bulgarian Split Squat', 'Calf Raise', 'Dead Bug'] },
+      { name: 'Upper + Agility', exercises: ['Broad Jump', 'Dumbbell Shoulder Press', 'Chin-Up', 'Lateral Lunge', 'Pallof Press'] }
+    ]
+  },
+  {
+    id: 'racket',
+    name: 'Racket Sports Resilience',
+    focus: 'racket',
+    notes: 'Lateral strength, shoulder health, and anti-rotation core for tennis, pickleball, and padel.',
+    days: [
+      { name: 'Lateral + Pull', exercises: ['Lateral Lunge', 'Single-Arm Dumbbell Row', 'Landmine Press', 'Face Pull', 'Pallof Press'] },
+      { name: 'Legs + Carry', exercises: ['Goblet Squat', 'Step-Up', 'Push-Up', 'Suitcase Carry', 'Calf Raise'] }
+    ]
+  },
+  {
+    id: 'endurance',
+    name: 'Endurance Athlete Strength',
+    focus: 'endurance',
+    notes: 'Two short sessions that support running, cycling, and triathlon training without leaving you sore.',
+    days: [
+      { name: 'Single-Leg', exercises: ['Bulgarian Split Squat', 'Romanian Deadlift', 'Step-Up', 'Calf Raise', 'Plank'] },
+      { name: 'Hips + Trunk', exercises: ['Goblet Squat', 'Hip Thrust', 'Single-Arm Dumbbell Row', 'Dead Bug', 'Suitcase Carry'] }
+    ]
+  },
+  {
+    id: 'swim_paddle',
+    name: 'Swim & Paddle Strength',
+    focus: 'swim',
+    notes: 'Lats, upper back, and shoulder balance for swimming, rowing, and paddling.',
+    days: [
+      { name: 'Pull + Shoulders', exercises: ['Lat Pulldown', 'Straight-Arm Pulldown', 'Face Pull', 'Push-Up', 'Dead Bug'] },
+      { name: 'Legs + Drive', exercises: ['Goblet Squat', 'Broad Jump', 'Romanian Deadlift', 'Seated Cable Row', 'Plank'] }
+    ]
+  },
+  {
+    id: 'snow',
+    name: 'Snow Sports Prep',
+    focus: 'snow',
+    notes: 'Leg endurance, lateral control, and knee-friendly power for skiing and snowboarding.',
+    days: [
+      { name: 'Legs + Lateral', exercises: ['Front Squat', 'Lateral Lunge', 'Box Jump', 'Romanian Deadlift', 'Pallof Press'] },
+      { name: 'Endurance Legs', exercises: ['Bulgarian Split Squat', 'Step-Up', 'Hip Thrust', 'Wall Ball', 'Plank'] }
+    ]
+  },
+  {
+    id: 'climbing',
+    name: 'Climber Pull & Core',
+    focus: 'climbing',
+    notes: 'Pulling strength, grip, and opposing push work to keep shoulders balanced.',
+    days: [
+      { name: 'Pull + Grip', exercises: ['Pull-Up', 'Chin-Up', 'Face Pull', 'Hanging Leg Raise', 'Farmer Carry'] },
+      { name: 'Push + Legs', exercises: ['Dumbbell Shoulder Press', 'Push-Up', 'Goblet Squat', 'Romanian Deadlift', 'Ab Wheel Rollout'] }
+    ]
+  },
+  {
+    id: 'metcon',
+    name: 'Fitness Racing & Conditioning',
+    focus: 'conditioning',
+    notes: 'Station work for CrossFit, HYROX, and bootcamp-style events.',
+    days: [
+      { name: 'Stations A', exercises: ['Sled Push', 'Wall Ball', 'Rowing Machine', 'Farmer Carry', 'Burpee'] },
+      { name: 'Stations B', exercises: ['Kettlebell Swing', 'SkiErg', 'Walking Lunge', 'Box Jump', 'Sled Drag'] },
+      { name: 'Strength', exercises: ['Power Clean', 'Front Squat', 'Pull-Up', 'Double Unders'] }
+    ]
+  },
+  {
+    id: 'mobility_core',
+    name: 'Mobility, Core & Balance',
+    focus: 'mobility',
+    notes: 'Beginner-friendly. Pairs well with yoga, Pilates, dance, or getting back into training.',
+    days: [
+      { name: 'Control', exercises: ['Goblet Squat', 'Turkish Get-Up', 'Dead Bug', 'Back Extension', 'Plank'] },
+      { name: 'Balance', exercises: ['Step-Up', 'Push-Up', 'Single-Arm Dumbbell Row', 'Pallof Press', 'Suitcase Carry'] }
+    ]
+  },
+  {
+    id: 'seated_upper',
+    name: 'Seated Upper Body',
+    focus: 'adaptive',
+    notes: 'Every movement can be done seated, for wheelchair athletes and anyone training without loading the legs.',
+    days: [
+      { name: 'Pull + Press', exercises: ['Lat Pulldown', 'Seated Cable Row', 'Dumbbell Shoulder Press', 'Chest Press Machine', 'Face Pull'] },
+      { name: 'Arms + Trunk', exercises: ['Single-Arm Dumbbell Row', 'Dumbbell Bench Press', 'Straight-Arm Pulldown', 'Dumbbell Curl', 'Tricep Pushdown', 'Cable Crunch'] }
+    ]
   }
 ];
+
+const GENERAL_IDS = ['full_body_3day', 'upper_lower', 'mobility_core'];
+
+/**
+ * Pick and order programs for one activity (dropdown) or, with no activity, for all the user's interests.
+ * Returns [{ program, score, why }] where `why` names the activity or type that matched.
+ */
+function choosePrograms(activity, interests) {
+  if (activity) {
+    const arches = A.archetypesFor(activity);
+    const weights = new Map(arches.map((a, i) => [a, i === 0 ? 2 : 1]));
+    const hit = A.lookup(activity);
+    const label = hit ? hit.name : (A.ARCHETYPES[activity] ? A.ARCHETYPES[activity].label.replace(/ \(.*\)$/, '') : activity);
+    const ranked = A.rankPrograms(PROGRAMS, weights).filter((r) => r.score > 0);
+    const out = ranked.map((r) => ({ program: r.p, score: r.score, why: label }));
+    // Always leave a general option at the end as a fallback.
+    const backup = PROGRAMS.find((p) => p.id === 'full_body_3day');
+    if (!out.some((r) => r.program.id === backup.id)) out.push({ program: backup, score: 0, why: null });
+    return out;
+  }
+  if (!interests.length) return PROGRAMS.map((p) => ({ program: p, score: 0, why: null }));
+  const weights = new Map();
+  const whyFor = new Map();
+  interests.forEach((name) => {
+    A.archetypesFor(name).forEach((a, i) => {
+      weights.set(a, (weights.get(a) || 0) + (i === 0 ? 2 : 1));
+      if (!whyFor.has(a)) whyFor.set(a, (A.lookup(name) || { name }).name);
+    });
+  });
+  const ranked = A.rankPrograms(PROGRAMS, weights);
+  const matched = ranked.filter((r) => r.score > 0).map((r) => ({ program: r.p, score: r.score, why: whyFor.get(r.arch) || null }));
+  const general = PROGRAMS.filter((p) => GENERAL_IDS.includes(p.id) && !matched.some((r) => r.program.id === p.id))
+    .map((p) => ({ program: p, score: 0, why: null }));
+  return [...matched, ...general];
+}
 
 const MUSCLE_FIELDS = 'name pattern primaryMuscles secondaryMuscles equipment category imageUrl';
 
@@ -145,16 +292,12 @@ function detailFor(name, doc, defaults) {
 // GET /api/workouts/programs – suggested splits by sport focus
 // Each day keeps `exercises` (names, unchanged) and gains `details` (muscles, targets) for plan cards.
 router.get('/programs', async (req, res) => {
-  const programs = PROGRAMS;
   const settings = await Settings.findOne({ user: req.session.userId });
-  const interests = (settings?.interests || []).map((s) => s.toLowerCase());
-  const focus = req.query.focus;
-  const matched = programs.filter((p) => {
-    if (focus) return p.focus === focus || p.focus === 'general';
-    if (!interests.length) return true;
-    return p.focus === 'general' || interests.some((i) => i.includes(p.focus) || p.focus.includes(i.split(' ')[0]));
-  });
-  const chosen = matched.length ? matched : programs;
+  const interests = (settings?.interests || []).map((s) => String(s));
+  // `activity` is the dropdown value (an activity name or type key). `focus` is the old parameter and still works.
+  const activity = String(req.query.activity || req.query.focus || '').trim().slice(0, 80);
+  const picks = choosePrograms(activity, interests);
+  const chosen = picks.map((r) => r.program);
   try {
     const focusName = (settings?.trainingFocus || [])[0];
     const range = P.rangeFor({ focus: focusName });
@@ -162,8 +305,10 @@ router.get('/programs', async (req, res) => {
     const orders = settings?.programOrders || null;
     const customNames = orders ? [...orders.values()].flat() : [];
     const lookup = await exerciseLookup([...chosen.flatMap((p) => p.days.flatMap((d) => d.exercises)), ...customNames], req.session.userId);
-    res.json(chosen.map((p) => ({
+    res.json(picks.map(({ program: p, score, why }) => ({
       ...p,
+      matchScore: score,
+      matchFor: why,
       days: p.days.map((d, i) => {
         const planDay = `${p.id}:${d.name}`;
         const custom = orders && orders.get(planDay);
@@ -182,6 +327,11 @@ router.get('/programs', async (req, res) => {
     console.error(err);
     res.json(chosen);
   }
+});
+
+// GET /api/workouts/activities – the activity catalog (groups and types) for pickers
+router.get('/activities', (req, res) => {
+  res.json({ groups: A.GROUPS.map((g) => ({ label: g.label, items: g.items.map((i) => i[0]) })), types: Object.entries(A.ARCHETYPES).map(([key, a]) => ({ key, label: a.label })) });
 });
 
 // ---------- In-progress workout draft (autosave) ----------

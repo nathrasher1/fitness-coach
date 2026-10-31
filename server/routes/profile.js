@@ -25,10 +25,20 @@ router.put('/avatar', async (req, res) => {
 
 router.get('/photos', async (req, res) => {
   try {
-    const photos = await ProgressPhoto.find({ user: req.session.userId })
-      .sort({ date: -1, createdAt: -1 })
-      .limit(30);
-    res.json(photos);
+    // Optional filters: ?date=YYYY-MM-DD (one diary day) or ?from=&to= (a month).
+    // ?meta=1 leaves out the image data so the calendar can mark photo days cheaply.
+    const isDay = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+    const q = { user: req.session.userId };
+    if (isDay(req.query.date)) q.date = req.query.date;
+    else if (isDay(req.query.from) || isDay(req.query.to)) {
+      q.date = {};
+      if (isDay(req.query.from)) q.date.$gte = req.query.from;
+      if (isDay(req.query.to)) q.date.$lte = req.query.to;
+    }
+    const filtered = q.date != null;
+    let find = ProgressPhoto.find(q).sort({ date: -1, createdAt: -1 }).limit(filtered ? 100 : 30);
+    if (req.query.meta === '1') find = find.select('date note createdAt');
+    res.json(await find);
   } catch (err) {
     res.status(500).json({ error: 'Failed to load photos' });
   }

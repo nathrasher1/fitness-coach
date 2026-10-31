@@ -181,15 +181,11 @@
         <div class="card wo-plan-card">
           <h2>Suggested Programs</h2>
           <div class="form-row">
-            <label for="wo-program-focus">Focus</label>
+            <label for="wo-program-focus">Activity</label>
             <select id="wo-program-focus">
-              <option value="">All</option>
-              <option value="general">General</option>
-              <option value="jiu-jitsu">Jiu-Jitsu</option>
-              <option value="football">Football</option>
-              <option value="softball">Softball</option>
-              <option value="wakeboarding">Wakeboarding</option>
+              <option value="">Recommended for my activities</option>
             </select>
+            <p class="hint" id="wo-program-hint">Plans are ranked by the sports and activities in Settings. Pick one to see plans built for it.</p>
           </div>
           <div id="wo-programs"></div>
         </div>
@@ -305,124 +301,149 @@
 
         <div id="food-log-list" class="diary"></div>
 
-        <div class="card">
-          <h2>Add Food</h2>
-          <div class="form-row">
-            <label>Favorites</label>
-            <div id="favorites-chips" class="chip-row"></div>
-          </div>
-          <div class="form-row">
-            <label for="recent-select">Recent</label>
-            <select id="recent-select">
-              <option value="">Choose a recent food</option>
-            </select>
-          </div>
-          <div class="form-row">
-            <label for="food-meal">Meal</label>
-            <select id="food-meal">
+        <!-- Add food: opened from a meal card's "+ Add food" button -->
+        <div id="food-sheet" class="sheet-backdrop" hidden>
+          <div class="sheet food-sheet" role="dialog" aria-modal="true" aria-labelledby="food-sheet-title">
+            <div class="sheet-grip" aria-hidden="true"></div>
+            <div class="sheet-head">
+              <div>
+                <div class="summary-kicker" id="food-sheet-date"></div>
+                <h2 id="food-sheet-title" class="food-sheet-title">Add food</h2>
+              </div>
+              <button type="button" class="btn btn-ghost btn-sm" id="food-sheet-close" aria-label="Close">✕</button>
+            </div>
+            <select id="food-meal" hidden aria-hidden="true" tabindex="-1">
               <option value="breakfast">Breakfast</option>
               <option value="lunch">Lunch</option>
               <option value="dinner">Dinner</option>
               <option value="snack">Snack</option>
               <option value="other">Other</option>
             </select>
-          </div>
-          <div class="form-row">
-            <label for="food-search">Search or scan</label>
-            <div style="display:flex;gap:8px">
-              <input type="text" id="food-search" placeholder="Search a food, brand, or recipe…" autocomplete="off" style="flex:1" />
-              <button type="button" class="btn btn-secondary" id="btn-scan">Scan</button>
+            <div class="meal-pills" role="radiogroup" aria-label="Meal">
+              <button type="button" class="meal-pill" role="radio" data-meal-pill="breakfast" aria-checked="false">Breakfast</button>
+              <button type="button" class="meal-pill" role="radio" data-meal-pill="lunch" aria-checked="false">Lunch</button>
+              <button type="button" class="meal-pill" role="radio" data-meal-pill="dinner" aria-checked="false">Dinner</button>
+              <button type="button" class="meal-pill" role="radio" data-meal-pill="snack" aria-checked="false">Snack</button>
+              <button type="button" class="meal-pill" role="radio" data-meal-pill="other" aria-checked="false">Other</button>
             </div>
-            <div id="food-search-results" class="search-results"></div>
-          </div>
-          <div id="food-selected-row" style="display:none">
-            <div class="form-row">
-              <label>Selected</label>
-              <div id="food-selected-name" class="selected-food"></div>
-              <div id="food-selected-meta" class="hint" style="margin-top:4px"></div>
+            <div class="food-tabs" role="tablist">
+              <button type="button" role="tab" class="food-tab active" data-ftab="search" aria-selected="true">Search</button>
+              <button type="button" role="tab" class="food-tab" data-ftab="quick" aria-selected="false">Quick add</button>
+              <button type="button" role="tab" class="food-tab" data-ftab="custom" aria-selected="false">New food</button>
             </div>
-            <div class="grid-2">
+
+            <div class="food-tab-panel" data-fpanel="search">
               <div class="form-row">
-                <label for="food-servings">Amount</label>
-                <div class="serving-input-row">
-                  <input type="number" id="food-servings" step="0.25" min="0.01" value="1" />
-                  <select id="food-amount-unit" class="serving-unit-select"></select>
+                <label for="food-search">Search or scan</label>
+                <div style="display:flex;gap:8px">
+                  <input type="text" id="food-search" placeholder="Search a food, brand, or recipe…" autocomplete="off" style="flex:1" />
+                  <button type="button" class="btn btn-secondary" id="btn-scan">Scan</button>
+                </div>
+                <div id="food-search-results" class="search-results"></div>
+              </div>
+              <div id="food-selected-row" style="display:none">
+                <div class="form-row">
+                  <label>Selected</label>
+                  <div id="food-selected-name" class="selected-food"></div>
+                  <div id="food-selected-meta" class="hint" style="margin-top:4px"></div>
+                </div>
+                <div class="grid-2">
+                  <div class="form-row">
+                    <label for="food-servings">Amount</label>
+                    <div class="serving-input-row">
+                      <input type="number" id="food-servings" step="0.25" min="0.01" value="1" />
+                      <select id="food-amount-unit" class="serving-unit-select"></select>
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <label>This entry</label>
+                    <div id="food-serving-preview" class="selected-food">—</div>
+                  </div>
+                </div>
+                <div class="quick-serving-btns" id="quick-serving-btns">
+                  <button type="button" class="btn btn-secondary btn-sm" data-amt="0.5">½</button>
+                  <button type="button" class="btn btn-secondary btn-sm" data-amt="1">1</button>
+                  <button type="button" class="btn btn-secondary btn-sm" data-amt="1.5">1½</button>
+                  <button type="button" class="btn btn-secondary btn-sm" data-amt="2">2</button>
+                  <button type="button" class="btn btn-secondary btn-sm" data-amt="3">3</button>
+                  <button type="button" class="btn btn-secondary btn-sm" data-amt="4">4</button>
                 </div>
               </div>
+
               <div class="form-row">
-                <label>This entry</label>
-                <div id="food-serving-preview" class="selected-food">—</div>
+                <label>Favorites</label>
+                <div id="favorites-chips" class="chip-row"></div>
               </div>
-            </div>
-            <div class="quick-serving-btns" id="quick-serving-btns">
-              <button type="button" class="btn btn-secondary btn-sm" data-amt="0.5">½</button>
-              <button type="button" class="btn btn-secondary btn-sm" data-amt="1">1</button>
-              <button type="button" class="btn btn-secondary btn-sm" data-amt="1.5">1½</button>
-              <button type="button" class="btn btn-secondary btn-sm" data-amt="2">2</button>
-              <button type="button" class="btn btn-secondary btn-sm" data-amt="3">3</button>
-              <button type="button" class="btn btn-secondary btn-sm" data-amt="4">4</button>
-            </div>
-          </div>
-          <button class="btn btn-primary btn-block" id="btn-log-food" disabled style="margin-top:12px">Add to Log</button>
-        </div>
+              <div class="form-row">
+                <label for="recent-select">Recent</label>
+                <select id="recent-select">
+                  <option value="">Choose a recent food</option>
+                </select>
+              </div>
 
-        <div class="card">
-          <h2>Create Custom Food</h2>
-          <div class="grid-2">
-            <div class="form-row">
-              <label for="cf-name">Name</label>
-              <input type="text" id="cf-name" placeholder="e.g. Homemade chili" />
+              <button class="btn btn-primary btn-block food-sheet-cta" id="btn-log-food" disabled>Add to meal</button>
             </div>
-            <div class="form-row">
-              <label for="cf-calories">Calories (per serving)</label>
-              <input type="number" id="cf-calories" min="0" />
-            </div>
-          </div>
-          <div class="grid-3">
-            <div class="form-row">
-              <label for="cf-protein">Protein (g)</label>
-              <input type="number" id="cf-protein" step="0.1" min="0" />
-            </div>
-            <div class="form-row">
-              <label for="cf-carbs">Carbs (g)</label>
-              <input type="number" id="cf-carbs" step="0.1" min="0" />
-            </div>
-            <div class="form-row">
-              <label for="cf-fat">Fat (g)</label>
-              <input type="number" id="cf-fat" step="0.1" min="0" />
-            </div>
-          </div>
-          <button class="btn btn-secondary btn-block" id="btn-create-food">Save Custom Food</button>
-        </div>
 
-        <div class="card">
-          <h2>Manual Entry (blank calories / macros)</h2>
-          <p class="hint">Log calories without picking a food — restaurant meals, estimates, etc.</p>
-          <div class="grid-2">
-            <div class="form-row">
-              <label for="manual-name">Label</label>
-              <input type="text" id="manual-name" placeholder="e.g. Restaurant dinner" />
+            <div class="food-tab-panel" data-fpanel="quick" hidden>
+              <p class="hint">Log calories without picking a food: restaurant meals, estimates, and so on.</p>
+              <div class="grid-2">
+                <div class="form-row">
+                  <label for="manual-name">Label</label>
+                  <input type="text" id="manual-name" placeholder="e.g. Restaurant dinner" />
+                </div>
+                <div class="form-row">
+                  <label for="manual-calories">Calories</label>
+                  <input type="number" id="manual-calories" min="0" placeholder="e.g. 650" />
+                </div>
+              </div>
+              <div class="grid-3">
+                <div class="form-row">
+                  <label for="manual-protein">Protein (g)</label>
+                  <input type="number" id="manual-protein" step="0.1" min="0" value="0" />
+                </div>
+                <div class="form-row">
+                  <label for="manual-carbs">Carbs (g)</label>
+                  <input type="number" id="manual-carbs" step="0.1" min="0" value="0" />
+                </div>
+                <div class="form-row">
+                  <label for="manual-fat">Fat (g)</label>
+                  <input type="number" id="manual-fat" step="0.1" min="0" value="0" />
+                </div>
+              </div>
+
+              <button class="btn btn-primary btn-block food-sheet-cta" id="btn-manual-entry">Add to meal</button>
             </div>
-            <div class="form-row">
-              <label for="manual-calories">Calories</label>
-              <input type="number" id="manual-calories" min="0" placeholder="e.g. 650" />
+
+            <div class="food-tab-panel" data-fpanel="custom" hidden>
+              <p class="hint">Save a food you eat often. It is selected right away so you can log it.</p>
+              <div class="grid-2">
+                <div class="form-row">
+                  <label for="cf-name">Name</label>
+                  <input type="text" id="cf-name" placeholder="e.g. Homemade chili" />
+                </div>
+                <div class="form-row">
+                  <label for="cf-calories">Calories (per serving)</label>
+                  <input type="number" id="cf-calories" min="0" />
+                </div>
+              </div>
+              <div class="grid-3">
+                <div class="form-row">
+                  <label for="cf-protein">Protein (g)</label>
+                  <input type="number" id="cf-protein" step="0.1" min="0" />
+                </div>
+                <div class="form-row">
+                  <label for="cf-carbs">Carbs (g)</label>
+                  <input type="number" id="cf-carbs" step="0.1" min="0" />
+                </div>
+                <div class="form-row">
+                  <label for="cf-fat">Fat (g)</label>
+                  <input type="number" id="cf-fat" step="0.1" min="0" />
+                </div>
+              </div>
+
+              <button class="btn btn-primary btn-block food-sheet-cta" id="btn-create-food">Save food</button>
             </div>
           </div>
-          <div class="grid-3">
-            <div class="form-row">
-              <label for="manual-protein">Protein (g)</label>
-              <input type="number" id="manual-protein" step="0.1" min="0" value="0" />
-            </div>
-            <div class="form-row">
-              <label for="manual-carbs">Carbs (g)</label>
-              <input type="number" id="manual-carbs" step="0.1" min="0" value="0" />
-            </div>
-            <div class="form-row">
-              <label for="manual-fat">Fat (g)</label>
-              <input type="number" id="manual-fat" step="0.1" min="0" value="0" />
-            </div>
-          </div>
-          <button class="btn btn-secondary btn-block" id="btn-manual-entry">Add Manual Entry</button>
         </div>
       </section>
 
@@ -569,7 +590,9 @@
 
         <div class="card">
           <h2>Sports, interests, and activities</h2>
-          <p class="hint" style="margin-bottom:12px">Turn on what applies. These are saved with your account and will be used later for program and training recommendations.</p>
+          <p class="hint" style="margin-bottom:12px">Turn on what applies. Suggested programs and recommended lifts on the Workouts page follow these.</p>
+          <input type="search" id="interest-search" class="interest-search" placeholder="Search 150+ sports and activities…" autocomplete="off" aria-label="Search activities" />
+          <div id="interest-selected" class="interest-selected"></div>
           <div id="interest-groups"></div>
           <button class="btn btn-primary" id="btn-save-interests" style="margin-top:12px">Save Interests</button>
         </div>
@@ -622,7 +645,13 @@
   </div>
 
   <script src="https://unpkg.com/html5-qrcode"></script>
+  <div id="photo-lightbox" class="photo-lightbox" hidden role="dialog" aria-modal="true" aria-label="Progress photo">
+    <button type="button" class="btn btn-ghost btn-sm photo-lightbox-close" aria-label="Close">✕</button>
+    <img id="photo-lightbox-img" alt="" />
+    <div id="photo-lightbox-cap" class="photo-lightbox-cap"></div>
+  </div>
   <script src="lib/progression.js"></script>
+  <script src="lib/activities.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

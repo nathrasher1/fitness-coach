@@ -197,44 +197,92 @@ document.getElementById('avg-period-tabs').addEventListener('click', (e) => {
 });
 
 // ========== Settings ==========
-const INTEREST_GROUPS = [
-  {
-    label: 'Sports',
-    items: [
-      'Brazilian jiu-jitsu', 'Wrestling', 'Boxing', 'Muay Thai', 'MMA',
-      'Football', 'Basketball', 'Baseball', 'Softball', 'Soccer',
-      'Hockey', 'Lacrosse', 'Volleyball', 'Tennis', 'Golf',
-      'Track and field', 'Swimming', 'Wakeboarding', 'Skiing', 'Snowboarding'
-    ]
-  },
-  {
-    label: 'Training',
-    items: [
-      'Strength training', 'Powerlifting', 'Olympic lifting', 'Bodybuilding',
-      'CrossFit', 'Running', 'Cycling', 'Rock climbing', 'Hiking', 'Yoga'
-    ]
-  },
-  {
-    label: 'Other activities',
-    items: ['Coaching', 'Music', 'Guitar', 'Spanish', 'Homeschool', 'Gardening']
-  }
-];
+// Grouped activity catalog lives in lib/activities.js (shared with the server's program matching).
+const ACT = window.Activities;
 
 function renderInterestChecks() {
   const box = document.getElementById('interest-groups');
   if (!box) return;
-  const selected = new Set(settings.interests || []);
-  box.innerHTML = INTEREST_GROUPS.map((group) => `
-    <div style="margin-bottom:12px">
-      <div style="font-weight:600;margin-bottom:6px">${group.label}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:10px 14px">
-        ${group.items.map((item) => `
-          <label style="display:flex;align-items:center;gap:4px;font-weight:400">
-            <input type="checkbox" class="interest-check" value="${item}" ${selected.has(item) ? 'checked' : ''} style="width:auto" />
-            ${item}
-          </label>`).join('')}
-      </div>
-    </div>`).join('');
+  const saved = settings.interests || [];
+  const on = new Set(saved.map((n) => (ACT.lookup(n) || { name: n }).name.toLowerCase()));
+  const groups = ACT.GROUPS.map((g) => ({ label: g.label, items: g.items.map((x) => x[0]) }));
+  // Saved interests that are not in the catalog (older free-form or retired items) stay visible and checked.
+  const extra = [...new Set(saved.filter((n) => !ACT.lookup(n)))];
+  if (extra.length) groups.push({ label: 'Your other interests', items: extra });
+  box.innerHTML = groups.map((g) => {
+    const count = g.items.filter((n) => on.has(n.toLowerCase())).length;
+    return `<details class="interest-group" data-has="${count ? 1 : 0}" ${count ? 'open' : ''}>
+      <summary><span class="interest-group-name">${esc(g.label)}</span><span class="interest-count">${count ? count + ' on' : g.items.length}</span></summary>
+      <div class="interest-chips">${g.items.map((n) => `<label class="interest-chip" data-name="${esc(n.toLowerCase())}">
+        <input type="checkbox" class="interest-check" value="${esc(n)}" ${on.has(n.toLowerCase()) ? 'checked' : ''} /><span>${esc(n)}</span></label>`).join('')}</div>
+    </details>`;
+  }).join('') + '<div class="empty" id="interest-none" hidden>No activity matches that search.</div>';
+  const search = document.getElementById('interest-search');
+  if (search) search.value = '';
+  updateInterestSummary();
+}
+
+function updateInterestSummary() {
+  const box = document.getElementById('interest-groups');
+  const sel = document.getElementById('interest-selected');
+  if (!box) return;
+  box.querySelectorAll('.interest-group').forEach((g) => {
+    const n = g.querySelectorAll('.interest-check:checked').length;
+    const total = g.querySelectorAll('.interest-check').length;
+    g.querySelector('.interest-count').textContent = n ? `${n} on` : String(total);
+    g.dataset.has = n ? 1 : 0;
+  });
+  if (!sel) return;
+  const names = selectedInterests();
+  sel.innerHTML = names.length
+    ? `<span class="hint">${names.length} selected</span>` + names.map((n) => `<button type="button" class="chip chip-on" data-unpick="${esc(n)}">${esc(n)} <span aria-hidden="true">×</span><span class="sr-only">Remove</span></button>`).join('')
+    : '<span class="hint">Nothing selected yet.</span>';
+}
+
+function filterInterests(q) {
+  const box = document.getElementById('interest-groups');
+  if (!box) return;
+  const needle = q.trim().toLowerCase();
+  let any = false;
+  box.querySelectorAll('.interest-group').forEach((g) => {
+    const groupHit = needle && g.querySelector('.interest-group-name').textContent.toLowerCase().includes(needle);
+    let shown = 0;
+    g.querySelectorAll('.interest-chip').forEach((c) => {
+      const hit = !needle || groupHit || c.dataset.name.includes(needle);
+      c.hidden = !hit;
+      if (hit) shown++;
+    });
+    g.hidden = !shown;
+    if (shown) any = true;
+    g.open = needle ? shown > 0 : g.dataset.has === '1';
+  });
+  const none = document.getElementById('interest-none');
+  if (none) none.hidden = any;
+}
+
+document.getElementById('interest-search')?.addEventListener('input', (e) => filterInterests(e.target.value));
+document.getElementById('interest-groups')?.addEventListener('change', (e) => {
+  if (e.target.classList.contains('interest-check')) updateInterestSummary();
+});
+document.getElementById('interest-selected')?.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-unpick]');
+  if (!b) return;
+  document.querySelectorAll('.interest-check').forEach((c) => { if (c.value === b.dataset.unpick) c.checked = false; });
+  updateInterestSummary();
+});
+
+/** Activity dropdown on the Workouts page: the user's own activities first, then every activity type. */
+function renderActivityOptions() {
+  const sel = document.getElementById('wo-program-focus');
+  if (!sel) return;
+  const prev = sel.value;
+  const mine = [...new Set((settings.interests || []).filter((n) => ACT.archetypesFor(n).length).map((n) => (ACT.lookup(n) || { name: n }).name))];
+  const types = Object.entries(ACT.ARCHETYPES);
+  sel.innerHTML = '<option value="">Recommended for my activities</option>' +
+    (mine.length ? `<optgroup label="Your activities">${mine.map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join('')}</optgroup>` : '') +
+    `<optgroup label="All activity types">${types.map(([k, a]) => `<option value="${k}">${esc(a.label)}</option>`).join('')}</optgroup>`;
+  const legacy = ACT.LEGACY_FOCUS[prev];
+  sel.value = [...sel.options].some((o) => o.value === prev) ? prev : legacy || '';
 }
 
 const TRAINING_FOCUS = ['Strength', 'Power', 'Hypertrophy', 'Conditioning', 'Endurance'];
@@ -311,6 +359,7 @@ async function loadSettings() {
     renderThemePicker();
     applyTheme(settings.theme);
     renderInterestChecks();
+    renderActivityOptions();
     renderTrainingFocus();
     renderRecommendedLifts();
   } catch (e) {
@@ -353,6 +402,9 @@ document.getElementById('btn-save-interests').addEventListener('click', async ()
       })
     });
     toast('Interests saved');
+    renderInterestChecks();
+    renderActivityOptions();
+    renderRecommendedLifts();
   } catch (err) {
     toast(err.message);
   }
@@ -785,6 +837,70 @@ document.getElementById('food-search').addEventListener('input', (e) => {
   searchTimeout = setTimeout(() => searchFoods(q), 250);
 });
 
+// ---------- Add-food sheet (opened from a meal card) ----------
+const MEAL_LABELS = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack', other: 'Other' };
+const foodSheet = document.getElementById('food-sheet');
+
+function setFoodMeal(meal) {
+  const m = MEAL_LABELS[meal] ? meal : 'breakfast';
+  document.getElementById('food-meal').value = m;
+  document.querySelectorAll('[data-meal-pill]').forEach((b) => {
+    const on = b.dataset.mealPill === m;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-checked', on ? 'true' : 'false');
+  });
+  document.getElementById('food-sheet-title').textContent = 'Add to ' + MEAL_LABELS[m];
+}
+function setFoodTab(tab) {
+  document.querySelectorAll('.food-tab').forEach((b) => {
+    const on = b.dataset.ftab === tab;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  document.querySelectorAll('[data-fpanel]').forEach((el) => { el.hidden = el.dataset.fpanel !== tab; });
+}
+function clearFoodSelection() {
+  selectedFood = null;
+  document.getElementById('food-selected-row').style.display = 'none';
+  document.getElementById('btn-log-food').disabled = true;
+  document.getElementById('food-servings').value = '1';
+  document.getElementById('food-search').value = '';
+  document.getElementById('food-search-results').classList.remove('open');
+  const recent = document.getElementById('recent-select');
+  if (recent) recent.value = '';
+}
+function openFoodSheet(meal, tab = 'search') {
+  clearFoodSelection();
+  setFoodMeal(meal);
+  setFoodTab(tab);
+  const date = document.getElementById('food-date').value || todayStr();
+  document.getElementById('food-sheet-date').textContent = date === todayStr() ? 'Today' : formatDate(date);
+  foodSheet.hidden = false;
+  document.body.classList.add('sheet-open');
+  loadQuickAdd();
+  // Desktop: jump straight into search. Phones: don't pop the keyboard over the sheet.
+  if (!window.matchMedia('(pointer: coarse)').matches) document.getElementById('food-search').focus();
+}
+function closeFoodSheet() {
+  foodSheet.hidden = true;
+  document.body.classList.remove('sheet-open');
+  document.getElementById('food-search-results').classList.remove('open');
+}
+foodSheet.addEventListener('click', (e) => {
+  if (e.target === foodSheet || e.target.closest('#food-sheet-close')) return closeFoodSheet();
+  const pill = e.target.closest('[data-meal-pill]');
+  if (pill) return setFoodMeal(pill.dataset.mealPill);
+  const tab = e.target.closest('.food-tab');
+  if (tab) setFoodTab(tab.dataset.ftab);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (!document.getElementById('photo-lightbox').hidden) return closeLightbox();
+  if (scanModal.style.display === 'flex') return;
+  if (!foodSheet.hidden) closeFoodSheet();
+  else if (!document.getElementById('wo-sheet').hidden) closeWoSheet();
+});
+
 let barcodeScanner = null;
 let barcodeBusy = false;
 const scanModal = document.getElementById('scan-modal');
@@ -856,7 +972,7 @@ async function searchFoods(q) {
     const foods = await api(`/foods?q=${encodeURIComponent(q)}&limit=15`);
     const el = document.getElementById('food-search-results');
     if (!foods.length) {
-      el.innerHTML = '<div class="search-item">No foods found — create a custom food below</div>';
+      el.innerHTML = '<div class="search-item">No foods found. Try <strong>New food</strong> or <strong>Quick add</strong>.</div>';
       el.classList.add('open');
       return;
     }
@@ -927,11 +1043,10 @@ document.getElementById('btn-log-food').addEventListener('click', async () => {
       method: 'POST',
       body: JSON.stringify({ date, meal, foodId: selectedFood.id, servings, amount, amountUnit: unit })
     });
-    selectedFood = null;
-    document.getElementById('food-selected-row').style.display = 'none';
-    document.getElementById('btn-log-food').disabled = true;
-    document.getElementById('food-servings').value = '1';
-    toast('Food logged');
+    const loggedName = selectedFood.name;
+    clearFoodSelection();
+    closeFoodSheet();
+    toast(`${loggedName} added to ${MEAL_LABELS[meal] || meal}`);
     loadFoodLog();
     loadQuickAdd();
     loadDashboard();
@@ -946,7 +1061,7 @@ document.getElementById('btn-create-food').addEventListener('click', async () =>
   if (!name || !calories) return toast('Name and calories required');
 
   try {
-    await api('/foods', {
+    const created = await api('/foods', {
       method: 'POST',
       body: JSON.stringify({
         name,
@@ -961,7 +1076,13 @@ document.getElementById('btn-create-food').addEventListener('click', async () =>
     document.getElementById('cf-protein').value = '';
     document.getElementById('cf-carbs').value = '';
     document.getElementById('cf-fat').value = '';
-    toast('Custom food created — search for it to log');
+    if (created && (created._id || created.id)) {
+      setFoodTab('search');
+      selectFoodForLog(created);
+      toast('Saved. Set the amount and add it.');
+    } else {
+      toast('Food saved. Search for it to log');
+    }
   } catch (err) {
     toast(err.message);
   }
@@ -992,7 +1113,8 @@ document.getElementById('btn-manual-entry').addEventListener('click', async () =
     document.getElementById('manual-protein').value = '0';
     document.getElementById('manual-carbs').value = '0';
     document.getElementById('manual-fat').value = '0';
-    toast('Manual entry added');
+    closeFoodSheet();
+    toast(`Added to ${MEAL_LABELS[meal] || meal}`);
     loadFoodLog();
     loadDashboard();
   } catch (err) {
@@ -1127,11 +1249,7 @@ async function loadFoodLog() {
     });
 
     listEl.querySelectorAll('[data-add-meal]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        document.getElementById('food-meal').value = btn.dataset.addMeal;
-        document.getElementById('food-search').focus();
-        document.getElementById('food-search').scrollIntoView({ behavior: 'smooth', block: 'center' });
-      });
+      btn.addEventListener('click', () => openFoodSheet(btn.dataset.addMeal));
     });
 
     listEl.querySelectorAll('.btn-danger').forEach((btn) => {
@@ -1257,18 +1375,11 @@ document.getElementById('btn-save-goal').addEventListener('click', async () => {
   }
 });
 
+// Starter lifts per activity type come from lib/activities.js. A few names keep their own picks.
 const LIFT_MAP = {
-  'brazilian jiu-jitsu': ['Pull-Up', 'Romanian Deadlift', 'Farmer Carry', 'Pallof Press'],
-  wrestling: ['Power Clean', 'Back Squat', 'Farmer Carry', 'Pull-Up'],
-  football: ['Back Squat', 'Trap Bar Deadlift', 'Bench Press', 'Box Jump'],
-  softball: ['Landmine Press', 'Pallof Press', 'Front Squat', 'Single-Arm Dumbbell Row'],
-  wakeboarding: ['Romanian Deadlift', 'Pull-Up', 'Kettlebell Swing', 'Farmer Carry'],
-  'strength training': ['Back Squat', 'Bench Press', 'Barbell Row', 'Overhead Press'],
-  powerlifting: ['Back Squat', 'Bench Press', 'Deadlift'],
-  'olympic lifting': ['Power Clean', 'Snatch', 'Front Squat', 'Push Press'],
+  powerlifting: ['Back Squat', 'Bench Press', 'Conventional Deadlift'],
   bodybuilding: ['Incline Dumbbell Press', 'Lat Pulldown', 'Lateral Raise', 'Leg Curl'],
-  running: ['Romanian Deadlift', 'Calf Raise', 'Front Squat', 'Dead Bug'],
-  climbing: ['Pull-Up', 'Dead Hang', 'Farmer Carry', 'Front Squat']
+  wrestling: ['Power Clean', 'Back Squat', 'Farmer Carry', 'Pull-Up']
 };
 
 function renderRecommendedLifts() {
@@ -1277,9 +1388,10 @@ function renderRecommendedLifts() {
   const interests = settings.interests || [];
   const lifts = [];
   interests.forEach((name) => {
-    const key = name.toLowerCase();
-    const match = Object.keys(LIFT_MAP).find((k) => key.includes(k) || k.includes(key));
-    if (match) lifts.push(...LIFT_MAP[match]);
+    const own = LIFT_MAP[name.toLowerCase()];
+    if (own) return lifts.push(...own);
+    const arch = ACT.archetypesFor(name)[0];
+    if (arch) lifts.push(...ACT.ARCHETYPES[arch].lifts);
   });
   const unique = [...new Set(lifts)];
   if (!unique.length) {
@@ -1972,9 +2084,9 @@ function dayCard(day) {
 async function loadPlans() {
   woPlanDays = new Map();
   try {
-    const focus = document.getElementById('wo-program-focus').value;
+    const activity = document.getElementById('wo-program-focus').value;
     const [programs, routines, history] = await Promise.all([
-      api(`/workouts/programs${focus ? '?focus=' + focus : ''}`),
+      api(`/workouts/programs${activity ? '?activity=' + encodeURIComponent(activity) : ''}`),
       api('/workouts/routines').catch(() => []),
       api('/workouts?limit=50').catch(() => [])
     ]);
@@ -1988,20 +2100,76 @@ async function loadPlans() {
       })).join('')}</div>`
       : '<div class="empty">No saved routines yet. Finish a session and save it as a routine.</div>';
     const pEl = document.getElementById('wo-programs');
-    if (!programs.length) { pEl.innerHTML = '<div class="empty">No programs for this focus.</div>'; return; }
-    pEl.innerHTML = programs.map((p) => `
-      <div class="program-block">
-        <div class="program-title"><strong>${esc(p.name)}</strong><span class="hint">${p.days.length} days</span></div>
-        ${p.notes ? `<p class="hint">${esc(p.notes)}</p>` : ''}
-        <div class="day-grid">${p.days.map((d, i) => dayCard({
-          planDay: d.planDay || `${p.id}:${d.name}`, number: d.number || i + 1, name: d.name, programName: p.name,
-          sessionName: `${p.name} · ${d.name}`,
-          details: d.details || d.exercises.map((x) => ({ name: x }))
-        })).join('')}</div>
-      </div>`).join('');
+    const hint = document.getElementById('wo-program-hint');
+    if (hint) {
+      const label = activity ? (ACT.ARCHETYPES[activity]?.label || activity) : '';
+      hint.textContent = activity
+        ? `Plans built for ${label}, best match first.`
+        : (settings.interests || []).length ? 'Ranked by the activities you picked in Settings. Tap a plan to see its days.' : 'Pick activities in Settings to tailor these. Tap a plan to see its days.';
+    }
+    woPrograms = new Map();
+    if (!programs.length) { pEl.innerHTML = '<div class="empty">No programs for this activity.</div>'; return; }
+    pEl.innerHTML = `<div class="plan-grid">${programs.map((p) => planCard(p, !!activity)).join('')}</div>`;
+    if (woReopenPlan && woPrograms.has(woReopenPlan)) openPlanSheet(woReopenPlan);
+    woReopenPlan = null;
   } catch (err) {
     console.error(err);
   }
+}
+
+let woPrograms = new Map();
+let woReopenPlan = null;
+let woDayFromPlan = null;
+
+function programDays(p) {
+  return p.days.map((d, i) => ({
+    planDay: d.planDay || `${p.id}:${d.name}`, number: d.number || i + 1, name: d.name, programName: p.name, programId: p.id,
+    sessionName: `${p.name} · ${d.name}`,
+    details: d.details || d.exercises.map((x) => ({ name: x }))
+  }));
+}
+function planCard(p, filtered) {
+  const days = programDays(p);
+  woPrograms.set(p.id, { ...p, planDays: days });
+  const all = days.flatMap((d) => d.details);
+  const mins = days.length ? Math.round(days.reduce((s, d) => s + dayMinutes(d), 0) / days.length) : 0;
+  const last = days.map(lastDoneFor).filter(Boolean).sort().pop() || null;
+  const tag = p.matchFor ? `<span class="plan-tag">For ${esc(p.matchFor)}</span>`
+    : filtered ? '<span class="plan-tag plan-tag-muted">General backup</span>' : '';
+  return `<button type="button" class="plan-card" data-plan="${esc(p.id)}" aria-haspopup="dialog">
+    <div class="plan-card-main">
+      ${tag}
+      <span class="plan-name">${esc(p.name)}</span>
+      <span class="day-meta"><span>${days.length} day${days.length === 1 ? '' : 's'}</span><span>⏱ ~${mins} min each</span></span>
+      <span class="plan-days">${days.map((d) => esc(d.name)).join(' · ')}</span>
+      <span class="day-last">${last ? daysAgoText(last) : 'Not started'}</span>
+    </div>
+    <div class="plan-card-side">${bodyMapSvg(all, 'body-map-sm')}<span class="plan-open">View days ›</span></div>
+  </button>`;
+}
+function openPlanSheet(id) {
+  const p = woPrograms.get(id);
+  if (!p) return;
+  const sheet = document.getElementById('wo-sheet');
+  sheet.innerHTML = `<div class="sheet plan-sheet" role="dialog" aria-modal="true" aria-label="${esc(p.name)}">
+    <div class="sheet-grip" aria-hidden="true"></div>
+    <div class="sheet-head"><div><div class="summary-kicker">${p.planDays.length}-day plan${p.matchFor ? ' · for ' + esc(p.matchFor) : ''}</div><strong class="summary-title">${esc(p.name)}</strong></div><button type="button" class="icon-btn" data-sheet-close aria-label="Close">×</button></div>
+    ${p.notes ? `<p class="hint">${esc(p.notes)}</p>` : ''}
+    <div class="day-grid plan-sheet-days">${p.planDays.map((d) => dayCard(d)).join('')}</div>
+    <p class="hint plan-sheet-foot">Tap a day to see the exercises, reorder or swap them, and start.</p>
+  </div>`;
+  sheet.hidden = false;
+  document.body.classList.add('sheet-open');
+  sheet.onclick = (ev) => {
+    if (ev.target === sheet || ev.target.closest('[data-sheet-close]')) return closeWoSheet();
+    const c = ev.target.closest('[data-day]');
+    if (c) { closeWoSheet(); woDayFromPlan = id; openDayView(c.dataset.day); }
+  };
+}
+function closeWoSheet() {
+  const sheet = document.getElementById('wo-sheet');
+  sheet.hidden = true;
+  document.body.classList.remove('sheet-open');
 }
 
 function lastSetsFromHistory(d) {
@@ -2036,6 +2204,7 @@ function openDayView(key) {
 }
 function closeDayView() {
   woDayView = null;
+  woDayFromPlan = null;
   document.getElementById('workouts').classList.remove('day-open');
   document.getElementById('wo-day-view').hidden = true;
 }
@@ -2069,7 +2238,7 @@ function renderDayView() {
     <button type="button" class="btn btn-primary btn-block btn-lg dd-start" data-dd="start">Start Workout</button>`;
 }
 
-document.getElementById('wo-programs').addEventListener('click', (e) => { const c = e.target.closest('[data-day]'); if (c) openDayView(c.dataset.day); });
+document.getElementById('wo-programs').addEventListener('click', (e) => { const c = e.target.closest('[data-plan]'); if (c) openPlanSheet(c.dataset.plan); });
 document.getElementById('wo-routines').addEventListener('click', (e) => { const c = e.target.closest('[data-day]'); if (c) openDayView(c.dataset.day); });
 
 async function persistDayOrder() {
@@ -2096,7 +2265,7 @@ async function persistDayOrder() {
 document.getElementById('wo-day-view').addEventListener('click', (e) => {
   const b = e.target.closest('button');
   if (!b || !woDayView) return;
-  if (b.dataset.dd === 'back') return closeDayView();
+  if (b.dataset.dd === 'back') { const from = woDayFromPlan; closeDayView(); if (from) openPlanSheet(from); return; }
   if (b.dataset.dd === 'start') return startDay(woDayView);
   if (b.dataset.ddSwap != null) {
     const i = Number(b.dataset.ddSwap);
@@ -2487,11 +2656,17 @@ async function loadProgressPhotos() {
     list.innerHTML = '<div class="empty">No progress photos yet.</div>';
     return;
   }
-  list.innerHTML = photos.map((p) => `
+  list.innerHTML = photos.map((p, i) => `
     <div class="photo-card">
-      <img src="${p.image}" alt="" />
+      <img src="${p.image}" alt="" data-zoom="${i}" style="cursor:zoom-in" />
       <div class="meta">${p.date}${p.note ? ' · ' + p.note : ''} <button class="btn btn-danger btn-sm" data-id="${p._id}">×</button></div>
     </div>`).join('');
+  list.querySelectorAll('[data-zoom]').forEach((img) => {
+    img.addEventListener('click', () => {
+      const p = photos[Number(img.dataset.zoom)];
+      openLightbox(p.image, [formatDate(p.date), p.note].filter(Boolean).join(' · '));
+    });
+  });
   list.querySelectorAll('[data-id]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       await api(`/profile/photos/${btn.dataset.id}`, { method: 'DELETE' });
@@ -2631,6 +2806,16 @@ async function loadCalendar() {
   }
   grid.innerHTML = html;
 
+  // Mark days that have progress photos (metadata only, no image data)
+  const monthStart = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-01`;
+  const monthEnd = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(days).padStart(2, '0')}`;
+  api(`/profile/photos?from=${monthStart}&to=${monthEnd}&meta=1`).then((photos) => {
+    new Set(photos.map((p) => p.date)).forEach((d) => {
+      const el = grid.querySelector(`[data-date="${d}"]`);
+      if (el && !el.querySelector('.cal-photo')) el.insertAdjacentHTML('beforeend', '<span class="cal-photo" aria-label="Has progress photo" title="Progress photo"></span>');
+    });
+  }).catch(() => {});
+
   // Mark days with data
   try {
     const [weights, foodRes, workouts] = await Promise.all([
@@ -2675,6 +2860,24 @@ async function loadCalendar() {
   });
 }
 
+let dayPhotos = [];
+const lightbox = document.getElementById('photo-lightbox');
+function openLightbox(src, caption) {
+  document.getElementById('photo-lightbox-img').src = src;
+  document.getElementById('photo-lightbox-cap').textContent = caption || '';
+  lightbox.hidden = false;
+  document.body.classList.add('sheet-open');
+  lightbox.querySelector('.photo-lightbox-close').focus();
+}
+function closeLightbox() {
+  lightbox.hidden = true;
+  document.getElementById('photo-lightbox-img').removeAttribute('src');
+  if (document.getElementById('food-sheet').hidden && document.getElementById('wo-sheet').hidden) document.body.classList.remove('sheet-open');
+}
+lightbox.addEventListener('click', (e) => {
+  if (e.target === lightbox || e.target.closest('.photo-lightbox-close')) closeLightbox();
+});
+
 async function showDayDetail(date) {
   const detail = document.getElementById('calendar-day-detail');
   const title = document.getElementById('calendar-day-title');
@@ -2684,15 +2887,27 @@ async function showDayDetail(date) {
   content.innerHTML = '<div class="empty">Loading…</div>';
 
   try {
-    const [weights, foodRes, workouts, metrics] = await Promise.all([
+    const [weights, foodRes, workouts, metrics, photos] = await Promise.all([
       api(`/weights?days=365`).then(all => all.filter(w => w.date === date)),
       api(`/food-logs?date=${date}`),
       api('/workouts?limit=100').then(all => all.filter(w => w.date === date)),
-      api('/body-metrics?limit=100').then(all => all.filter(m => m.date === date))
+      api('/body-metrics?limit=100').then(all => all.filter(m => m.date === date)),
+      api(`/profile/photos?date=${date}`).catch(() => [])
     ]);
+    dayPhotos = photos;
     const foods = foodRes.logs || [];
 
     let html = '';
+
+    // Progress photos taken that day: thumbnails, tap to enlarge
+    html += `<div class="day-section">
+      <button class="day-section-toggle" data-sec="ph">Progress photos${photos.length ? ` <em class="day-count">${photos.length}</em>` : ''} <span>${photos.length ? '▾' : '▸'}</span></button>
+      <div class="day-section-body ${photos.length ? 'open' : ''}" id="day-ph">
+        ${photos.length
+          ? `<div class="day-photos">${photos.map((p, i) => `<button type="button" class="day-photo" data-photo="${i}" aria-label="Open photo${p.note ? ': ' + esc(p.note) : ''}"><img src="${p.image}" alt="" loading="lazy" />${p.note ? `<span>${esc(p.note)}</span>` : ''}</button>`).join('')}</div>`
+          : '<div class="empty">No photos this day. Add one on the Body page.</div>'}
+      </div>
+    </div>`;
 
     // Food
     html += `<div class="day-section">
@@ -2727,6 +2942,13 @@ async function showDayDetail(date) {
     </div>`;
 
     content.innerHTML = html;
+
+    content.querySelectorAll('[data-photo]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const p = dayPhotos[Number(btn.dataset.photo)];
+        if (p) openLightbox(p.image, [formatDate(p.date), p.note].filter(Boolean).join(' · '));
+      });
+    });
 
     content.querySelectorAll('.day-section-toggle').forEach(btn => {
       btn.addEventListener('click', () => {
