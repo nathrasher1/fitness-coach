@@ -3,7 +3,7 @@ const path = require('path');
 const express = require('express');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
-const cors = require('cors');
+const { createCors } = require('./middleware/cors');
 const mongoose = require('mongoose');
 
 const authRoutes = require('./routes/auth');
@@ -27,10 +27,8 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/fitnes
 app.set('trust proxy', 1);
 
 // ---------- Middleware ----------
-app.use(cors({
-  origin: true,
-  credentials: true
-}));
+// CORS: only the app's own origin (+ ALLOWED_ORIGINS, + localhost outside production).
+app.use(createCors());
 app.use(express.json({ limit: '8mb' }));
 app.use(express.urlencoded({ extended: true }));
 
