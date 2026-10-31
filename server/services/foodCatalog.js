@@ -24,24 +24,29 @@ function queryTokens(q) {
     .toLowerCase()
     .split(/[\s,]+/)
     .map((t) => t.replace(/^[^a-z0-9%&'"/.-]+|[^a-z0-9%&'"/.-]+$/g, ''))
+    .map((t) => t.replace(/['\u2019]/g, ''))
     .filter(Boolean)
     .slice(0, 6)
     .map((t) => (t.length > 3 && t.endsWith('s') && !t.endsWith('ss') ? t.slice(0, -1) : t));
 }
 
+/** Regex source for a token that also matches with apostrophes inside ("mcdonalds" finds "McDonald's"). */
+const tokenPattern = (t) => Array.from(t).map(escapeRegex).join("['\u2019]?");
+
 /** Mongo filter: every token must appear (case-insensitive, anywhere) in the name or brand. */
 function tokenFilter(tokens) {
   return tokens.map((t) => {
-    const rx = { $regex: escapeRegex(t), $options: 'i' };
+    const rx = { $regex: tokenPattern(t), $options: 'i' };
     return { $or: [{ name: rx }, { brand: rx }] };
   });
 }
 
 /** Lower is better: exact > name starts with query > word starts > anywhere. */
 function rankFood(food, q, tokens) {
-  const name = String(food.name || '').toLowerCase();
-  const full = `${name} ${String(food.brand || '').toLowerCase()}`;
-  const query = q.toLowerCase().trim();
+  const strip = (s) => String(s || '').toLowerCase().replace(/['\u2019]/g, '');
+  const name = strip(food.name);
+  const full = `${name} ${strip(food.brand)}`;
+  const query = strip(q).trim();
   let score = 50;
   if (name === query) score = 0;
   else if (name.startsWith(query)) score = 5;

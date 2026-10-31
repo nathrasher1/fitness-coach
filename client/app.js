@@ -729,7 +729,8 @@ function buildUnitOptions(food) {
       label: `serving (${food.servingSize} ${food.servingUnit})`
     });
   } else {
-    options.push({ value: 'serving', label: food.servingUnit || 'serving' });
+    const n = Number(food.servingSize) || 1;
+    options.push({ value: 'serving', label: n === 1 ? (food.servingUnit || 'serving') : `serving (${n} ${food.servingUnit || ''})`.replace(' )', ')') });
   }
 
   const seen = new Set();
@@ -817,7 +818,12 @@ function updateServingPreview() {
   const p = +(selectedFood.protein * servings).toFixed(1);
   const c = +(selectedFood.carbs * servings).toFixed(1);
   const f = +(selectedFood.fat * servings).toFixed(1);
-  box.textContent = `${amount} ${unit} = ${cal} kcal (${(selectedFood.calories / (toGrams(selectedFood.servingSize, selectedFood.servingUnit) || 1)).toFixed(2)} kcal/g) · P${p} C${c} F${f}`;
+  const weighed = isWeightUnit(selectedFood.servingUnit);
+  const perG = weighed ? ` (${(selectedFood.calories / (toGrams(selectedFood.servingSize, selectedFood.servingUnit) || 1)).toFixed(2)} kcal/g)` : '';
+  const amountLabel = unit === 'serving' && !weighed
+    ? `${amount} × ${selectedFood.servingSize === 1 ? selectedFood.servingUnit : selectedFood.servingSize + ' ' + selectedFood.servingUnit}`
+    : `${amount} ${unit}`;
+  box.textContent = `${amountLabel} = ${cal} kcal${perG} · P${p} C${c} F${f}`;
 }
 
 document.getElementById('food-servings').addEventListener('input', updateServingPreview);

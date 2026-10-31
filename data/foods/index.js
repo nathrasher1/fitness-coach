@@ -2,7 +2,21 @@
 // sodium in mg. New lists are appended; names must be unique (case-insensitive).
 const lists = {
   base: require('./base'),
-  costco: require('./costco')
+  costco: require('./costco'),
+  fruits: require('./fruits'),
+  vegetables: require('./vegetables'),
+  grains: require('./grains'),
+  proteins: require('./proteins'),
+  dairy: require('./dairy'),
+  nuts: require('./nuts'),
+  snacks: require('./snacks'),
+  drinks: require('./drinks'),
+  breakfast: require('./breakfast'),
+  condiments: require('./condiments'),
+  supplements: require('./supplements'),
+  packaged: require('./packaged'),
+  world: require('./world'),
+  chains: require('./chains')
 };
 
 const seen = new Set();
