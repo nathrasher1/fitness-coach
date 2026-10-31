@@ -17,7 +17,13 @@ async function api(path, options = {}) {
     headers: { 'Content-Type': 'application/json', ...localDateHeaders(), ...(options.headers || {}) }
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'Request failed');
+  if (!res.ok) {
+    const err = new Error(data.error || 'Request failed');
+    err.code = data.code; err.status = res.status; err.data = data;
+    // The account needs its one-time details (or is locked): show that screen.
+    if (res.status === 403 && (data.code === 'account_incomplete' || data.code === 'account_locked') && !path.startsWith('/auth/') && window.Account) window.Account.gate(data);
+    throw err;
+  }
   return data;
 }
 
@@ -54,17 +60,21 @@ function fromInputWeight(val) {
 }
 
 // ========== Auth ==========
+// Signed in: show the app, or the one-time details / locked screen first.
+async function enterApp(user) {
+  currentUser = user;
+  if (window.Account && window.Account.needsGate(user)) return window.Account.showGate(user);
+  showApp();
+  await loadSettings();
+  renderAll();
+  restoreWorkoutDraft();
+  if (window.Account) { window.Account.loadStreak(); window.Account.applyLimits(); }
+}
+
 async function checkAuth() {
-  try {
-    const data = await api('/auth/me');
-    currentUser = data.user;
-    showApp();
-    await loadSettings();
-    renderAll();
-    restoreWorkoutDraft();
-  } catch {
-    showAuth();
-  }
+  let data;
+  try { data = await api('/auth/me'); } catch { return showAuth(); }
+  await enterApp(data.user);
 }
 
 function showAuth() {
@@ -108,11 +118,8 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         password: document.getElementById('login-password').value
       })
     });
-    currentUser = data.user;
-    showApp();
-    await loadSettings();
-    renderAll();
-    restoreWorkoutDraft();
+    document.getElementById('login-password').value = '';
+    await enterApp(data.user);
   } catch (err) {
     errEl.textContent = err.message;
   }
@@ -128,15 +135,15 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
       body: JSON.stringify({
         username: document.getElementById('reg-username').value,
         displayName: document.getElementById('reg-displayname').value,
-        password: document.getElementById('reg-password').value
+        password: document.getElementById('reg-password').value,
+        email: document.getElementById('reg-email').value.trim(),
+        dob: document.getElementById('reg-dob').value
       })
     });
-    currentUser = data.user;
-    showApp();
-    await loadSettings();
-    renderAll();
-    restoreWorkoutDraft();
+    document.getElementById('reg-password').value = '';
+    await enterApp(data.user);
   } catch (err) {
+    if (err.code === 'under_13' && window.Account) return window.Account.showUnder13(err.message);
     errEl.textContent = err.message;
   }
 });
@@ -3257,8 +3264,8 @@ document.getElementById('public-recipes').addEventListener('click', async (e) =>
 
 // ========== Shares ==========
 document.getElementById('btn-grant-share').addEventListener('click', async () => {
-  const email = document.getElementById('share-email').value.trim();
-  if (!email) return toast('Enter their email or username');
+  const username = document.getElementById('share-email').value.trim().replace(/^@/, '');
+  if (!username) return toast('Enter their username');
   const permissions = {
     weight: document.getElementById('share-weight').checked,
     workouts: document.getElementById('share-workouts').checked,
@@ -3268,7 +3275,7 @@ document.getElementById('btn-grant-share').addEventListener('click', async () =>
   };
   const note = document.getElementById('share-note').value.trim();
   try {
-    await api('/shares', { method: 'POST', body: JSON.stringify({ email, permissions, note }) });
+    await api('/shares', { method: 'POST', body: JSON.stringify({ username, permissions, note }) });
     toast('Access granted');
     SHARE_PERMS.forEach(([k]) => { document.getElementById('share-' + k).checked = k === 'weight' || k === 'workouts'; });
     document.getElementById('share-email').value = '';
@@ -3281,13 +3288,12 @@ document.getElementById('btn-grant-share').addEventListener('click', async () =>
 
 const SHARE_PERMS = [['weight', 'Weight'], ['workouts', 'Workouts'], ['food', 'Food'], ['body', 'Body'], ['goals', 'Goals']];
 function sharePersonName(u) {
-  return (u && (u.displayName || u.username || u.email)) || 'Former user';
+  return (u && (u.displayName || u.username)) || 'Former user';
 }
 function sharePersonSub(u) {
   if (!u) return '';
   const parts = [];
   if (u.username && u.username !== u.displayName) parts.push('@' + u.username);
-  if (u.email) parts.push(u.email);
   return parts.join(' · ');
 }
 function shareInitials(u) {
@@ -3318,6 +3324,7 @@ function shareRow(s, person, canRemove) {
       <div class="share-name">${esc(nm)}${s.note ? `<span class="share-note">${esc(s.note)}</span>` : ''}</div>
       ${sharePersonSub(person) ? `<div class="share-sub">${esc(sharePersonSub(person))}</div>` : ''}
       <div class="share-perms">${sharePermPills(s.permissions)}</div>
+      ${s.paused ? '<div class="share-paused">Paused: allowed again once age rules permit it (e.g. a parent link).</div>' : ''}
     </div>
     ${actions}
   </li>`;
@@ -3389,7 +3396,7 @@ function renderAll() {
   loadGoal();
 }
 
-checkAuth();
+if (location.pathname === '/reset') showAuth(); else checkAuth();
 
 // Keep the sticky workout bar tucked right under the (mobile-sticky) top bar.
 function syncTopbarHeight() {

@@ -160,7 +160,7 @@
     try { p = await api('/social/profile/' + encodeURIComponent(username)); } catch (err) { return toast(err.message); }
     const stats = [];
     if (p.stats.workoutsThisMonth != null) stats.push([p.stats.workoutsThisMonth, 'workouts this month']);
-    if (p.stats.streak != null) stats.push([p.stats.streak, p.stats.streak === 1 ? 'day streak' : 'day streak']);
+    if (p.stats.streak != null) stats.push([p.stats.streak, 'training-day streak']);
     if (p.stats.memberSince) stats.push([monthYear(p.stats.memberSince), 'member since']);
     const rel = p.relationship || {};
     const theyShare = rel.sharesWithMe && rel.sharesWithMe.length;
@@ -171,6 +171,7 @@
       </div>
       ${p.bio ? `<p class="profile-bio">${esc(p.bio)}</p>` : ''}
       ${stats.length ? `<div class="profile-stats">${stats.map(([v, l]) => `<div><span>${esc(v)}</span><small>${esc(l)}</small></div>`).join('')}</div>` : ''}
+      ${p.stats.streak != null ? `<p class="hint streak-note">Streak = scheduled training days completed in a row. Rest days don't break it.</p>` : ''}
       ${p.interests && p.interests.length ? `<div class="summary-h">Interests</div><div class="chip-row">${p.interests.map((i) => `<span class="chip chip-static">${esc(i)}</span>`).join('')}</div>` : ''}
       ${!p.bio && !stats.length && !(p.interests && p.interests.length) ? `<p class="hint profile-empty">${p.isSelf ? 'Only your name and @username are visible. Turn on fields in Profile &amp; privacy.' : 'This person keeps their profile minimal.'}</p>` : ''}
       ${p.isSelf ? `<div class="card-actions"><button type="button" class="btn btn-ghost-outline" data-goto-privacy>Edit privacy</button></div>` : `

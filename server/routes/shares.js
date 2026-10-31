@@ -3,6 +3,8 @@ const Share = require('../models/Share');
 const User = require('../models/User');
 const { requireAuth } = require('../middleware/auth');
 const { isBlockedEither } = require('../services/social');
+const F = require('../services/family');
+const { localToday } = require('../services/dates');
 
 const router = express.Router();
 const PERM_KEYS = ['weight', 'food', 'workouts', 'body', 'goals'];
@@ -16,26 +18,28 @@ function cleanPerms(p) {
   return out;
 }
 
-// Find the person by email (contains @) or by username (case-insensitive).
+// Find the person by username (case-insensitive). Emails are private, so they
+// can't be used to look someone up (that would reveal whether an address has an account).
 async function findViewer(raw) {
-  const q = String(raw || '').trim();
-  if (!q || q.length > 120) return null;
-  if (q.includes('@')) return User.findOne({ email: q.toLowerCase() });
+  const q = String(raw || '').trim().replace(/^@/, '');
+  if (!q || q.length > 40 || q.includes('@')) return null;
   const matches = await User.findUsernameCandidates(q);
   return matches[0] || null;
 }
+const TEEN_SHARE = 'On teen accounts, Share Access works only with a linked parent.';
 router.use(requireAuth);
 
 // GET /api/shares — shares I have granted + shares I have received
 router.get('/', async (req, res) => {
   try {
-    const granted = await Share.find({ owner: req.session.userId })
-      .populate('viewer', PERSON)
-      .sort({ createdAt: -1 });
-    const received = await Share.find({ viewer: req.session.userId })
-      .populate('owner', PERSON)
-      .sort({ createdAt: -1 });
-    res.json({ granted, received });
+    const today = localToday(req);
+    const me = req.session.userId;
+    const granted = await Share.find({ owner: me }).populate('viewer', PERSON).sort({ createdAt: -1 }).lean();
+    const received = await Share.find({ viewer: me }).populate('owner', PERSON).sort({ createdAt: -1 }).lean();
+    // "paused": the share exists but the age rules don't allow it right now
+    // (e.g. the other person hasn't confirmed their date of birth yet).
+    const mark = async (rows, key) => Promise.all(rows.map(async (r) => ({ ...r, paused: !r[key] || !(await F.canConnect(me, r[key]._id, today)) })));
+    res.json({ granted: await mark(granted, 'viewer'), received: await mark(received, 'owner'), ageGroup: await F.groupOf(me, today) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to load shares' });
@@ -48,14 +52,19 @@ router.post('/', async (req, res) => {
     const { email, note } = req.body;
     const permissions = cleanPerms(req.body.permissions);
     const cleanNote = note == null ? null : String(note).trim().slice(0, 120);
-    if (!email || !String(email).trim()) return res.status(400).json({ error: 'Email or username required' });
+    const who = req.body.username != null ? req.body.username : email;
+    if (!who || !String(who).trim()) return res.status(400).json({ error: 'Username required' });
+    const today = localToday(req);
+    const myGroup = await F.groupOf(req.session.userId, today);
 
-    const viewer = await findViewer(email);
+    const viewer = await findViewer(who);
     // Blocked either way looks the same as "no account" so a block is not revealed.
-    if (!viewer || (await isBlockedEither(req.session.userId, viewer._id))) return res.status(404).json({ error: 'No account found with that email or username' });
-    if (viewer._id.equals(req.session.userId)) {
+    if (viewer && viewer._id.equals(req.session.userId)) {
       return res.status(400).json({ error: 'Cannot share with yourself' });
     }
+    // Teens: only with a linked parent. Adults: not with a teen unless linked (looks like "no account").
+    if (myGroup === 'teen' && !(viewer && (await F.isLinked(viewer._id, req.session.userId)))) return res.status(403).json({ error: TEEN_SHARE, code: 'teen_limit' });
+    if (!viewer || (await isBlockedEither(req.session.userId, viewer._id)) || !(await F.canConnect(req.session.userId, viewer._id, today))) return res.status(404).json({ error: 'No account found with that username' });
 
     const existing = await Share.findOne({ owner: req.session.userId, viewer: viewer._id });
     if (existing) {

@@ -4,7 +4,7 @@ const Profile = require('../models/Profile');
 const User = require('../models/User');
 const WorkoutLog = require('../models/WorkoutLog');
 const { requireAuth } = require('../middleware/auth');
-const { isDateKey } = require('../services/dates');
+const { isDateKey, localToday } = require('../services/dates');
 const S = require('../services/social');
 const C = require('../services/comments');
 
@@ -29,7 +29,7 @@ async function resolveTarget(req, src) {
   } else if (isDateKey(String(src.date || ''))) {
     kind = 'day'; date = String(src.date);
   } else return null;
-  if (!(await C.canAccess(me, owner._id, kind))) return null;
+  if (!(await C.canAccess(me, owner._id, kind, localToday(req)))) return null;
   return { owner, kind, workout, date };
 }
 
@@ -55,7 +55,7 @@ router.get('/', readLimit, async (req, res) => {
   try {
     const t = await resolveTarget(req, req.query);
     if (!t) return res.status(404).json({ error: 'Not found' });
-    const authors = (await C.visibleAuthors(t.owner._id, t.kind, req.session.userId)).map(S.oid);
+    const authors = (await C.visibleAuthors(t.owner._id, t.kind, req.session.userId, localToday(req))).map(S.oid);
     const q = { owner: t.owner._id, author: { $in: authors }, ...(t.workout ? { workout: t.workout._id } : { workout: null, date: t.date }) };
     const rows = await Comment.find(q).sort({ createdAt: 1 }).limit(200).lean();
     const people = await peopleMap([...new Set(rows.map((r) => String(r.author)))]);
@@ -69,9 +69,9 @@ router.get('/counts', readLimit, async (req, res) => {
     const me = req.session.userId;
     const ownerName = String(req.query.owner || 'me');
     const owner = ownerName === 'me' ? { _id: me } : await S.findUserByUsername(ownerName);
-    if (!owner || !(await C.canAccess(me, owner._id, 'workout'))) return res.status(404).json({ error: 'Not found' });
+    if (!owner || !(await C.canAccess(me, owner._id, 'workout', localToday(req)))) return res.status(404).json({ error: 'Not found' });
     const ids = String(req.query.workouts || '').split(',').filter((x) => /^[a-f0-9]{24}$/i.test(x)).slice(0, 100);
-    res.json(await C.countsFor(owner._id, ids, me));
+    res.json(await C.countsFor(owner._id, ids, me, localToday(req)));
   } catch (err) { console.error(err); res.status(500).json({ error: 'Failed to count comments' }); }
 });
 
@@ -118,8 +118,8 @@ router.get('/unread', readLimit, async (req, res) => {
       const kind = c.workout ? 'workout' : 'day';
       const key = `${c.owner}|${kind}`;
       if (!cache.has(key)) {
-        const access = await C.canAccess(me, c.owner, kind);
-        cache.set(key, access ? new Set(await C.visibleAuthors(c.owner, kind, me)) : new Set());
+        const access = await C.canAccess(me, c.owner, kind, localToday(req));
+        cache.set(key, access ? new Set(await C.visibleAuthors(c.owner, kind, me, localToday(req))) : new Set());
       }
       if (cache.get(key).has(String(c.author))) visible.push(c);
     }

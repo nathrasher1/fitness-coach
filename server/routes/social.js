@@ -8,6 +8,10 @@ const WorkoutLog = require('../models/WorkoutLog');
 const { requireAuth } = require('../middleware/auth');
 const { localToday, shiftKey } = require('../services/dates');
 const S = require('../services/social');
+const F = require('../services/family');
+const A = require('../services/age');
+const ParentLink = require('../models/ParentLink');
+const { streakFor } = require('../services/streak');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -22,19 +26,20 @@ async function computeStats(userId, today) {
   const dates = new Set(logs.map((l) => l.date));
   const monthStart = today.slice(0, 8) + '01';
   const workoutsThisMonth = logs.filter((l) => l.date >= monthStart && l.date <= today).length;
-  // Consecutive days with a workout, counting back from today (or yesterday if nothing yet today).
-  let d = dates.has(today) ? today : shiftKey(today, -1);
-  let streak = 0;
-  while (dates.has(d)) { streak++; d = shiftKey(d, -1); }
+  // Rest-day-friendly streak (training days completed in a row; rest days don't break it).
+  const { streak } = await streakFor(userId, today);
   return { workoutsThisMonth, streak };
 }
 
-function ownView(user, prof) {
+function ownView(user, prof, group) {
+  const teen = group === 'teen';
   return {
+    ageGroup: group,
+    limits: teen ? { search: false, publicProfile: false } : null,
     username: user.username,
     displayName: user.displayName || user.username,
     bio: prof.bio || '',
-    discoverable: !!prof.discoverable,
+    discoverable: !teen && !!prof.discoverable,
     visibility: Object.fromEntries(Profile.FIELDS.map((f) => [f, !!(prof.visibility || {})[f]]))
   };
 }
@@ -43,7 +48,7 @@ function ownView(user, prof) {
 router.get('/me', async (req, res) => {
   try {
     const user = await User.findById(req.session.userId).select('username displayName');
-    res.json(ownView(user, await S.getProfile(req.session.userId)));
+    res.json(ownView(user, await S.getProfile(req.session.userId), await F.groupOf(req.session.userId, localToday(req))));
   } catch (err) { console.error(err); res.status(500).json({ error: 'Failed to load profile' }); }
 });
 
@@ -53,13 +58,16 @@ router.put('/me', async (req, res) => {
     const b = req.body || {};
     const $set = { updatedAt: new Date() };
     if (b.bio != null) $set.bio = String(b.bio).replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, '').trim().slice(0, 160);
-    if (b.discoverable != null) $set.discoverable = b.discoverable === true;
+    const group = await F.groupOf(req.session.userId, localToday(req));
+    // Only adults can be found in search; teen accounts are always hidden.
+    if (b.discoverable != null) $set.discoverable = group === 'adult' && b.discoverable === true;
+    if (group !== 'adult') $set.discoverable = false;
     if (b.visibility && typeof b.visibility === 'object') {
       Profile.FIELDS.forEach((f) => { if (f in b.visibility) $set[`visibility.${f}`] = b.visibility[f] === true; });
     }
     const prof = await Profile.findOneAndUpdate({ user: req.session.userId }, { $set }, { upsert: true, new: true, setDefaultsOnInsert: true }).lean();
     const user = await User.findById(req.session.userId).select('username displayName');
-    res.json(ownView(user, prof));
+    res.json(ownView(user, prof, group));
   } catch (err) { console.error(err); res.status(500).json({ error: 'Failed to save profile' }); }
 });
 
@@ -70,7 +78,14 @@ router.get('/profile/:username', lookupLimit, async (req, res) => {
     const user = await S.findUserByUsername(req.params.username);
     if (!user) return res.status(404).json({ error: 'Profile not found' });
     const prof = await S.getProfile(user._id);
-    if (!(await S.canViewProfile(me, user._id, prof))) return res.status(404).json({ error: 'Profile not found' });
+    // Teens: no public profile. Only their linked parents (and themselves) can open it, and
+    // a teen can open only a linked parent's. Adults: the usual rules.
+    const today = localToday(req);
+    if (!S.same(me, user._id)) {
+      if (!(await F.canConnect(me, user._id, today))) return res.status(404).json({ error: 'Profile not found' });
+      const linked = await F.linkedPair(me, user._id);
+      if (!linked && !(await S.canViewProfile(me, user._id, prof))) return res.status(404).json({ error: 'Profile not found' });
+    }
     const isSelf = S.same(me, user._id);
     const vis = prof.visibility || {};
     const out = { ...S.personCard(user, prof), isSelf };
@@ -107,13 +122,16 @@ router.get('/search', searchLimit, async (req, res) => {
     const page = Math.max(0, Math.min(50, parseInt(req.query.page, 10) || 0));
     if (q.length < 2) return res.status(400).json({ error: 'Type at least 2 characters' });
     const me = req.session.userId;
+    const today = localToday(req);
+    if ((await F.groupOf(me, today)) !== 'adult') return res.status(403).json({ error: "Search isn't available on teen accounts", code: 'teen_limit' });
     const hidden = new Set([String(me), ...(await S.blockedIds(me))]);
     const discoverable = (await Profile.find({ discoverable: true }).select('user').lean())
       .map((p) => p.user).filter((id) => !hidden.has(String(id)));
     if (!discoverable.length) return res.json({ results: [], page, hasMore: false });
     const prefix = new RegExp('^' + escapeRe(q), 'i');
     const contains = new RegExp(escapeRe(q), 'i');
-    const users = await User.find({ _id: { $in: discoverable }, $or: [{ username: contains }, { displayName: contains }] })
+    // Adults only (18+ today, date of birth on file, not locked), whatever the profile flag says.
+    const users = await User.find({ _id: { $in: discoverable }, dob: { $lte: A.cutoffFor(today, A.ADULT_AGE), $gte: '1900-01-01' }, accountLocked: { $in: ['', null] }, $or: [{ username: contains }, { displayName: contains }] })
       .select('username displayName avatar').limit(500).lean();
     // Prefix matches first, then alphabetical.
     users.sort((a, b) => {
@@ -148,6 +166,7 @@ router.post('/blocks', blockLimit, async (req, res) => {
     if (!user || S.same(user._id, me)) return res.status(404).json({ error: 'Person not found' });
     await Block.updateOne({ blocker: me, blocked: user._id }, { $setOnInsert: { createdAt: new Date() } }, { upsert: true });
     const removed = await Share.deleteMany({ $or: [{ owner: me, viewer: user._id }, { owner: user._id, viewer: me }] });
+    await ParentLink.deleteMany({ $or: [{ parent: me, teen: user._id }, { parent: user._id, teen: me }, { requestedBy: me, targetName: user.username }, { requestedBy: user._id, $or: [{ parent: me }, { teen: me }] }] });
     res.json({ ok: true, sharesRemoved: removed.deletedCount });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Failed to block' }); }
 });

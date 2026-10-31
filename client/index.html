@@ -25,7 +25,39 @@
         <input type="password" id="login-password" required autocomplete="current-password" />
         <button type="submit" class="btn btn-primary btn-block">Log in</button>
         <p id="login-error" class="error-msg"></p>
+        <p class="auth-alt"><button type="button" class="link-btn" id="btn-forgot">Forgot password?</button></p>
       </form>
+
+      <form id="forgot-form" class="auth-form" hidden>
+        <h2 class="auth-h">Reset your password</h2>
+        <p class="hint">Enter your email or username. If it matches an account, we'll email a link to reset the password.</p>
+        <label for="forgot-id">Email or username</label>
+        <input type="text" id="forgot-id" required maxlength="254" autocomplete="username" autocapitalize="none" spellcheck="false" />
+        <button type="submit" class="btn btn-primary btn-block">Send reset link</button>
+        <p id="forgot-msg" class="ok-msg" role="status"></p>
+        <p id="forgot-error" class="error-msg"></p>
+        <p class="auth-alt"><button type="button" class="link-btn" data-back-login>Back to log in</button></p>
+      </form>
+
+      <form id="reset-form" class="auth-form" hidden>
+        <h2 class="auth-h">Choose a new password</h2>
+        <label for="reset-pw">New password</label>
+        <input type="password" id="reset-pw" required minlength="8" maxlength="200" autocomplete="new-password" />
+        <label for="reset-pw2">Confirm new password</label>
+        <input type="password" id="reset-pw2" required minlength="8" maxlength="200" autocomplete="new-password" />
+        <p class="hint">At least 8 characters. You'll be signed out on your other devices.</p>
+        <button type="submit" class="btn btn-primary btn-block">Set new password</button>
+        <p id="reset-msg" class="ok-msg" role="status"></p>
+        <p id="reset-error" class="error-msg"></p>
+        <p class="auth-alt"><button type="button" class="link-btn" data-back-login>Back to log in</button></p>
+      </form>
+
+      <div id="under13-panel" class="auth-form age-panel" hidden role="alert">
+        <div class="age-ico" aria-hidden="true">💚</div>
+        <h2 class="auth-h">Thanks for stopping by!</h2>
+        <p id="under13-text"></p>
+        <p class="hint">Staying active is great at any age. Ask a parent or guardian about activities you can enjoy together.</p>
+      </div>
 
       <form id="register-form" class="auth-form" style="display:none">
         <label>Username</label>
@@ -33,10 +65,51 @@
         <label>Display name (optional)</label>
         <input type="text" id="reg-displayname" autocomplete="name" />
         <label>Password</label>
-        <input type="password" id="reg-password" required minlength="6" autocomplete="new-password" />
+        <input type="password" id="reg-password" required minlength="8" maxlength="200" autocomplete="new-password" />
+        <small class="field-hint">At least 8 characters.</small>
+        <label for="reg-email">Email</label>
+        <input type="email" id="reg-email" required maxlength="254" autocomplete="email" autocapitalize="none" spellcheck="false" />
+        <small class="field-hint">Private. Only used to reset your password.</small>
+        <label for="reg-dob">Date of birth</label>
+        <input type="date" id="reg-dob" required autocomplete="bday" />
+        <small class="field-hint">Private. Never shown on your profile or to anyone you share with.</small>
         <button type="submit" class="btn btn-primary btn-block">Create account</button>
         <p id="reg-error" class="error-msg"></p>
       </form>
+    </div>
+  </div>
+
+  <!-- ========== ACCOUNT GATE (one-time details / locked) ========== -->
+  <div id="gate-screen" class="auth-screen" style="display:none">
+    <div class="auth-card">
+      <form id="gate-form" class="auth-form" hidden>
+        <h1>One more step</h1>
+        <p class="auth-sub">We now ask every account for these details once. They're private: never on your profile, in search, or shared.</p>
+        <div id="gate-email-row">
+          <label for="gate-email">Email</label>
+          <input type="email" id="gate-email" maxlength="254" autocomplete="email" autocapitalize="none" spellcheck="false" />
+          <small class="field-hint">Used only to reset your password.</small>
+        </div>
+        <div id="gate-dob-row">
+          <label for="gate-dob">Date of birth</label>
+          <input type="date" id="gate-dob" autocomplete="bday" />
+          <small class="field-hint">Can't be changed later, so please check it.</small>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Continue</button>
+        <p id="gate-error" class="error-msg"></p>
+        <p class="auth-alt"><button type="button" class="link-btn" data-gate-logout>Log out</button></p>
+      </form>
+      <div id="gate-locked" class="auth-form age-panel" hidden>
+        <div class="age-ico" aria-hidden="true">🔒</div>
+        <h1>Account paused</h1>
+        <p id="gate-locked-text"></p>
+        <p class="hint">Your profile is hidden and all sharing has been removed. You can delete the account and everything in it below.</p>
+        <label for="gate-del-pw">Password (to delete)</label>
+        <input type="password" id="gate-del-pw" autocomplete="current-password" />
+        <button type="button" class="btn btn-danger btn-block" id="gate-delete">Delete account and data</button>
+        <p id="gate-locked-error" class="error-msg"></p>
+        <p class="auth-alt"><button type="button" class="link-btn" data-gate-logout>Log out</button></p>
+      </div>
     </div>
   </div>
 
@@ -83,6 +156,17 @@
           </div>
           <div class="stats-grid" id="overview-stats"></div>
           <p class="hint" id="avg-details"></p>
+        </div>
+
+        <div class="card streak-card" id="streak-card" hidden>
+          <div class="streak-head">
+            <div class="streak-num"><span id="streak-value">0</span><small id="streak-unit">training-day streak</small></div>
+            <div class="streak-actions">
+              <button type="button" class="btn btn-ghost-outline btn-sm" id="btn-rest-day">Take a rest day</button>
+            </div>
+          </div>
+          <p class="streak-status" id="streak-status"></p>
+          <details class="streak-explain"><summary>How streaks work</summary><p class="hint" id="streak-explain"></p><button type="button" class="link-btn" id="streak-edit">Change training schedule</button></details>
         </div>
 
         <div class="card">
@@ -545,7 +629,11 @@
             <ul class="notif-list" id="notif-list"></ul>
           </div>
 
-          <div class="card settings-card">
+          <div class="card settings-card teen-note-card" id="teen-people-note" hidden>
+            <h2>People</h2>
+            <p class="hint card-intro">Search and public profiles are turned off on teen accounts. You can link a parent or guardian in Settings → Family, then share with them.</p>
+          </div>
+          <div class="card settings-card" id="people-search-card">
             <h2>Find people</h2>
             <p class="hint card-intro">Search people who have chosen to be findable. Profiles show only what each person turns on.</p>
             <div class="search-row">
@@ -649,6 +737,7 @@
         <div class="card settings-card privacy-card" id="privacy-card">
           <h2>Profile &amp; privacy</h2>
           <p class="hint card-intro">Everything is private until you turn it on. Your weight, measurements, food, photos and email are never on your profile; they're only visible through Share access.</p>
+          <p class="teen-limit-note" id="teen-privacy-note" hidden><strong>Teen account.</strong> Search, public profiles, and sharing or comments with anyone other than a linked parent are turned off until you turn 18. Then they unlock automatically.</p>
           <label class="check-line switch-line"><input type="checkbox" id="pp-discoverable" /><span><strong>Let people find me in search</strong><small>Off: only people you already share with can open your profile.</small></span></label>
           <div class="settings-section">
             <label class="section-label" for="pp-bio">Short bio</label>
@@ -676,11 +765,11 @@
 
         <div class="card settings-card share-card" id="share-card">
           <h2>Share access</h2>
-          <p class="hint card-intro">Give a coach or family member read-only access to the parts of your log you choose. You can remove it anytime.</p>
+          <p class="hint card-intro" id="share-intro">Give a coach or family member read-only access to the parts of your log you choose. You can remove it anytime.</p>
           <div class="grid-2 form-grid">
             <div class="form-row">
-              <label for="share-email">Their email or username</label>
-              <input type="text" id="share-email" placeholder="coach@example.com" autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="email" />
+              <label for="share-email">Their username</label>
+              <input type="text" id="share-email" placeholder="e.g. coach_kim" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="40" />
             </div>
             <div class="form-row">
               <label for="share-note">Note (optional)</label>
@@ -701,6 +790,43 @@
             <button class="btn btn-primary" id="btn-grant-share">Grant access</button>
           </div>
           <div id="share-list" class="share-list"></div>
+        </div>
+
+        <div class="card settings-card" id="schedule-card">
+          <h2>Training schedule</h2>
+          <p class="hint card-intro">Your streak counts training days in a row. Rest days in your schedule never break it.</p>
+          <div class="settings-section">
+            <h3 class="section-label" id="sched-days-label">Training days (optional)</h3>
+            <div class="check-grid day-grid" id="sched-days" role="group" aria-labelledby="sched-days-label"></div>
+            <p class="hint section-hint">Pick weekdays for a fixed schedule. Leave all off to use a number of rest days a week instead.</p>
+          </div>
+          <div class="grid-2 form-grid">
+            <div class="form-row">
+              <label for="sched-rest">Rest days per week</label>
+              <select id="sched-rest">
+                <option value="">Automatic</option>
+                <option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label for="sched-skips">Extra “Take a rest day” per week</label>
+              <select id="sched-skips"><option value="0">0 (off)</option><option value="1">1</option><option value="2">2</option></select>
+            </div>
+          </div>
+          <p class="hint" id="sched-auto-hint"></p>
+          <div class="card-actions"><button type="button" class="btn btn-primary" id="btn-save-schedule">Save schedule</button></div>
+        </div>
+
+        <div class="card settings-card" id="family-card">
+          <h2>Family</h2>
+          <p class="hint card-intro" id="family-intro"></p>
+          <div id="family-body"></div>
+        </div>
+
+        <div class="card settings-card" id="account-card">
+          <h2>Account</h2>
+          <p class="hint card-intro">Email and date of birth are private. They're never on your profile, in search, or in anything you share.</p>
+          <dl class="acct-facts" id="acct-facts"></dl>
         </div>
       </section>
     </main>
@@ -734,5 +860,6 @@
   <script src="lib/activities.js"></script>
   <script src="app.js"></script>
   <script src="social.js"></script>
+  <script src="account.js"></script>
 </body>
 </html>

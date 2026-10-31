@@ -12,6 +12,7 @@ const { requireAuth } = require('../middleware/auth');
 const { localToday, isDateKey, shiftKey } = require('../services/dates');
 const S = require('../services/social');
 const C = require('../services/comments');
+const F = require('../services/family');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -25,7 +26,9 @@ router.get('/', async (req, res) => {
     const me = req.session.userId;
     const blocked = new Set(await S.blockedIds(me));
     const rows = await Share.find({ viewer: me }).populate('owner', 'username displayName avatar').sort({ createdAt: -1 }).lean();
-    const list = rows.filter((r) => r.owner && !blocked.has(String(r.owner._id)) && perms(r.permissions).length);
+    const today = localToday(req);
+    const allowed = await Promise.all(rows.map((r) => (r.owner ? F.canConnect(me, r.owner._id, today) : false)));
+    const list = rows.filter((r, i) => allowed[i] && r.owner && !blocked.has(String(r.owner._id)) && perms(r.permissions).length);
     const profs = new Map((await Profile.find({ user: { $in: list.map((r) => r.owner._id) } }).select('user visibility').lean()).map((p) => [String(p.user), p]));
     res.json(list.map((r) => ({ ...S.personCard(r.owner, profs.get(String(r.owner._id))), permissions: perms(r.permissions), note: r.note || '', since: r.createdAt })));
   } catch (err) { console.error(err); res.status(500).json({ error: 'Failed to load shared data' }); }
@@ -37,6 +40,7 @@ router.use('/:username', async (req, res, next) => {
     const me = req.session.userId;
     const owner = await S.findUserByUsername(req.params.username);
     if (!owner || S.same(owner._id, me) || (await S.isBlockedEither(me, owner._id))) return res.status(404).json({ error: 'Nothing shared' });
+    if (!(await F.canConnect(me, owner._id, localToday(req)))) return res.status(404).json({ error: 'Nothing shared' });
     const share = await S.shareFrom(owner._id, me);
     if (!share || !perms(share.permissions).length) return res.status(404).json({ error: 'Nothing shared' });
     req.sharedOwner = owner; req.share = share;
@@ -74,7 +78,7 @@ router.get('/:username/workouts', need('workouts'), async (req, res) => {
     const q = { user: req.sharedOwner._id };
     if (isDateKey(String(req.query.before || ''))) q.date = { $lt: req.query.before };
     const rows = await WorkoutLog.find(q).sort({ date: -1, createdAt: -1 }).limit(limit).lean();
-    const counts = await C.countsFor(req.sharedOwner._id, rows.map((r) => r._id), req.session.userId);
+    const counts = await C.countsFor(req.sharedOwner._id, rows.map((r) => r._id), req.session.userId, localToday(req));
     res.json(rows.map((w) => ({ ...workoutOut(w), comments: counts[String(w._id)] || 0 })));
   } catch (err) { console.error(err); res.status(500).json({ error: 'Failed to load workouts' }); }
 });

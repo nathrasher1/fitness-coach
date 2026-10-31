@@ -647,3 +647,4 @@ router.delete("/routines/:id", async (req, res) => {
 });
 
 module.exports = router;
+module.exports.PROGRAMS = PROGRAMS;

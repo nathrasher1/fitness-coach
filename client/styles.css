@@ -2196,3 +2196,38 @@ label.switch-line:has(input:checked) { border-color: var(--main); background: va
 .privacy-card #blocked-list:not(:empty) { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
 .privacy-card .card-actions { flex-wrap: wrap; }
 @media (max-width: 380px) { .privacy-card .card-actions .btn { flex: 1 1 100%; min-width: 0; } }
+
+/* ========== Accounts: auth extras, gate, streak, family ========== */
+.auth-form[hidden], .auth-tabs[hidden] { display: none !important; }
+.auth-h { font-size: 1.15rem; margin: 0 0 6px; }
+.auth-alt { text-align: center; margin: 14px 0 0; }
+.field-hint { display: block; margin: 6px 0 0; font-size: 0.8rem; color: var(--text-muted); }
+.ok-msg { color: var(--main-text); font-weight: 600; margin: 10px 0 0; }
+.age-panel { text-align: center; }
+.age-panel p { line-height: 1.5; }
+.age-ico { font-size: 2.4rem; margin-bottom: 4px; }
+.streak-card .streak-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.streak-num { display: flex; align-items: baseline; gap: 8px; }
+.streak-num span { font-size: 2.4rem; font-weight: 800; line-height: 1; color: var(--main-text); }
+.streak-num small { font-size: 0.95rem; font-weight: 600; }
+.streak-status { margin: 10px 0 4px; font-weight: 500; }
+.streak-explain summary { cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+.streak-explain p { margin: 6px 0; }
+.streak-note { margin-top: 6px; font-size: 0.8rem; }
+.teen-limit-note { background: var(--main-soft, rgba(0,0,0,0.04)); border-radius: 10px; padding: 10px 12px; margin: 0 0 12px; font-size: 0.9rem; line-height: 1.45; }
+.switch-line.is-disabled { opacity: 0.55; }
+.share-paused { font-size: 0.8rem; margin-top: 4px; color: var(--danger); }
+.check-grid.day-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (min-width: 700px) { .check-grid.day-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
+.auth-form input + .btn, .auth-form input + .field-hint + .btn, .age-panel .btn-block { margin-top: 14px; }
+.acct-facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; }
+.acct-facts dt { font-weight: 600; }
+.acct-facts dd { margin: 0; overflow-wrap: anywhere; }
+#family-body .search-row { display: flex; gap: 8px; }
+#family-body .search-row input { flex: 1; min-width: 0; }
+.streak-sub { display: block; font-weight: 400; margin-top: 2px; }
+#family-body .share-rows { margin-bottom: 16px; }
+#family-body .share-actions { justify-content: flex-start; }
+#family-body .section-label { margin-top: 4px; }
+.day-grid label.check-tile { flex-direction: column; justify-content: center; align-items: center; gap: 4px; padding: 8px 4px; text-align: center; }
+.day-grid label.check-tile span { white-space: nowrap; }

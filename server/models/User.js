@@ -10,12 +10,19 @@ const userSchema = new mongoose.Schema({
     minlength: 3,
     maxlength: 40
   },
+  // Private: never returned on profiles, search, shares or comments (select: false).
   email: {
     type: String,
     trim: true,
     lowercase: true,
-    sparse: true
+    select: false,
+    index: true
   },
+  // Private date of birth, 'YYYY-MM-DD' (local calendar). Set once; not self-editable.
+  dob: { type: String, select: false },
+  // 'under13': the person said they are under 13 after sign-up. Only sign out and delete work.
+  accountLocked: { type: String, enum: ['', 'under13'], default: '' },
+  passwordChangedAt: { type: Date },
   passwordHash: {
     type: String,
     required: true

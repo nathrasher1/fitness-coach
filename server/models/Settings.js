@@ -13,6 +13,12 @@ const settingsSchema = new mongoose.Schema({
   restTimers: { type: Map, of: Number, default: undefined },
   // Per-user exercise order (names) for suggested program days, keyed by planDay ("programId:Day name")
   programOrders: { type: Map, of: [String], default: undefined },
+  // Streak schedule. trainingDays: weekdays 0 (Sun) .. 6 (Sat); empty = any days.
+  trainingDays: { type: [Number], default: undefined },
+  // Planned rest days per week when no weekdays are chosen; null = from your program (or 3).
+  restDaysPerWeek: { type: Number, min: 0, max: 6, default: null },
+  // Unplanned "Take a rest day" skips allowed per week without breaking the streak.
+  restSkipsPerWeek: { type: Number, min: 0, max: 2, default: 1 },
   favoriteFoodIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Food' }],
   updatedAt: { type: Date, default: Date.now }
 });

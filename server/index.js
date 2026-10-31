@@ -50,6 +50,9 @@ app.use(session({
 
 // ---------- API routes ----------
 app.use('/api/auth', authRoutes);
+app.use('/api/account', require('./routes/account'));
+// Everything below needs a date of birth + email on file and an unlocked account.
+app.use('/api', require('./middleware/account').accountGate);
 app.use('/api/weights', weightRoutes);
 app.use('/api/calories', calorieRoutes);
 app.use('/api/goals', goalRoutes);
@@ -65,6 +68,8 @@ app.use('/api/profile', require('./routes/profile'));
 app.use('/api/social', require('./routes/social'));
 app.use('/api/shared', require('./routes/shared'));
 app.use('/api/comments', require('./routes/comments'));
+app.use('/api/family', require('./routes/family'));
+app.use('/api/streak', require('./routes/streak'));
 
 // ---------- Static frontend ----------
 app.use(express.static(path.join(__dirname, '../client')));
