@@ -79,6 +79,7 @@ function showApp() {
   paintAvatar(document.getElementById('header-avatar'), currentUser);
   paintAvatar(document.getElementById('profile-avatar'), currentUser);
   renderAvatarPresets();
+  setTimeout(() => window.Social && window.Social.loadUnread(), 0);
 }
 
 document.getElementById('tab-login').addEventListener('click', () => {
@@ -147,6 +148,8 @@ document.getElementById('btn-logout').addEventListener('click', async () => {
   currentWorkoutExercises = []; woPlanDay = ''; woEditing = null;
   stopWorkoutTimer(); stopRest(false); renderWorkoutExercises();
   currentUser = null;
+  ['notif-count', 'people-badge'].forEach((id) => { document.getElementById(id).hidden = true; });
+  if (window.Social) window.Social.closeSheet();
   showAuth();
 });
 
@@ -183,7 +186,8 @@ document.getElementById('main-nav').addEventListener('click', (e) => {
       document.getElementById('bm-date').value = todayStr();
     }
   }
-  if (btn.dataset.panel === 'settings') loadShares();
+  if (btn.dataset.panel === 'settings') { loadShares(); window.Social && window.Social.loadPrivacy(); }
+  if (btn.dataset.panel === 'people') window.Social && window.Social.loadPeople();
 });
 
 document.getElementById('nav-toggle').addEventListener('click', () => {
@@ -2526,11 +2530,14 @@ async function loadWorkoutHistory() {
         (w) => `
       <div class="wo-history-item">
         <div class="flex-between">
-          <strong>${w.name}</strong>
+          <strong>${esc(w.name)}</strong>
           <span class="hint">${formatDate(w.date)}</span>
         </div>
         <div class="hint">${w.exercises.length} exercise${w.exercises.length === 1 ? '' : 's'} · ${w.exercises.reduce((n, e) => n + P.workingSets(e.sets).length, 0)} working sets · ${Math.round(woDisp(w.exercises.reduce((v, e) => v + P.volume(e.sets), 0))).toLocaleString()} ${woUnitLabel()} volume${w.durationMin ? ` · ${w.durationMin} min` : ''}</div>
-        <button class="btn btn-danger btn-sm" data-id="${w._id}" style="margin-top:6px">Delete</button>
+        <div class="wo-history-actions">
+          <button class="btn btn-danger btn-sm" data-id="${esc(w._id)}">Delete</button>
+          <button type="button" class="btn btn-ghost-outline btn-sm wo-comments" data-thread-own="${esc(w._id)}" data-title="${esc(w.name)}" hidden>💬 0</button>
+        </div>
       </div>`
       )
       .join('');
@@ -2542,6 +2549,7 @@ async function loadWorkoutHistory() {
         loadWorkoutHistory();
       });
     });
+    if (window.Social) window.Social.decorateOwnWorkouts();
   } catch (err) {
     console.error(err);
   }
@@ -2629,10 +2637,13 @@ function compressImage(file, max = 800) {
   });
 }
 
+const SAFE_AVATAR_RE = /^(#[0-9a-f]{6}|data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+)$/i;
 function paintAvatar(target, user) {
   if (!target) return;
+  target.style.background = '';
+  if (user?.avatar && !SAFE_AVATAR_RE.test(user.avatar)) user = { ...user, avatar: '' };
   if (user?.avatar && user.avatar.startsWith('data:')) {
-    target.innerHTML = `<img src="${user.avatar}" alt="" />`;
+    target.innerHTML = `<img src="${esc(user.avatar)}" alt="" />`;
     target.style.background = 'transparent';
   } else if (user?.avatar && user.avatar.startsWith('#')) {
     target.textContent = (user.displayName || user.username || 'FC').slice(0, 2).toUpperCase();
@@ -3290,14 +3301,25 @@ function sharePermPills(perms) {
   return on.map(([, l]) => `<span class="perm-pill">${esc(l)}</span>`).join('');
 }
 function shareRow(s, person, canRemove) {
-  return `<li class="share-row">
+  const uname = person && person.username;
+  const nm = sharePersonName(person);
+  const actions = canRemove
+    ? `<button type="button" class="btn btn-danger-ghost share-remove" data-revoke="${esc(s._id)}" aria-label="Remove access for ${esc(nm)}">Remove</button>`
+    : uname
+      ? `<div class="share-actions">
+          <button type="button" class="btn btn-ghost-outline btn-sm" data-open-shared="${esc(uname)}">Open</button>
+          <button type="button" class="btn btn-ghost-outline btn-sm" data-leave="${esc(s._id)}" aria-label="Stop seeing ${esc(nm)}'s data">Leave</button>
+          <button type="button" class="btn btn-danger-ghost btn-sm" data-block="${esc(uname)}" data-name="${esc(nm)}" aria-label="Block ${esc(nm)}">Block</button>
+        </div>`
+      : '';
+  return `<li class="share-row${canRemove ? '' : ' share-row-received'}">
     <span class="share-avatar" aria-hidden="true">${esc(shareInitials(person))}</span>
     <div class="share-main">
-      <div class="share-name">${esc(sharePersonName(person))}${s.note ? `<span class="share-note">${esc(s.note)}</span>` : ''}</div>
+      <div class="share-name">${esc(nm)}${s.note ? `<span class="share-note">${esc(s.note)}</span>` : ''}</div>
       ${sharePersonSub(person) ? `<div class="share-sub">${esc(sharePersonSub(person))}</div>` : ''}
       <div class="share-perms">${sharePermPills(s.permissions)}</div>
     </div>
-    ${canRemove ? `<button type="button" class="btn btn-danger-ghost share-remove" data-revoke="${esc(s._id)}" aria-label="Remove access for ${esc(sharePersonName(person))}">Remove</button>` : ''}
+    ${actions}
   </li>`;
 }
 
@@ -3326,6 +3348,14 @@ async function loadShares() {
   }
 }
 document.getElementById('share-list').addEventListener('click', async (e) => {
+  const leave = e.target.closest('[data-leave]');
+  if (leave) {
+    const who = leave.closest('.share-row')?.querySelector('.share-name')?.firstChild?.textContent || 'this person';
+    if (!confirm(`Stop seeing ${who}'s data? Your comments on their things will be hidden. They can share again later.`)) return;
+    leave.disabled = true;
+    try { await api(`/shares/${encodeURIComponent(leave.dataset.leave)}`, { method: 'DELETE' }); toast('Removed'); } catch (err) { toast(err.message); }
+    return loadShares();
+  }
   const btn = e.target.closest('[data-revoke]');
   if (!btn) return;
   const name = btn.closest('.share-row')?.querySelector('.share-name')?.firstChild?.textContent || 'this person';

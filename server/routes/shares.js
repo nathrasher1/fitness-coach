@@ -2,11 +2,13 @@ const express = require('express');
 const Share = require('../models/Share');
 const User = require('../models/User');
 const { requireAuth } = require('../middleware/auth');
+const { isBlockedEither } = require('../services/social');
 
 const router = express.Router();
 const PERM_KEYS = ['weight', 'food', 'workouts', 'body', 'goals'];
-// Only the public identity fields (never passwordHash etc.)
-const PERSON = 'username displayName email';
+// Only the public identity fields. Email is never returned: sharing by username
+// must not reveal someone's address, and viewers never see the owner's.
+const PERSON = 'username displayName';
 
 function cleanPerms(p) {
   const out = {};
@@ -49,7 +51,8 @@ router.post('/', async (req, res) => {
     if (!email || !String(email).trim()) return res.status(400).json({ error: 'Email or username required' });
 
     const viewer = await findViewer(email);
-    if (!viewer) return res.status(404).json({ error: 'No account found with that email or username' });
+    // Blocked either way looks the same as "no account" so a block is not revealed.
+    if (!viewer || (await isBlockedEither(req.session.userId, viewer._id))) return res.status(404).json({ error: 'No account found with that email or username' });
     if (viewer._id.equals(req.session.userId)) {
       return res.status(400).json({ error: 'Cannot share with yourself' });
     }
@@ -77,11 +80,12 @@ router.post('/', async (req, res) => {
   }
 });
 
-// DELETE /api/shares/:id — revoke (only owner can delete)
+// DELETE /api/shares/:id — the owner revokes, or the viewer removes a share they received
 router.delete('/:id', async (req, res) => {
   try {
     if (!/^[a-f0-9]{24}$/i.test(req.params.id)) return res.status(404).json({ error: 'Not found or not owner' });
-    const result = await Share.deleteOne({ _id: req.params.id, owner: req.session.userId });
+    const me = req.session.userId;
+    const result = await Share.deleteOne({ _id: req.params.id, $or: [{ owner: me }, { viewer: me }] });
     if (!result.deletedCount) return res.status(404).json({ error: 'Not found or not owner' });
     res.json({ ok: true });
   } catch (err) {

@@ -51,7 +51,10 @@
           <div class="brand-user" id="header-user"></div>
         </div>
       </div>
-      <button id="btn-logout" class="btn btn-ghost">Log out</button>
+      <div class="topbar-actions">
+        <button type="button" id="btn-notif" class="btn btn-ghost notif-btn" aria-label="Comments" title="Comments">💬<span class="notif-count" id="notif-count" hidden></span></button>
+        <button id="btn-logout" class="btn btn-ghost">Log out</button>
+      </div>
     </header>
 
     <nav class="nav" id="main-nav">
@@ -63,6 +66,7 @@
       <button data-panel="weight"><span class="nav-ico">↗</span>Weight</button>
       <button data-panel="body"><span class="nav-ico">○</span>Body</button>
       <button data-panel="goals"><span class="nav-ico">◎</span>Goals</button>
+      <button data-panel="people"><span class="nav-ico">☺</span>People<span class="nav-badge" id="people-badge" hidden></span></button>
       <button data-panel="settings"><span class="nav-ico">⚙</span>Settings</button>
     </nav>
 
@@ -531,6 +535,42 @@
       </section>
 
       <!-- SETTINGS -->
+      <section id="people" class="panel">
+        <div id="people-home">
+          <div class="card settings-card notif-card" id="notif-card" hidden>
+            <div class="card-head-row">
+              <h2>New comments <span class="count-pill" id="notif-card-count"></span></h2>
+              <button type="button" class="btn btn-ghost-outline btn-sm" id="btn-notif-seen">Mark all read</button>
+            </div>
+            <ul class="notif-list" id="notif-list"></ul>
+          </div>
+
+          <div class="card settings-card">
+            <h2>Find people</h2>
+            <p class="hint card-intro">Search people who have chosen to be findable. Profiles show only what each person turns on.</p>
+            <div class="search-row">
+              <input type="search" id="people-q" placeholder="Name or username" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="Search people" minlength="2" maxlength="40" />
+            </div>
+            <p class="hint people-hidden-note" id="people-hidden-note" hidden>You're hidden from search. <button type="button" class="link-btn" data-goto-privacy>Change in Profile &amp; privacy</button></p>
+            <ul class="share-rows people-results" id="people-results" aria-live="polite"></ul>
+            <div class="card-actions" id="people-more-wrap" hidden><button type="button" class="btn btn-ghost-outline" id="people-more">Load more</button></div>
+          </div>
+
+          <div class="card settings-card">
+            <h2>Shared with you</h2>
+            <p class="hint card-intro">Read-only views of what people have shared with you. You can comment on their workouts.</p>
+            <ul class="share-rows" id="shared-with-me"></ul>
+          </div>
+        </div>
+
+        <div id="people-shared" hidden>
+          <button type="button" class="btn btn-ghost-outline btn-sm back-btn" id="shared-back">‹ People</button>
+          <div class="card settings-card shared-head" id="shared-head"></div>
+          <div class="seg-tabs" id="shared-tabs" role="tablist"></div>
+          <div id="shared-body"></div>
+        </div>
+      </section>
+
       <section id="settings" class="panel">
         <div class="card settings-card">
           <h2>Preferences</h2>
@@ -606,6 +646,34 @@
           </div>
         </div>
 
+        <div class="card settings-card privacy-card" id="privacy-card">
+          <h2>Profile &amp; privacy</h2>
+          <p class="hint card-intro">Everything is private until you turn it on. Your weight, measurements, food, photos and email are never on your profile; they're only visible through Share access.</p>
+          <label class="check-line switch-line"><input type="checkbox" id="pp-discoverable" /><span><strong>Let people find me in search</strong><small>Off: only people you already share with can open your profile.</small></span></label>
+          <div class="settings-section">
+            <label class="section-label" for="pp-bio">Short bio</label>
+            <textarea id="pp-bio" rows="2" maxlength="160" placeholder="e.g. Climber, learning to deadlift."></textarea>
+            <div class="char-count"><span id="pp-bio-count">0</span>/160</div>
+          </div>
+          <div class="settings-section">
+            <h3 class="section-label" id="pp-vis-label">Show on my profile</h3>
+            <div class="check-grid" role="group" aria-labelledby="pp-vis-label">
+              <label class="check-tile"><input type="checkbox" id="pp-v-avatar" /><span>Photo</span></label>
+              <label class="check-tile"><input type="checkbox" id="pp-v-bio" /><span>Bio</span></label>
+              <label class="check-tile"><input type="checkbox" id="pp-v-interests" /><span>Interests</span></label>
+              <label class="check-tile"><input type="checkbox" id="pp-v-workoutsThisMonth" /><span>Workouts this month</span></label>
+              <label class="check-tile"><input type="checkbox" id="pp-v-streak" /><span>Streak</span></label>
+              <label class="check-tile"><input type="checkbox" id="pp-v-memberSince" /><span>Member since</span></label>
+            </div>
+            <p class="hint section-hint">Your name and @username are always shown to anyone who can open your profile.</p>
+          </div>
+          <div class="card-actions">
+            <button type="button" class="btn btn-ghost-outline" id="btn-pp-preview">Preview my profile</button>
+            <button type="button" class="btn btn-primary" id="btn-pp-save">Save privacy</button>
+          </div>
+          <div id="blocked-list"></div>
+        </div>
+
         <div class="card settings-card share-card" id="share-card">
           <h2>Share access</h2>
           <p class="hint card-intro">Give a coach or family member read-only access to the parts of your log you choose. You can remove it anytime.</p>
@@ -636,6 +704,7 @@
         </div>
       </section>
     </main>
+    <div id="social-sheet" class="sheet-backdrop" hidden></div>
   </div>
 
   <div id="toast" class="toast"></div>
@@ -664,5 +733,6 @@
   <script src="lib/progression.js"></script>
   <script src="lib/activities.js"></script>
   <script src="app.js"></script>
+  <script src="social.js"></script>
 </body>
 </html>

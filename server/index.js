@@ -64,6 +64,9 @@ app.use('/api/workouts', workoutRoutes);
 app.use('/api/shares', shareRoutes);
 app.use('/api/recipes', recipeRoutes);
 app.use('/api/profile', require('./routes/profile'));
+app.use('/api/social', require('./routes/social'));
+app.use('/api/shared', require('./routes/shared'));
+app.use('/api/comments', require('./routes/comments'));
 
 // ---------- Static frontend ----------
 app.use(express.static(path.join(__dirname, '../client')));

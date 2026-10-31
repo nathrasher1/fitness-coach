@@ -2,6 +2,7 @@ const express = require('express');
 const User = require('../models/User');
 const ProgressPhoto = require('../models/ProgressPhoto');
 const { requireAuth } = require('../middleware/auth');
+const { safeAvatar } = require('../services/social');
 
 const { localToday, daysAgoKey, shiftKey, isDateKey } = require('../services/dates');
 const router = express.Router();
@@ -12,6 +13,10 @@ router.put('/avatar', async (req, res) => {
     const avatar = String(req.body.avatar || '');
     if (avatar.length > 2_000_000) {
       return res.status(400).json({ error: 'Photo is too large' });
+    }
+    // Only a colour or an inline image: avatars are shown to other people now.
+    if (avatar && !safeAvatar(avatar)) {
+      return res.status(400).json({ error: 'Unsupported photo format' });
     }
     const user = await User.findByIdAndUpdate(
       req.session.userId,
