@@ -1002,8 +1002,8 @@ async function searchFoods(q) {
       <div class="search-item" data-id="${f._id}">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div>
-            <div>${f.name}${f.brand ? ' · ' + f.brand : ''}</div>
-            <div class="meta">${f.calories} kcal · P${f.protein}g C${f.carbs}g F${f.fat}g · per ${formatServingLabel(f.servingSize, f.servingUnit)}</div>
+            <div>${esc(f.name)}${f.brand ? ' · ' + esc(f.brand) : ''}</div>
+            <div class="meta">${esc(f.calories)} kcal · P${esc(f.protein)}g C${esc(f.carbs)}g F${esc(f.fat)}g · per ${esc(formatServingLabel(f.servingSize, f.servingUnit))}</div>
           </div>
           <button class="star-btn ${favoriteIds.has(f._id) ? 'favorited' : ''}" data-star="${f._id}" title="Favorite">★</button>
         </div>

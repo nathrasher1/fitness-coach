@@ -3,6 +3,7 @@ const Food = require('../models/Food');
 const FoodLog = require('../models/FoodLog');
 const Settings = require('../models/Settings');
 const { requireAuth } = require('../middleware/auth');
+const { queryTokens, tokenFilter, rankFood } = require('../services/foodCatalog');
 
 const { localToday, daysAgoKey, shiftKey, isDateKey } = require('../services/dates');
 const router = express.Router();
@@ -118,18 +119,21 @@ router.get('/', async (req, res) => {
       ]
     };
 
-    if (q) {
-      filter.$and = [
-        {
-          $or: [
-            { name: { $regex: q, $options: 'i' } },
-            { brand: { $regex: q, $options: 'i' } }
-          ]
-        }
-      ];
+    if (!q) {
+      const foods = await Food.find(filter).sort({ name: 1 }).limit(limit);
+      return res.json(foods);
     }
 
-    const foods = await Food.find(filter).sort({ name: 1 }).limit(limit);
+    // Every word must match the name or brand (case-insensitive, partial), then rank.
+    const tokens = queryTokens(q.slice(0, 80));
+    if (!tokens.length) return res.json([]);
+    filter.$and = tokenFilter(tokens);
+    const candidates = await Food.find(filter).sort({ name: 1 }).limit(400).lean();
+    const foods = candidates
+      .map((f) => ({ f, s: rankFood(f, q, tokens) - (f.user && String(f.user) === String(req.session.userId) ? 3 : 0) }))
+      .sort((a, b) => a.s - b.s || a.f.name.length - b.f.name.length || a.f.name.localeCompare(b.f.name))
+      .slice(0, limit)
+      .map((x) => x.f);
     res.json(foods);
   } catch (err) {
     console.error(err);

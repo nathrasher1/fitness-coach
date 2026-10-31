@@ -84,6 +84,10 @@ async function start() {
   try {
     await mongoose.connect(MONGODB_URI);
     console.log('Connected to MongoDB');
+    // Add any new built-in foods (insert-only; existing foods and logs are never changed).
+    require('./services/foodCatalog').ensureBuiltInFoods()
+      .then((r) => console.log(`Built-in foods: ${r.added} added (${r.total} in catalog)`))
+      .catch((e) => console.error('Built-in food sync failed:', e.message));
 
     app.listen(PORT, () => {
       console.log(`Fitness Coach running at http://localhost:${PORT}`);
