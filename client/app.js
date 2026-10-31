@@ -221,7 +221,7 @@ function renderInterestChecks() {
   if (extra.length) groups.push({ label: 'Your other interests', items: extra });
   box.innerHTML = groups.map((g) => {
     const count = g.items.filter((n) => on.has(n.toLowerCase())).length;
-    return `<details class="interest-group" data-has="${count ? 1 : 0}" ${count ? 'open' : ''}>
+    return `<details class="interest-group" data-has="${count ? 1 : 0}" >
       <summary><span class="interest-group-name">${esc(g.label)}</span><span class="interest-count">${count ? count + ' on' : g.items.length}</span></summary>
       <div class="interest-chips">${g.items.map((n) => `<label class="interest-chip" data-name="${esc(n.toLowerCase())}">
         <input type="checkbox" class="interest-check" value="${esc(n)}" ${on.has(n.toLowerCase()) ? 'checked' : ''} /><span>${esc(n)}</span></label>`).join('')}</div>
@@ -264,7 +264,7 @@ function filterInterests(q) {
     });
     g.hidden = !shown;
     if (shown) any = true;
-    g.open = needle ? shown > 0 : g.dataset.has === '1';
+    g.open = needle ? shown > 0 : false;
   });
   const none = document.getElementById('interest-none');
   if (none) none.hidden = any;
@@ -302,9 +302,8 @@ function renderTrainingFocus() {
   if (!box) return;
   const selected = new Set(settings.trainingFocus || []);
   box.innerHTML = TRAINING_FOCUS.map((item) => `
-    <label style="display:flex;align-items:center;gap:4px;font-weight:400">
-      <input type="checkbox" class="focus-check" value="${item.toLowerCase()}" ${selected.has(item.toLowerCase()) ? 'checked' : ''} style="width:auto" />
-      ${item}
+    <label class="check-tile">
+      <input type="checkbox" class="focus-check" value="${item.toLowerCase()}" ${selected.has(item.toLowerCase()) ? 'checked' : ''} /><span>${item}</span>
     </label>`).join('');
 }
 
@@ -3248,7 +3247,7 @@ document.getElementById('public-recipes').addEventListener('click', async (e) =>
 // ========== Shares ==========
 document.getElementById('btn-grant-share').addEventListener('click', async () => {
   const email = document.getElementById('share-email').value.trim();
-  if (!email) return toast('Email required');
+  if (!email) return toast('Enter their email or username');
   const permissions = {
     weight: document.getElementById('share-weight').checked,
     workouts: document.getElementById('share-workouts').checked,
@@ -3260,6 +3259,7 @@ document.getElementById('btn-grant-share').addEventListener('click', async () =>
   try {
     await api('/shares', { method: 'POST', body: JSON.stringify({ email, permissions, note }) });
     toast('Access granted');
+    SHARE_PERMS.forEach(([k]) => { document.getElementById('share-' + k).checked = k === 'weight' || k === 'workouts'; });
     document.getElementById('share-email').value = '';
     document.getElementById('share-note').value = '';
     loadShares();
@@ -3268,55 +3268,77 @@ document.getElementById('btn-grant-share').addEventListener('click', async () =>
   }
 });
 
+const SHARE_PERMS = [['weight', 'Weight'], ['workouts', 'Workouts'], ['food', 'Food'], ['body', 'Body'], ['goals', 'Goals']];
+function sharePersonName(u) {
+  return (u && (u.displayName || u.username || u.email)) || 'Former user';
+}
+function sharePersonSub(u) {
+  if (!u) return '';
+  const parts = [];
+  if (u.username && u.username !== u.displayName) parts.push('@' + u.username);
+  if (u.email) parts.push(u.email);
+  return parts.join(' · ');
+}
+function shareInitials(u) {
+  const n = sharePersonName(u).replace(/[^\p{L}\p{N} ]/gu, ' ').trim();
+  const w = n.split(/\s+/).filter(Boolean);
+  return ((w[0] || '?')[0] + (w.length > 1 ? w[w.length - 1][0] : (w[0] || '')[1] || '')).toUpperCase();
+}
+function sharePermPills(perms) {
+  const on = SHARE_PERMS.filter(([k]) => perms && perms[k]);
+  if (!on.length) return '<span class="perm-pill perm-none">Nothing selected</span>';
+  return on.map(([, l]) => `<span class="perm-pill">${esc(l)}</span>`).join('');
+}
+function shareRow(s, person, canRemove) {
+  return `<li class="share-row">
+    <span class="share-avatar" aria-hidden="true">${esc(shareInitials(person))}</span>
+    <div class="share-main">
+      <div class="share-name">${esc(sharePersonName(person))}${s.note ? `<span class="share-note">${esc(s.note)}</span>` : ''}</div>
+      ${sharePersonSub(person) ? `<div class="share-sub">${esc(sharePersonSub(person))}</div>` : ''}
+      <div class="share-perms">${sharePermPills(s.permissions)}</div>
+    </div>
+    ${canRemove ? `<button type="button" class="btn btn-danger-ghost share-remove" data-revoke="${esc(s._id)}" aria-label="Remove access for ${esc(sharePersonName(person))}">Remove</button>` : ''}
+  </li>`;
+}
+
 async function loadShares() {
+  const el = document.getElementById('share-list');
   try {
     const data = await api('/shares');
-    const el = document.getElementById('share-list');
-    if (!data.granted.length && !data.received.length) {
-      el.innerHTML = '<div class="empty">No shares yet.</div>';
-      return;
-    }
-    let html = '';
-    if (data.granted.length) {
-      html += '<h3 style="font-size:0.9rem;margin:12px 0 6px">People who can see your data</h3>';
-      html += data.granted.map(s => {
-        const perms = Object.entries(s.permissions || {}).filter(([,v]) => v).map(([k]) => k).join(', ') || 'none';
-        return `
-          <div class="share-item">
-            <div>
-              <strong>${s.viewer?.name || s.viewer?.email || 'User'}</strong>
-              <div class="hint">${s.viewer?.email || ''} · ${perms}</div>
-            </div>
-            <button class="btn btn-danger btn-sm" data-id="${s._id}">Revoke</button>
-          </div>`;
-      }).join('');
-    }
-    if (data.received.length) {
-      html += '<h3 style="font-size:0.9rem;margin:16px 0 6px">People sharing with you</h3>';
-      html += data.received.map(s => {
-        const perms = Object.entries(s.permissions || {}).filter(([,v]) => v).map(([k]) => k).join(', ') || 'none';
-        return `
-          <div class="share-item">
-            <div>
-              <strong>${s.owner?.name || s.owner?.email || 'User'}</strong>
-              <div class="hint">${perms}</div>
-            </div>
-          </div>`;
-      }).join('');
+    const granted = data.granted || [];
+    const received = data.received || [];
+    let html = `<h3 class="section-label share-list-title">People with access${granted.length ? ` <span class="count-pill">${granted.length}</span>` : ''}</h3>`;
+    html += granted.length
+      ? `<ul class="share-rows">${granted.map((s) => shareRow(s, s.viewer, true)).join('')}</ul>`
+      : `<div class="empty-state">
+          <span class="empty-icon" aria-hidden="true">👥</span>
+          <strong>No shares yet</strong>
+          <p class="hint">Add a coach or family member above. They'll see only what you tick, read-only.</p>
+        </div>`;
+    if (received.length) {
+      html += `<h3 class="section-label share-list-title">Shared with you <span class="count-pill">${received.length}</span></h3>
+        <ul class="share-rows">${received.map((s) => shareRow(s, s.owner, false)).join('')}</ul>`;
     }
     el.innerHTML = html;
-    el.querySelectorAll('[data-id]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        if (!confirm('Revoke this access?')) return;
-        await api(`/shares/${btn.dataset.id}`, { method: 'DELETE' });
-        toast('Revoked');
-        loadShares();
-      });
-    });
   } catch (err) {
     console.error(err);
+    el.innerHTML = '<p class="hint">Could not load shares. Try again in a moment.</p>';
   }
 }
+document.getElementById('share-list').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-revoke]');
+  if (!btn) return;
+  const name = btn.closest('.share-row')?.querySelector('.share-name')?.firstChild?.textContent || 'this person';
+  if (!confirm(`Remove ${name}'s access to your data?`)) return;
+  btn.disabled = true;
+  try {
+    await api(`/shares/${encodeURIComponent(btn.dataset.revoke)}`, { method: 'DELETE' });
+    toast('Access removed');
+  } catch (err) {
+    toast(err.message);
+  }
+  loadShares();
+});
 
 // ========== Boot ==========
 function renderAll() {

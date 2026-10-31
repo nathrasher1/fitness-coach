@@ -463,9 +463,9 @@
             </div>
           </div>
           <div class="form-row">
-            <label style="display:flex;align-items:center;gap:8px;font-weight:500">
-              <input type="checkbox" id="recipe-public" style="width:auto" />
-              Make this recipe public (other accounts can find and log it)
+            <label class="check-line">
+              <input type="checkbox" id="recipe-public" />
+              <span>Make this recipe public (other accounts can find and log it)</span>
             </label>
           </div>
           <div class="form-row">
@@ -532,11 +532,11 @@
 
       <!-- SETTINGS -->
       <section id="settings" class="panel">
-        <div class="card">
+        <div class="card settings-card">
           <h2>Preferences</h2>
-          <div class="form-row">
-            <label>Color theme</label>
-            <div id="theme-picker" class="theme-picker" role="radiogroup" aria-label="Color theme"></div>
+          <div class="settings-section">
+            <h3 class="section-label" id="theme-label">Color theme</h3>
+            <div id="theme-picker" class="theme-picker" role="radiogroup" aria-labelledby="theme-label"></div>
             <select id="theme-pref" hidden>
               <option value="sage">Sage</option>
               <option value="ocean">Ocean</option>
@@ -549,79 +549,90 @@
               <option value="dark">Dark</option>
               <option value="midnight">Midnight</option>
             </select>
-            <p class="hint" style="margin-top:6px">Tap a theme to preview it, then Save Settings to keep it.</p>
+            <p class="hint section-hint">Tap a theme to preview it, then Save settings to keep it.</p>
           </div>
-          <div class="form-row">
-            <label for="unit-pref">Body weight unit</label>
-            <select id="unit-pref">
-              <option value="lbs">Pounds (lbs)</option>
-              <option value="kg">Kilograms (kg)</option>
-            </select>
+          <div class="settings-section">
+            <h3 class="section-label">Units &amp; calculations</h3>
+            <div class="grid-2 form-grid">
+              <div class="form-row">
+                <label for="unit-pref">Body weight unit</label>
+                <select id="unit-pref">
+                  <option value="lbs">Pounds (lbs)</option>
+                  <option value="kg">Kilograms (kg)</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label for="cal-avg-days">Calorie recommendation averages</label>
+                <select id="cal-avg-days">
+                  <option value="7">Last 7 days</option>
+                  <option value="14" selected>Last 14 days</option>
+                  <option value="30">Last 30 days</option>
+                </select>
+              </div>
+            </div>
           </div>
-          <div class="form-row">
-            <label for="cal-avg-days">Days to average for calorie recommendation</label>
-            <select id="cal-avg-days">
-              <option value="7">Last 7 days</option>
-              <option value="14" selected>Last 14 days</option>
-              <option value="30">Last 30 days</option>
-            </select>
+          <div class="settings-section">
+            <h3 class="section-label" id="training-focus-label">Training goal</h3>
+            <div id="training-focus" class="check-grid" role="group" aria-labelledby="training-focus-label"></div>
           </div>
-          <div class="form-row">
-            <label>Training goal</label>
-            <div id="training-focus" style="display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:6px"></div>
+          <div class="card-actions">
+            <button class="btn btn-primary" id="btn-save-settings">Save settings</button>
           </div>
-          <button class="btn btn-primary" id="btn-save-settings">Save Settings</button>
         </div>
 
-        <div class="card">
+        <div class="card settings-card">
           <h2>Profile</h2>
           <div class="profile-row">
-            <div id="profile-avatar" class="logo">FC</div>
-            <div style="flex:1">
-              <div class="form-row">
-                <label>Avatar color</label>
-                <div id="avatar-presets" class="avatar-presets"></div>
-              </div>
-              <label for="avatar-file">Or upload a photo</label>
-              <input type="file" id="avatar-file" accept="image/*" />
+            <div id="profile-avatar" class="logo profile-avatar">FC</div>
+            <div class="profile-fields">
+              <h3 class="section-label">Avatar color</h3>
+              <div id="avatar-presets" class="avatar-presets"></div>
+              <label class="file-btn" for="avatar-file">
+                <input type="file" id="avatar-file" accept="image/*" class="sr-only" />
+                <span class="btn btn-ghost-outline">Upload a photo</span>
+              </label>
             </div>
           </div>
         </div>
 
-        <div class="card">
-          <h2>Sports, interests, and activities</h2>
-          <p class="hint" style="margin-bottom:12px">Turn on what applies. Suggested programs and recommended lifts on the Workouts page follow these.</p>
+        <div class="card settings-card">
+          <h2>Sports, interests &amp; activities</h2>
+          <p class="hint card-intro">Turn on what applies. Suggested programs and recommended lifts on the Workouts page follow these.</p>
           <input type="search" id="interest-search" class="interest-search" placeholder="Search 150+ sports and activities…" autocomplete="off" aria-label="Search activities" />
           <div id="interest-selected" class="interest-selected"></div>
           <div id="interest-groups"></div>
-          <button class="btn btn-primary" id="btn-save-interests" style="margin-top:12px">Save Interests</button>
+          <div class="card-actions">
+            <button class="btn btn-primary" id="btn-save-interests">Save interests</button>
+          </div>
         </div>
 
-        <div class="card">
-          <h2>Share Access</h2>
-          <p class="hint" style="margin-bottom:12px">Grant someone (by email) view access to your data. Useful for a coach or family member.</p>
-          <div class="grid-2">
+        <div class="card settings-card share-card" id="share-card">
+          <h2>Share access</h2>
+          <p class="hint card-intro">Give a coach or family member read-only access to the parts of your log you choose. You can remove it anytime.</p>
+          <div class="grid-2 form-grid">
             <div class="form-row">
-              <label for="share-email">Email</label>
-              <input type="email" id="share-email" placeholder="coach@example.com" />
+              <label for="share-email">Their email or username</label>
+              <input type="text" id="share-email" placeholder="coach@example.com" autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="email" />
             </div>
             <div class="form-row">
               <label for="share-note">Note (optional)</label>
-              <input type="text" id="share-note" placeholder="e.g. My coach" />
+              <input type="text" id="share-note" placeholder="e.g. My coach" maxlength="120" />
             </div>
           </div>
-          <div class="form-row">
-            <label>What they can see</label>
-            <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:6px">
-              <label style="display:flex;align-items:center;gap:4px;font-weight:400"><input type="checkbox" id="share-weight" checked /> Weight</label>
-              <label style="display:flex;align-items:center;gap:4px;font-weight:400"><input type="checkbox" id="share-workouts" checked /> Workouts</label>
-              <label style="display:flex;align-items:center;gap:4px;font-weight:400"><input type="checkbox" id="share-food" /> Food</label>
-              <label style="display:flex;align-items:center;gap:4px;font-weight:400"><input type="checkbox" id="share-body" /> Body</label>
-              <label style="display:flex;align-items:center;gap:4px;font-weight:400"><input type="checkbox" id="share-goals" /> Goals</label>
+          <div class="settings-section">
+            <h3 class="section-label" id="share-perm-label">What they can see</h3>
+            <div class="check-grid" role="group" aria-labelledby="share-perm-label">
+              <label class="check-tile"><input type="checkbox" id="share-weight" checked /><span>Weight</span></label>
+              <label class="check-tile"><input type="checkbox" id="share-workouts" checked /><span>Workouts</span></label>
+              <label class="check-tile"><input type="checkbox" id="share-food" /><span>Food</span></label>
+              <label class="check-tile"><input type="checkbox" id="share-body" /><span>Body</span></label>
+              <label class="check-tile"><input type="checkbox" id="share-goals" /><span>Goals</span></label>
             </div>
           </div>
-          <button class="btn btn-primary btn-block" id="btn-grant-share">Grant Access</button>
-          <div id="share-list" style="margin-top:16px"></div>
+          <div class="card-actions">
+            <button class="btn btn-primary" id="btn-grant-share">Grant access</button>
+          </div>
+          <div id="share-list" class="share-list"></div>
         </div>
       </section>
     </main>

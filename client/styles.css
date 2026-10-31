@@ -535,7 +535,11 @@ label {
   font-weight: 500;
 }
 
-input, select {
+/* Text-like fields only. Checkboxes, radios, ranges, files and colour pickers
+   must NOT get width:100%/padding/border: on iOS Safari a 100%-wide checkbox
+   stretches across its flex label and sits on top of the label text.
+   :where() keeps the specificity of a bare `input` so existing overrides win. */
+input:where(:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], [type="hidden"])), select, textarea {
   width: 100%;
   padding: 10px 12px;
   background: var(--bg);
@@ -547,7 +551,7 @@ input, select {
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-input:focus, select:focus {
+input:where(:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"])):focus, select:focus, textarea:focus {
   border-color: var(--main);
   box-shadow: 0 0 0 3px var(--main-soft);
 }
@@ -1952,3 +1956,123 @@ body.sheet-open { overflow: hidden; }
 .photo-lightbox img { max-width: 100%; max-height: calc(100vh - 120px); border-radius: 12px; object-fit: contain; }
 .photo-lightbox-cap { color: #fff; margin-top: 10px; font-size: 0.9rem; text-align: center; }
 .photo-lightbox-close { position: absolute; top: calc(10px + env(safe-area-inset-top)); right: 10px; color: #fff; font-size: 1.2rem; min-width: 44px; min-height: 44px; }
+
+
+/* ========== Settings polish & form controls (global) ========== */
+:where(input[type="checkbox"], input[type="radio"]) {
+  width: 20px; height: 20px; margin: 0; padding: 0; flex: 0 0 auto;
+  accent-color: var(--main); cursor: pointer; vertical-align: middle;
+}
+:where(input[type="checkbox"], input[type="radio"]):focus-visible { outline: 2px solid var(--main); outline-offset: 2px; }
+.sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.settings-card select, .share-card input[type="text"], .settings-card input[type="search"] { min-height: 44px; }
+input::placeholder { color: var(--text-muted); opacity: 0.8; }
+
+/* A checkbox beside its label, for one-off options */
+label.check-line {
+  display: flex; align-items: center; gap: 10px; min-height: 44px; margin: 0;
+  font-size: 0.9rem; font-weight: 500; color: var(--text); cursor: pointer;
+}
+
+/* Two-column tile list of checkboxes (share permissions, training goal) */
+.check-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+@media (min-width: 700px) { .check-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } }
+label.check-tile {
+  display: flex; align-items: center; gap: 10px; min-height: 48px; margin: 0; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--bg);
+  color: var(--text); font-size: 0.92rem; font-weight: 600; cursor: pointer; user-select: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+label.check-tile span { min-width: 0; }
+label.check-tile:hover { border-color: var(--main); }
+label.check-tile:has(input:checked) { background: var(--main-soft); border-color: var(--main); color: var(--main-text); }
+label.check-tile:has(input:focus-visible) { box-shadow: 0 0 0 3px var(--main-soft); border-color: var(--main); }
+
+/* Cards: consistent rhythm */
+.settings-card h2 { margin-bottom: 6px; }
+.settings-card .card-intro { margin: 0 0 16px; }
+.settings-section { padding: 16px 0; border-top: 1px solid var(--border); }
+.settings-card > h2 + .settings-section { border-top: none; padding-top: 10px; }
+.form-grid + .settings-section { border-top: none; padding-top: 0; }
+.section-label {
+  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-muted); margin: 0 0 10px; display: flex; align-items: center; gap: 8px;
+}
+.section-hint { margin-top: 8px; }
+.form-grid { margin-bottom: 16px; }
+.form-grid > .form-row { margin-bottom: 0; }
+.form-grid label, .settings-card .form-row > label { font-size: 0.82rem; font-weight: 600; }
+.card-actions { display: flex; gap: 10px; justify-content: flex-start; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.card-actions .btn { min-height: 44px; min-width: 160px; }
+@media (max-width: 560px) { .card-actions .btn { flex: 1; } }
+.settings-card .interest-search { margin-bottom: 12px; }
+
+/* Profile */
+.profile-row { display: flex; gap: 16px; align-items: center; }
+.profile-avatar { width: 64px; height: 64px; border-radius: 16px; font-size: 1.3rem; flex: 0 0 auto; }
+.profile-fields { flex: 1; min-width: 0; }
+.avatar-presets { flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+.avatar-presets button { width: 36px; height: 36px; border-radius: 10px; }
+.file-btn { display: inline-block; margin: 0; cursor: pointer; }
+.btn-ghost-outline { background: var(--surface); color: var(--main-text); border: 1px solid var(--border); min-height: 44px; }
+.file-btn:hover .btn-ghost-outline { border-color: var(--main); }
+.file-btn:has(input:focus-visible) .btn-ghost-outline { box-shadow: 0 0 0 3px var(--main-soft); border-color: var(--main); }
+input[type="file"]:not(.sr-only) { max-width: 100%; font-size: 0.85rem; color: var(--text-muted); }
+input[type="file"]::file-selector-button {
+  margin-right: 10px; padding: 8px 14px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface2); color: var(--text); font: inherit; font-weight: 600; cursor: pointer;
+}
+
+/* Share access */
+.share-list { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.share-list-title { margin-top: 4px; }
+.share-list-title + .share-rows, .share-list-title + .empty-state { margin-bottom: 16px; }
+.count-pill { font-size: 0.72rem; letter-spacing: 0; padding: 1px 8px; border-radius: 999px; background: var(--main-soft); color: var(--main-text); }
+.share-rows { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.share-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px; background: var(--surface); }
+.share-row + .share-row { border-top: 1px solid var(--border); }
+.share-avatar {
+  flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--main-soft); color: var(--main-text); font-weight: 800; font-size: 0.85rem;
+}
+.share-main { flex: 1; min-width: 0; }
+.share-name { font-weight: 700; color: var(--text); display: flex; flex-wrap: wrap; align-items: center; gap: 6px; overflow-wrap: anywhere; }
+.share-note { font-size: 0.72rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); }
+.share-sub { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; overflow-wrap: anywhere; }
+.share-perms { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.perm-pill { font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.perm-none { color: var(--text-muted); font-weight: 600; }
+.btn-danger-ghost {
+  flex: 0 0 auto; min-height: 44px; padding: 8px 12px; background: transparent; color: var(--fail-text);
+  border: 1px solid var(--fail-border); border-radius: 8px; font-size: 0.82rem;
+}
+.btn-danger-ghost:hover { background: var(--fail-soft); }
+.btn-danger-ghost:disabled { opacity: 0.5; }
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px;
+  padding: 20px 16px; border: 1px dashed var(--border); border-radius: 12px; background: var(--bg);
+}
+.empty-state strong { color: var(--text); font-size: 0.95rem; }
+.empty-state .hint { max-width: 280px; margin: 0; }
+.empty-icon { font-size: 1.5rem; line-height: 1; margin-bottom: 4px; filter: grayscale(0.2); }
+
+/* Narrow phones (320–360px): keep the header on one line and tiles readable */
+.brand-title, #btn-logout { white-space: nowrap; }
+.brand { min-width: 0; }
+.brand > div { min-width: 0; }
+.brand-user { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+label.check-tile span { overflow-wrap: break-word; hyphens: auto; }
+@media (max-width: 360px) {
+  .topbar { gap: 8px; }
+  .brand { gap: 8px; }
+  .brand-title { font-size: 1rem; }
+  #btn-logout { padding: 8px 10px; }
+  label.check-tile { padding: 10px; gap: 8px; font-size: 0.86rem; }
+  .card { padding: 16px; }
+}
+.share-note { white-space: nowrap; }
+@media (max-width: 400px) {
+  .share-row { flex-wrap: wrap; }
+  .share-main { flex: 1 1 calc(100% - 52px); }
+  .share-remove { margin-left: 52px; min-width: 120px; }
+}
