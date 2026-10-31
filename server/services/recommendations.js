@@ -1,3 +1,4 @@
+const { isDateKey, shiftKey } = require('./dates');
 const Weight = require('../models/Weight');
 const CalorieLog = require('../models/CalorieLog');
 const FoodLog = require('../models/FoodLog');
@@ -44,13 +45,12 @@ function computeMacros(targetDaily, avgWeightLbs, goalType) {
   return { proteinG, carbsG, fatG, proteinPerLb, fatPerLb };
 }
 
-async function computeCalorieRecommendation(userId) {
+async function computeCalorieRecommendation(userId, today) {
+  const todayKey = isDateKey(today) ? today : new Date().toISOString().slice(0, 10);
   const settings = (await Settings.findOne({ user: userId })) || { calAvgDays: 14 };
   const avgDays = settings.calAvgDays || 14;
 
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - Math.max(avgDays, 14));
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  const cutoffStr = shiftKey(todayKey, -Math.max(avgDays, 14));
 
   const weights = await Weight.find({
     user: userId,
@@ -120,7 +120,7 @@ async function computeCalorieRecommendation(userId) {
 
     let daysLeft = null;
     if (goal.targetDate) {
-      daysLeft = Math.max(1, daysBetween(new Date().toISOString().slice(0, 10), goal.targetDate));
+      daysLeft = Math.max(1, daysBetween(todayKey, goal.targetDate));
     }
     const weeksLeft = daysLeft ? daysLeft / 7 : Math.max(1, goal.weeks || 12);
     ratePerWeek = remainingLbs / weeksLeft;

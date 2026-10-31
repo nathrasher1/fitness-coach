@@ -3,6 +3,7 @@ const BodyMetric = require('../models/BodyMetric');
 const Weight = require('../models/Weight');
 const { requireAuth } = require('../middleware/auth');
 
+const { localToday, daysAgoKey, shiftKey, isDateKey } = require('../services/dates');
 const router = express.Router();
 router.use(requireAuth);
 
@@ -42,7 +43,7 @@ router.get('/latest', async (req, res) => {
 // POST /api/body-metrics
 router.post('/', async (req, res) => {
   try {
-    const date = req.body.date || new Date().toISOString().slice(0, 10);
+    const date = req.body.date || localToday(req);
     const fields = [
       'bodyFatPct', 'heightCm', 'chestCm', 'shouldersCm', 'waistCm', 'hipsCm',
       'leftArmCm', 'rightArmCm', 'leftThighCm', 'rightThighCm', 'leftCalfCm', 'rightCalfCm', 'neckCm', 'note'

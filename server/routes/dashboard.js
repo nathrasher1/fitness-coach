@@ -4,16 +4,15 @@ const FoodLog = require('../models/FoodLog');
 const { requireAuth } = require('../middleware/auth');
 const { computeCalorieRecommendation } = require('../services/recommendations');
 
+const { localToday, daysAgoKey, shiftKey, isDateKey } = require('../services/dates');
 const router = express.Router();
 router.use(requireAuth);
 
 router.get('/', async (req, res) => {
   try {
     const days = parseInt(req.query.days, 10) || 7;
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - days);
-    const cutoffStr = cutoff.toISOString().slice(0, 10);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localToday(req);
+    const cutoffStr = shiftKey(today, -days);
 
     const weights = await Weight.find({
       user: req.session.userId,
@@ -30,7 +29,7 @@ router.get('/', async (req, res) => {
     }
 
     const absoluteLatest = await Weight.findOne({ user: req.session.userId }).sort({ date: -1 });
-    const recommendation = await computeCalorieRecommendation(req.session.userId);
+    const recommendation = await computeCalorieRecommendation(req.session.userId, today);
 
     const todayLogs = await FoodLog.find({ user: req.session.userId, date: today });
     const todayTotals = todayLogs.reduce(

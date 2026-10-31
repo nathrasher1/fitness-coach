@@ -5,19 +5,29 @@ let selectedFood = null;
 let currentPeriodDays = 7;
 
 // ========== Helpers ==========
+// Sent on every API call so the server uses the user's calendar day, not UTC.
+function localDateHeaders() {
+  return { 'X-Local-Date': todayStr(), 'X-TZ-Offset': String(new Date().getTimezoneOffset()) };
+}
+
 async function api(path, options = {}) {
   const res = await fetch(`/api${path}`, {
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-    ...options
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...localDateHeaders(), ...(options.headers || {}) }
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data;
 }
 
+// Date keys ('YYYY-MM-DD') are always the user's LOCAL calendar day.
+// (toISOString() is UTC and rolls over to tomorrow in the evening in the Americas.)
+function dateKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return dateKey(new Date());
 }
 
 function formatDate(str) {
@@ -1319,7 +1329,7 @@ function shiftFoodDate(days) {
   const input = document.getElementById('food-date');
   const d = new Date((input.value || todayStr()) + 'T12:00:00');
   d.setDate(d.getDate() + days);
-  input.value = d.toISOString().slice(0, 10);
+  input.value = dateKey(d);
   loadFoodLog();
 }
 document.getElementById('food-prev').addEventListener('click', () => shiftFoodDate(-1));
@@ -2831,7 +2841,7 @@ async function loadCalendar() {
     for (let i = 0; i < 14; i++) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      datesToCheck.add(d.toISOString().slice(0, 10));
+      datesToCheck.add(dateKey(d));
     }
     const foodDates = new Set();
     await Promise.all(

@@ -4,6 +4,7 @@ const FoodLog = require('../models/FoodLog');
 const Settings = require('../models/Settings');
 const { requireAuth } = require('../middleware/auth');
 
+const { localToday, daysAgoKey, shiftKey, isDateKey } = require('../services/dates');
 const router = express.Router();
 router.use(requireAuth);
 
@@ -139,9 +140,7 @@ router.get('/', async (req, res) => {
 // GET /api/foods/recent – most frequently logged foods (last 30 days)
 router.get('/recent', async (req, res) => {
   try {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 30);
-    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    const cutoffStr = daysAgoKey(req, 30);
 
     const recent = await FoodLog.aggregate([
       {

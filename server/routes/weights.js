@@ -2,6 +2,7 @@ const express = require('express');
 const Weight = require('../models/Weight');
 const { requireAuth } = require('../middleware/auth');
 
+const { localToday, daysAgoKey, shiftKey, isDateKey } = require('../services/dates');
 const router = express.Router();
 router.use(requireAuth);
 
@@ -9,9 +10,7 @@ router.use(requireAuth);
 router.get('/', async (req, res) => {
   try {
     const days = parseInt(req.query.days, 10) || 90;
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - days);
-    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    const cutoffStr = daysAgoKey(req, days);
 
     const weights = await Weight.find({
       user: req.session.userId,

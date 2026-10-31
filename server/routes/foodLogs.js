@@ -5,6 +5,7 @@ const { requireAuth } = require('../middleware/auth');
 const { amountToServings, isWeightUnit, toGrams } = require('../services/portions');
 const { computeCalorieRecommendation } = require('../services/recommendations');
 
+const { localToday, daysAgoKey, shiftKey, isDateKey } = require('../services/dates');
 const router = express.Router();
 router.use(requireAuth);
 
@@ -25,7 +26,7 @@ function dayTotals(logs) {
 // GET /api/food-logs?date=2026-10-23
 router.get('/', async (req, res) => {
   try {
-    const date = req.query.date || new Date().toISOString().slice(0, 10);
+    const date = isDateKey(req.query.date) ? req.query.date : localToday(req);
     const logs = await FoodLog.find({
       user: req.session.userId,
       date
@@ -36,7 +37,7 @@ router.get('/', async (req, res) => {
     // Attach recommendation targets so the UI can show remaining macros
     let targets = null;
     try {
-      const rec = await computeCalorieRecommendation(req.session.userId);
+      const rec = await computeCalorieRecommendation(req.session.userId, localToday(req));
       if (rec.ready) {
         targets = {
           calories: rec.targetDaily,
@@ -147,10 +148,8 @@ router.post('/', async (req, res) => {
 // POST /api/food-logs/copy-yesterday
 router.post('/copy-yesterday', async (req, res) => {
   try {
-    const targetDate = req.body.date || new Date().toISOString().slice(0, 10);
-    const d = new Date(targetDate + 'T12:00:00');
-    d.setDate(d.getDate() - 1);
-    const sourceDate = d.toISOString().slice(0, 10);
+    const targetDate = isDateKey(req.body.date) ? req.body.date : localToday(req);
+    const sourceDate = shiftKey(targetDate, -1);
 
     const sourceLogs = await FoodLog.find({
       user: req.session.userId,

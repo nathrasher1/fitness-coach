@@ -3,6 +3,7 @@ const User = require('../models/User');
 const ProgressPhoto = require('../models/ProgressPhoto');
 const { requireAuth } = require('../middleware/auth');
 
+const { localToday, daysAgoKey, shiftKey, isDateKey } = require('../services/dates');
 const router = express.Router();
 router.use(requireAuth);
 
@@ -51,7 +52,7 @@ router.post('/photos', async (req, res) => {
     if (image.length > 2_000_000) return res.status(400).json({ error: 'Photo is too large' });
     const photo = await ProgressPhoto.create({
       user: req.session.userId,
-      date: req.body.date || new Date().toISOString().slice(0, 10),
+      date: req.body.date || localToday(req),
       image,
       note: req.body.note || ''
     });
