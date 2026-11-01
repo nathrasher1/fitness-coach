@@ -24,6 +24,24 @@ function dayTotals(logs) {
   );
 }
 
+// Older entries were saved without a readable amount label. Describe them from the linked
+// food's current serving (display only; the stored entry is never changed).
+async function withAmountLabels(logs) {
+  const ids = [...new Set(logs.filter((l) => !l.amountLabel && l.food).map((l) => String(l.food)))];
+  const foods = ids.length ? await Food.find({ _id: { $in: ids } }).lean() : [];
+  const byId = new Map(foods.map((f) => [String(f._id), f]));
+  return logs.map((l) => {
+    const o = l.toObject ? l.toObject() : l;
+    const f = o.food && byId.get(String(o.food));
+    if (!o.amountLabel && f && o.servings > 0) {
+      const size = Number(f.servingSize) || 1;
+      const unit = String(f.servingUnit || 'serving');
+      o.amountLabel = unit === 'serving' ? '' : `${Servings.fmt(o.servings * size)} ${unit}`;
+    }
+    return o;
+  });
+}
+
 // GET /api/food-logs?date=2026-10-23
 router.get('/', async (req, res) => {
   try {
@@ -34,6 +52,7 @@ router.get('/', async (req, res) => {
     }).sort({ createdAt: 1 });
 
     const totals = dayTotals(logs);
+    const out = await withAmountLabels(logs);
 
     // Attach recommendation targets so the UI can show remaining macros
     let targets = null;
@@ -54,7 +73,7 @@ router.get('/', async (req, res) => {
       // non-fatal
     }
 
-    res.json({ logs, totals, targets, date });
+    res.json({ logs: out, totals, targets, date });
   } catch (err) {
     res.status(500).json({ error: 'Failed to load food logs' });
   }
