@@ -240,10 +240,10 @@ async function processForgot(identifier) {
   let user = null;
   if (q.includes('@')) {
     const email = cleanEmail(q);
-    if (email) user = await User.findOne({ email }).select('+email accountLocked');
+    if (email) user = await User.findOne({ email }).select('+email');
   } else {
     const cands = await User.findUsernameCandidates(q);
-    if (cands[0]) user = await User.findById(cands[0]._id).select('+email accountLocked');
+    if (cands[0]) user = await User.findById(cands[0]._id).select('+email');
   }
   if (!user || !user.email || user.accountLocked) return;
   if (!accountAllowed(String(user._id))) return;
@@ -252,13 +252,21 @@ async function processForgot(identifier) {
   await PasswordReset.create({ user: user._id, tokenHash: sha256(token), expiresAt: new Date(Date.now() + RESET_TTL_MS) });
   // The token is in the URL fragment, so it is never sent to the server in a page request or a Referer.
   const link = `${appUrl()}/reset#token=${token}`;
-  await sendMail({
-    kind: 'password reset',
-    to: user.email,
+  await sendMail({ kind: 'password reset', to: user.email, ...resetEmail(user, link) });
+}
+
+// Reset email body. Greeting: display name, then username, then "Hi there". The account line is
+// left out if there is no username. Names are HTML-escaped in the HTML part.
+function resetEmail(user, link) {
+  const clean = (v) => (typeof v === 'string' ? v.trim() : '');
+  const name = clean(user && user.displayName) || clean(user && user.username);
+  const username = clean(user && user.username);
+  const acct = username ? ` @${username}` : '';
+  return {
     subject: 'Reset your Fitness Coach password',
-    text: `Hi ${user.displayName || user.username},\n\nSomeone (hopefully you) asked to reset the password for your Fitness Coach account "${user.username}".\n\nReset it here (the link works once, for 1 hour):\n${link}\n\nIf you didn't ask for this, you can ignore this email. Your password won't change.\n`,
-    html: `<p>Hi ${escapeHtml(user.displayName || user.username)},</p><p>Someone (hopefully you) asked to reset the password for your Fitness Coach account <strong>${escapeHtml(user.username)}</strong>.</p><p><a href="${link}">Reset your password</a> (works once, for 1 hour)</p><p>If you didn't ask for this, you can ignore this email. Your password won't change.</p>`
-  });
+    text: `${name ? `Hi ${name},` : 'Hi there,'}\n\nSomeone (hopefully you) asked to reset the password for your Fitness Coach account${acct}.\n\nReset it here (the link works once, for 1 hour):\n${link}\n\nIf you didn't ask for this, you can ignore this email. Your password won't change.\n`,
+    html: `<p>${name ? `Hi ${escapeHtml(name)},` : 'Hi there,'}</p><p>Someone (hopefully you) asked to reset the password for your Fitness Coach account${username ? ` <strong>@${escapeHtml(username)}</strong>` : ''}.</p><p><a href="${escapeHtml(link)}">Reset your password</a> (works once, for 1 hour)</p><p>If you didn't ask for this, you can ignore this email. Your password won't change.</p>`
+  };
 }
 const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -270,6 +278,7 @@ router.post('/forgot', forgotLimit, (req, res) => {
   setImmediate(() => { processForgot(identifier).catch((err) => console.warn('[forgot] failed:', err && err.name)); });
 });
 router.forgotDone = processForgot; // for tests
+router.resetEmail = resetEmail; // for tests
 
 // POST /api/auth/reset { token, password }
 router.post('/reset', resetLimit, async (req, res) => {
