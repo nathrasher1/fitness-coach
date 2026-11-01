@@ -43,7 +43,10 @@ router.get('/', async (req, res) => {
           calories: rec.targetDaily,
           protein: rec.macros.proteinG,
           carbs: rec.macros.carbsG,
-          fat: rec.macros.fatG
+          fat: rec.macros.fatG,
+          estimate: rec.estimate,
+          basis: rec.basis,
+          sufficiency: rec.sufficiency
         };
       }
     } catch (_) {

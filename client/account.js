@@ -206,7 +206,7 @@
     const rows = (list, kind) => list.map((l) => `<li class="share-row">
         <span class="share-avatar" aria-hidden="true">${escA(initials(l.person, l.username))}</span>
         <div class="share-main"><div class="share-name">${personLine(l.person, l.username)}</div><div class="share-sub">${kind}</div></div>
-        <div class="share-actions">${l.incoming ? `<button type="button" class="btn btn-primary btn-sm" data-fam-accept="${escA(l.id)}">Accept</button><button type="button" class="btn btn-ghost-outline btn-sm" data-fam-decline="${escA(l.id)}">Decline</button>` : `<button type="button" class="btn btn-danger-ghost btn-sm" data-fam-remove="${escA(l.id)}" data-kind="${l.pending ? 'cancel' : 'unlink'}">${l.pending ? 'Cancel' : 'Unlink'}</button>`}</div>
+        <div class="share-actions">${l.teenId ? `<button type="button" class="btn btn-ghost-outline btn-sm" data-fam-support="${escA(l.teenId)}">Habits</button>` : ''}${l.incoming ? `<button type="button" class="btn btn-primary btn-sm" data-fam-accept="${escA(l.id)}">Accept</button><button type="button" class="btn btn-ghost-outline btn-sm" data-fam-decline="${escA(l.id)}">Decline</button>` : `<button type="button" class="btn btn-danger-ghost btn-sm" data-fam-remove="${escA(l.id)}" data-kind="${l.pending ? 'cancel' : 'unlink'}">${l.pending ? 'Cancel' : 'Unlink'}</button>`}</div>
       </li>`).join('');
     const linked = teen ? f.parents : f.teens;
     const incoming = f.incoming.map((l) => ({ ...l, incoming: true }));
@@ -220,7 +220,25 @@
     if (canAsk) html += `<div class="settings-section"><label class="section-label" for="fam-user">${teen ? 'Parent or guardian\'s username' : 'Your teen\'s username'}</label>
       <div class="search-row"><input type="text" id="fam-user" maxlength="40" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="username" /><button type="button" class="btn btn-primary" id="btn-fam-send">Send request</button></div></div>`;
     else if (teen) html += `<p class="hint">You have ${f.maxParents} linked parents (the maximum).</p>`;
+    html += '<div id="fam-support"></div>';
     el.innerHTML = html;
+  }
+  function renderTeenSupportForParent(d, who) {
+    const box = $('fam-support');
+    if (!d.flagged) { box.innerHTML = `<div class="ts-card ts-parent-view"><p class="hint">Nothing to show for ${escA(who)} right now. This view appears when their app suggests habit support.</p></div>`; return; }
+    const li = (a) => a.map((x) => `<li>${x}</li>`).join('');
+    box.innerHTML = `<div class="ts-card ts-parent-view">
+      <div class="summary-kicker">Read-only · ${escA(who)}</div>
+      <h3>Habit support</h3>
+      <p class="ts-note">${escA(d.note)}</p>
+      <h4>Activity</h4><p>${d.streak ? `Current streak: <strong>${d.streak.days} day${d.streak.days === 1 ? '' : 's'}</strong>${d.streak.todayDone ? ' · trained today' : ''}` : 'No streak yet.'}</p>
+      <h4>Workouts (last 2 weeks)</h4>${d.workouts.length ? `<ul>${li(d.workouts.map((w) => `${escA(w.date)} · ${escA(w.name)}${w.durationMin ? ' · ' + w.durationMin + ' min' : ''}`))}</ul>` : '<p class="hint">None logged.</p>'}
+      <h4>Meals logged (last 2 weeks)</h4>${d.meals.length ? `<ul>${li(d.meals.slice(0, 12).map((m) => `${escA(m.date)} · ${escA(m.meal)} · ${escA(m.name)}`))}</ul>` : '<p class="hint">None logged.</p>'}
+      <h4>Foods to try</h4><p>${d.suggestions.map(escA).join(' · ')}</p>
+      <h4>Have less often</h4><p>${d.cutBack.map(escA).join(' · ')}</p>
+      <h4>Weight and measurements</h4>${d.bodyShared && d.body ? `<ul>${li(d.body.weights.map((w) => `${escA(w.date)} · ${escA(w.weight)} lbs`))}</ul>${d.body.measurements ? `<p class="hint">Latest measurements ${escA(d.body.measurements.date)}: ${Object.entries(d.body.measurements).filter(([k]) => k !== 'date').map(([k, v]) => escA(k.replace(/Cm$/, '')) + ' ' + escA(v) + ' cm').join(', ')}</p>` : ''}` : '<p class="hint">Private. Your teen hasn\'t chosen to share these.</p>'}
+    </div>`;
+    box.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   async function loadFamily() {
     try { family = await api('/family'); } catch { family = null; }
@@ -233,6 +251,10 @@
         const u = $('fam-user').value.trim(); if (!u) return toast('Enter a username');
         const r = await api('/family/requests', { method: 'POST', body: JSON.stringify({ username: u }) });
         toast(r.message);
+      } else if (t.dataset.famSupport) {
+        const who = (family.teens.find((x) => x.teenId === t.dataset.famSupport) || {}).person;
+        renderTeenSupportForParent(await api(`/family/teens/${t.dataset.famSupport}/support`), who ? (who.displayName || who.username) : 'your teen');
+        return;
       } else if (t.dataset.famAccept) { await api(`/family/${t.dataset.famAccept}/accept`, { method: 'POST' }); toast('Linked'); }
       else if (t.dataset.famDecline) { await api(`/family/${t.dataset.famDecline}/decline`, { method: 'POST' }); toast('Declined'); }
       else if (t.dataset.famRemove) {

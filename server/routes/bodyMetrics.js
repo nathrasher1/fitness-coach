@@ -2,6 +2,9 @@ const express = require('express');
 const BodyMetric = require('../models/BodyMetric');
 const Weight = require('../models/Weight');
 const { requireAuth } = require('../middleware/auth');
+const User = require('../models/User');
+const { userGroup } = require('../services/age');
+const { targetPolicy } = require('../services/recommendations');
 
 const { localToday, daysAgoKey, shiftKey, isDateKey } = require('../services/dates');
 const router = express.Router();
@@ -33,8 +36,11 @@ router.get('/latest', async (req, res) => {
     const metric = await BodyMetric.findOne({ user: req.session.userId }).sort({ date: -1 });
     const weight = await Weight.findOne({ user: req.session.userId }).sort({ date: -1 });
     const heightCm = metric?.heightCm || null;
-    const bmi = calcBmi(weight?.weight, heightCm);
-    res.json({ metric, latestWeightLbs: weight?.weight || null, bmi });
+    // BMI is an adult measure; members under 18 don't get it (adult cut-offs don't apply to growing bodies).
+    const user = await User.findById(req.session.userId).select('+dob accountLocked');
+    const showBmi = targetPolicy(userGroup(user, localToday(req))).showBmi;
+    const bmi = showBmi ? calcBmi(weight?.weight, heightCm) : null;
+    res.json({ metric, latestWeightLbs: weight?.weight || null, bmi, showBmi });
   } catch (err) {
     res.status(500).json({ error: 'Failed to load latest metrics' });
   }

@@ -2231,3 +2231,56 @@ label.switch-line:has(input:checked) { border-color: var(--main); background: va
 #family-body .section-label { margin-top: 4px; }
 .day-grid label.check-tile { flex-direction: column; justify-content: center; align-items: center; gap: 4px; padding: 8px 4px; text-align: center; }
 .day-grid label.check-tile span { white-space: nowrap; }
+
+/* ===== About you ===== */
+.ay-sheet { padding-bottom: 0; }
+.ay-private { background: var(--main-soft); color: var(--text); border-radius: 12px; padding: 10px 12px; font-size: 0.88rem; margin: 6px 0 4px; }
+.ay-q { padding: 14px 0; border-bottom: 1px solid var(--border); }
+.ay-q h3 { font-size: 1rem; margin: 0 0 8px; }
+.ay-label { display: block; font-size: 0.82rem; font-weight: 700; color: var(--text-muted); margin: 10px 0 6px; }
+.ay-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ay-chip { min-height: 40px; padding: 6px 14px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-size: 0.92rem; cursor: pointer; }
+.ay-chip.on { background: var(--main); border-color: var(--main); color: var(--on-main, #fff); font-weight: 700; }
+.ay-why { font-size: 0.84rem; color: var(--text-muted); background: var(--surface2); border-radius: 10px; padding: 8px 10px; margin: 10px 0 0; }
+.ay-inline { display: flex; align-items: center; gap: 8px; }
+.ay-inline input { width: 84px; min-height: 42px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); padding: 0 10px; font: inherit; }
+.ay-actions { position: sticky; bottom: 0; display: grid; grid-template-columns: 1fr 2fr; gap: 10px; background: var(--surface); padding: 12px 0 calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); margin-top: 4px; }
+.ay-home { position: relative; border-left: 5px solid var(--accent); background: var(--accent-soft); }
+.ay-home h2 { margin: 2px 0 4px; }
+.ay-home p { margin: 0 0 10px; }
+.ay-home-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.ay-x { position: absolute; top: 8px; right: 8px; width: 36px; height: 36px; border-radius: 50%; border: none; background: transparent; color: var(--text-muted); font-size: 1rem; cursor: pointer; }
+.ay-settings-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.ay-settings h2 { margin: 0 0 4px; }
+.ay-settings.ay-unfilled { border-left: 5px solid var(--accent); }
+.ay-dot { display: inline-block; font-size: 0.72rem; font-weight: 800; vertical-align: middle; background: var(--accent); color: var(--on-accent, #fff); border-radius: 999px; padding: 2px 8px; margin-left: 6px; }
+.ay-private-sm { font-size: 0.78rem; color: var(--text-muted); margin: 8px 0 0; }
+.ay-badge { display: inline-block; margin-top: 4px; font-size: 0.75rem; font-weight: 700; color: var(--fail-text, #8a4b00); background: var(--fail-soft, #fff1dc); border-radius: 999px; padding: 2px 8px; }
+.ay-diet { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; align-items: center; }
+.ay-diet-chip { font-size: 0.74rem; font-weight: 700; color: var(--fail-text, #8a4b00); background: var(--fail-soft, #fff1dc); border-radius: 999px; padding: 2px 8px; }
+.ay-diet-caveat { display: block; width: 100%; font-size: 0.76rem; color: var(--text-muted); }
+
+/* Calorie target: estimate notice (prominent) vs. based-on-logs note (quiet) */
+.estimate-notice { border: 2px solid var(--accent); background: var(--accent-soft); color: var(--text); border-radius: 14px; padding: 12px 14px; margin: 10px 0; text-align: left; }
+.estimate-title { font-weight: 800; font-size: 1rem; color: var(--accent-text, var(--text)); display: flex; align-items: center; gap: 8px; }
+.estimate-icon { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--on-accent, #fff); font-weight: 900; font-size: 0.85rem; flex: none; }
+.estimate-notice p { margin: 6px 0 0; font-size: 0.92rem; font-weight: 600; line-height: 1.4; }
+.estimate-progress { margin-top: 8px; font-size: 0.84rem; }
+.est-tag { display: inline-block; vertical-align: middle; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; background: var(--accent); color: var(--on-accent, #fff); border-radius: 6px; padding: 2px 6px; }
+.basis-note { font-size: 0.8rem; color: var(--text-muted); margin: 4px 0 8px; }
+.limit-note { font-size: 0.85rem; background: var(--main-soft); border-radius: 10px; padding: 8px 10px; margin: 8px 0; }
+/* Teen habit support */
+.ts-card { border-left: 5px solid var(--main); }
+.ts-parent-view { background: var(--surface2); border-radius: 14px; padding: 12px 14px; margin-top: 12px; }
+.ts-parent-view h4 { margin: 12px 0 4px; font-size: 0.9rem; }
+.ts-parent-view ul { margin: 0; padding-left: 18px; font-size: 0.88rem; }
+.ts-note { background: var(--main-soft); border-radius: 12px; padding: 10px 12px; font-size: 0.95rem; line-height: 1.45; }
+.ts-habits { display: grid; gap: 8px; margin: 10px 0; }
+.ts-habit { display: grid; gap: 2px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px; }
+.ts-habit span { font-size: 0.88rem; color: var(--text-muted); }
+.ts-less { background: var(--surface2); }
+.ts-parent { font-size: 0.88rem; background: var(--surface2); border-radius: 12px; padding: 10px 12px; margin-top: 12px; }
+.ts-parent ul { margin: 4px 0 8px; padding-left: 18px; }
+.ts-toggle { display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; font-weight: 700; font-size: 0.92rem; }
+.ts-toggle input { width: 22px; height: 22px; flex: none; margin-top: 2px; }
+.ts-toggle small { display: block; font-weight: 400; color: var(--text-muted); }

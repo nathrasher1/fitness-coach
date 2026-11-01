@@ -146,6 +146,8 @@
     <main class="content">
       <!-- DASHBOARD -->
       <section id="dashboard" class="panel active">
+        <div id="about-you-home" hidden></div>
+        <div id="teen-support" hidden></div>
         <div class="card">
           <h2>Overview</h2>
           <div class="period-tabs" id="avg-period-tabs">
@@ -317,7 +319,7 @@
               <label for="bm-height">Height</label>
               <input type="number" id="bm-height" step="0.1" min="0" placeholder="e.g. 70" />
             </div>
-            <div class="form-row">
+            <div class="form-row bm-bmi-wrap">
               <label>BMI</label>
               <div id="bm-bmi" class="selected-food">—</div>
             </div>
@@ -660,6 +662,7 @@
       </section>
 
       <section id="settings" class="panel">
+        <div id="about-you-settings"></div>
         <div class="card settings-card">
           <h2>Preferences</h2>
           <div class="settings-section">
@@ -831,6 +834,7 @@
       </section>
     </main>
     <div id="social-sheet" class="sheet-backdrop" hidden></div>
+    <div id="about-you-sheet" class="sheet-backdrop" hidden></div>
   </div>
 
   <div id="toast" class="toast"></div>
@@ -858,7 +862,9 @@
   </div>
   <script src="lib/progression.js"></script>
   <script src="lib/activities.js"></script>
+  <script src="lib/aboutYou.js"></script>
   <script src="app.js"></script>
+  <script src="aboutYouUi.js"></script>
   <script src="social.js"></script>
   <script src="account.js"></script>
 </body>

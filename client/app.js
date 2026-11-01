@@ -61,7 +61,7 @@ function fromInputWeight(val) {
 
 // ========== Auth ==========
 // Signed in: show the app, or the one-time details / locked screen first.
-async function enterApp(user) {
+async function enterApp(user, opts = {}) {
   currentUser = user;
   if (window.Account && window.Account.needsGate(user)) return window.Account.showGate(user);
   showApp();
@@ -69,6 +69,7 @@ async function enterApp(user) {
   renderAll();
   restoreWorkoutDraft();
   if (window.Account) { window.Account.loadStreak(); window.Account.applyLimits(); }
+  if (window.AboutYouUI) window.AboutYouUI.init({ justRegistered: !!opts.justRegistered });
 }
 
 async function checkAuth() {
@@ -141,7 +142,7 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
       })
     });
     document.getElementById('reg-password').value = '';
-    await enterApp(data.user);
+    await enterApp(data.user, { justRegistered: true });
   } catch (err) {
     if (err.code === 'under_13' && window.Account) return window.Account.showUnder13(err.message);
     errEl.textContent = err.message;
@@ -503,7 +504,7 @@ function renderTodayIntake(totals, rec) {
     { key: 'fat', label: 'Fat', unit: 'g', current: t.fat, target: targets?.fat }
   ];
 
-  el.innerHTML = rows
+  el.innerHTML = targetBasisNote(targets) + rows
     .map((r) => {
       const pct = r.target ? Math.min(100, Math.round((r.current / r.target) * 100)) : 0;
       const over = r.target && r.current > r.target;
@@ -525,34 +526,64 @@ function renderTodayIntake(totals, rec) {
     .join('');
 }
 
+// Prominent "this is only an estimate" notice whenever the last 7 days don't have enough logs;
+// a quiet "based on your last 7 days" line once they do. Used by the dashboard and the food panel.
+function targetBasisNote(t, opts = {}) {
+  if (!t) return '';
+  const s = t.sufficiency;
+  if (!t.estimate) {
+    return `<p class="basis-note">Based on your last 7 days of food and weight logs.</p>`;
+  }
+  const progress = s
+    ? `<div class="estimate-progress">Last 7 days: <strong>${s.loggedFoodDays}/${s.foodDays}</strong> days with food logged · <strong>${Math.min(s.loggedWeighIns, s.weighIns)}/${s.weighIns}</strong> weigh-ins</div>`
+    : '';
+  return `
+    <div class="estimate-notice" role="note">
+      <div class="estimate-title"><span class="estimate-icon" aria-hidden="true">!</span> This is an estimate, not a prescription</div>
+      <p>${t.basis === 'formula' ? "It's based on general formulas, not your body's actual data." : "It's based on only a few days of logs, so it can be far off."} Log food and weight for a week to get a number based on you.</p>
+      ${opts.compact ? '' : progress}
+    </div>`;
+}
+
 function renderRecommendation(rec) {
   const box = document.getElementById('recommendation');
   if (!rec || !rec.ready) {
-    box.innerHTML = `<div class="empty">${rec?.reason || 'Not enough data yet.'}</div>`;
+    box.innerHTML = `<div class="empty">${esc(rec?.reason || 'Not enough data yet.')}</div>`;
     return;
   }
 
   const badge =
-    rec.goalNote.includes('Lose')
+    rec.goalType === 'lose'
       ? '<span class="badge badge-loss">Cut</span>'
-      : rec.goalNote.includes('Gain')
+      : rec.goalType === 'gain'
       ? '<span class="badge badge-gain">Bulk</span>'
       : '<span class="badge badge-maintain">Maintain</span>';
 
+  let basis;
+  if (rec.basis === 'formula') {
+    const f = rec.formula || {};
+    basis = `Starting estimate from your height, weight, age${f.sex === 'unspecified' ? ' (sex not given, so an average of the two formulas)' : ' and sex'}
+      × ${f.assumedActivity ? 'a light-activity guess (add your daily activity in About you)' : 'your daily activity'}.`;
+  } else {
+    basis = `Based on ${rec.sampleSize.calorieDays} calorie days (avg ${rec.avgCalories} kcal)
+      and ${rec.sampleSize.weights} weigh-ins over ${rec.spanDays} days
+      (net ${rec.weightDelta > 0 ? '+' : ''}${rec.weightDelta.toFixed(1)} lbs).`;
+  }
+
   box.innerHTML = `
     <div class="rec-box">
-      <div class="headline">${rec.targetDaily} kcal / day</div>
+      <div class="headline">${rec.estimate ? '<span class="est-tag">Estimate</span> ' : ''}${rec.targetDaily} kcal / day</div>
+      ${targetBasisNote(rec)}
       <div class="macros">
         <span class="macro-pill">P ${rec.macros.proteinG}g</span>
         <span class="macro-pill">C ${rec.macros.carbsG}g</span>
         <span class="macro-pill">F ${rec.macros.fatG}g</span>
       </div>
       <div class="detail">
-        ${badge} ${rec.goalNote}<br><br>
+        ${badge} ${esc(rec.goalNote)}<br>
+        ${rec.limitNote ? `<div class="limit-note">${esc(rec.limitNote)}</div>` : '<br>'}
         Estimated maintenance: <strong>${rec.estimatedMaintenance} kcal</strong><br>
-        Based on ${rec.sampleSize.calorieDays} calorie days (avg ${rec.avgCalories} kcal)
-        and ${rec.sampleSize.weights} weigh-ins over ${rec.spanDays} days
-        (net ${rec.weightDelta > 0 ? '+' : ''}${rec.weightDelta.toFixed(1)} lbs).
+        ${basis}
       </div>
     </div>
   `;
@@ -781,8 +812,9 @@ function selectFoodForLog(food) {
     const grams = toGrams(selectedFood.servingSize, selectedFood.servingUnit) || 1;
     perGram = ` · ${(selectedFood.calories / grams).toFixed(2)} kcal/g`;
   }
-  document.getElementById('food-selected-meta').textContent =
-    `${selectedFood.calories} kcal · P${selectedFood.protein}g C${selectedFood.carbs}g F${selectedFood.fat}g per ${serveLabel}${perGram}`;
+  document.getElementById('food-selected-meta').innerHTML =
+    esc(`${selectedFood.calories} kcal · P${selectedFood.protein}g C${selectedFood.carbs}g F${selectedFood.fat}g per ${serveLabel}${perGram}`) +
+    (window.AboutYouUI ? window.AboutYouUI.dietHtml(selectedFood.name + ' ' + (selectedFood.brand || ''), { caveat: true }) : '');
 
   buildUnitOptions(selectedFood);
   if (isWeightUnit(selectedFood.servingUnit)) {
@@ -1009,6 +1041,7 @@ async function searchFoods(q) {
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div>
             <div>${esc(f.name)}${f.brand ? ' · ' + esc(f.brand) : ''}</div>
+            ${window.AboutYouUI ? window.AboutYouUI.dietHtml(f.name + ' ' + (f.brand || '')) : ''}
             <div class="meta">${esc(f.calories)} kcal · P${esc(f.protein)}g C${esc(f.carbs)}g F${esc(f.fat)}g · per ${esc(formatServingLabel(f.servingSize, f.servingUnit))}</div>
           </div>
           <button class="star-btn ${favoriteIds.has(f._id) ? 'favorited' : ''}" data-star="${f._id}" title="Favorite">★</button>
@@ -1831,6 +1864,7 @@ function renderWorkoutExercises() {
         ${exThumb(ex)}
         <div class="wx-title">
           <div class="wx-name">${esc(ex.exerciseName)}</div>
+          ${(window.AboutYouUI ? window.AboutYouUI.badgeHtml(ex) : '')}
           <div class="wx-meta">
             ${shownE1rm ? `<span class="wx-1rm">Est. 1RM <strong>${woDisp(shownE1rm)} ${u}</strong></span>` : '<span class="wx-1rm">Est. 1RM —</span>'}
             ${isPR ? '<span class="pr-badge">PR</span>' : ''}
@@ -1951,7 +1985,8 @@ async function openSwapSheet(ex, onPick) {
     sheet.innerHTML = `<div class="sheet" role="dialog" aria-label="Swap exercise">
       <div class="sheet-head"><strong>Swap ${esc(ex.exerciseName || ex.name)}</strong><button type="button" class="icon-btn" data-sheet-close aria-label="Close">×</button></div>
       <p class="hint">Same movement pattern (${esc((data.exercise.pattern || '').replace(/_/g, ' '))})</p>
-      <div class="swap-list">${data.swaps.map((s, i) => `<button type="button" class="swap-item" data-pick="${i}">${exThumb(s, 'sm')}<span><strong>${esc(s.name)}</strong><small>${esc((s.equipment || []).join(', ').replace(/_/g, ' '))}</small></span></button>`).join('')}</div>
+      ${window.AboutYouUI && (window.AboutYouUI.state.answers?.easyOn?.length || window.AboutYouUI.state.answers?.equipment?.length) ? '<p class="hint">Sorted by your About you answers: doable with your equipment and easier on the areas you flagged come first.</p>' : ''}
+      <div class="swap-list">${(window.AboutYouUI ? window.AboutYouUI.rankSwaps(data.swaps) : data.swaps.map((s, i) => ({ s, i, flags: [], ok: true }))).map(({ s, i, ok }) => `<button type="button" class="swap-item" data-pick="${i}">${exThumb(s, 'sm')}<span><strong>${esc(s.name)}</strong><small>${esc((s.equipment || []).join(', ').replace(/_/g, ' '))}${ok ? '' : ' · needs equipment you didn\'t list'}</small>${window.AboutYouUI ? window.AboutYouUI.badgeHtml(s) : ''}</span></button>`).join('')}</div>
     </div>`;
     sheet.hidden = false;
     sheet.onclick = (ev) => {
@@ -2256,7 +2291,7 @@ function renderDayView() {
         <div class="dd-row" data-i="${i}">
           <span class="dd-handle" data-handle="${i}" aria-label="Drag to reorder ${esc(d.name)}" role="button" tabindex="0">⠿</span>
           ${exThumb({ ...d, exerciseName: d.name })}
-          <div class="dd-text"><strong>${esc(d.name)}</strong><small>${esc(setSummary(d))}</small></div>
+          <div class="dd-text"><strong>${esc(d.name)}</strong><small>${esc(setSummary(d))}</small>${(window.AboutYouUI ? window.AboutYouUI.badgeHtml(d) : '')}</div>
           <button type="button" class="btn btn-ghost btn-sm" data-dd-swap="${i}">Swap</button>
         </div>`).join('')}
     </div>
@@ -2743,6 +2778,8 @@ async function loadBodyMetrics() {
     const el = document.getElementById('bm-latest');
     const bmiEl = document.getElementById('bm-bmi');
 
+    const bmiWrap = bmiEl.closest('.bm-bmi-wrap');
+    if (bmiWrap) bmiWrap.hidden = latest.showBmi === false;
     if (latest.bmi != null) {
       bmiEl.textContent = latest.bmi.toFixed(1);
     } else {

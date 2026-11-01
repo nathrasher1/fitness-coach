@@ -41,7 +41,7 @@ router.get('/', async (req, res) => {
       role,
       maxParents: F.MAX_PARENTS,
       parents: active.filter((l) => S.same(l.teen, me)).map((l) => ({ id: String(l._id), person: card(l), since: l.respondedAt || l.createdAt })),
-      teens: active.filter((l) => S.same(l.parent, me)).map((l) => ({ id: String(l._id), person: card(l), since: l.respondedAt || l.createdAt })),
+      teens: active.filter((l) => S.same(l.parent, me)).map((l) => ({ id: String(l._id), teenId: String(l.teen), person: card(l), since: l.respondedAt || l.createdAt })),
       incoming: pending.filter((l) => !S.same(l.requestedBy, me)).map((l) => ({ id: String(l._id), person: card(l), as: S.same(l.parent, me) ? 'parent' : 'teen', createdAt: l.createdAt })),
       // Outgoing requests look the same whether or not the username could be linked.
       outgoing: pending.filter((l) => S.same(l.requestedBy, me)).map((l) => ({ id: String(l._id), username: l.targetName, createdAt: l.createdAt }))
@@ -140,6 +140,17 @@ router.delete('/:id', async (req, res) => {
     }
     res.json({ ok: true, sharesRemoved });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Failed to remove' }); }
+});
+
+// GET /api/family/teens/:teenId/support – read-only habit view for a linked parent.
+router.get('/teens/:teenId/support', async (req, res) => {
+  try {
+    if (!/^[a-f0-9]{24}$/i.test(req.params.teenId)) return res.status(404).json({ error: 'Not found' });
+    const today = localToday(req);
+    const linked = (await F.activeLinks(req.session.userId, today)).some((l) => S.same(l.parent, req.session.userId) && S.same(l.teen, req.params.teenId));
+    if (!linked) return res.status(404).json({ error: 'Not found' });
+    res.json(await require('../services/teenHealth').parentView(req.params.teenId, today));
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Failed to load' }); }
 });
 
 module.exports = router;
