@@ -8,6 +8,12 @@ const foodSchema = new mongoose.Schema({
   // Nutrition per serving
   servingSize: { type: Number, default: 1 },
   servingUnit: { type: String, default: 'serving' }, // g, oz, cup, piece, etc.
+  // Real weight / volume of ONE serving when the unit is not itself g or mL
+  // (e.g. 1 tbsp = 15 mL, 1 bar = 40 g). Lets every food be logged in g/oz (and mL for fluids).
+  gramsPerServing: { type: Number, default: null },
+  mlPerServing: { type: Number, default: null },
+  // Extra count units, e.g. [{ label: 'cookie', grams: 12 }]
+  portions: { type: [{ _id: false, label: String, grams: Number }], default: undefined },
   calories: { type: Number, required: true, min: 0 },
   protein: { type: Number, default: 0 },
   carbs: { type: Number, default: 0 },

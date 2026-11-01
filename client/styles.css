@@ -2284,3 +2284,15 @@ label.switch-line:has(input:checked) { border-color: var(--main); background: va
 .ts-toggle { display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; font-weight: 700; font-size: 0.92rem; }
 .ts-toggle input { width: 22px; height: 22px; flex: none; margin-top: 2px; }
 .ts-toggle small { display: block; font-weight: 400; color: var(--text-muted); }
+
+/* Serving units */
+.unit-hint { margin-top: 4px; font-size: 0.74rem; }
+.unit-hint:empty { display: none; }
+.serving-unit-select { min-width: 0; }
+.food-label-check { margin-top: 6px; }
+.cf-serving { border: 1px solid var(--border, #ddd); border-radius: 12px; padding: 10px 12px 4px; margin: 0 0 12px; }
+.cf-serving legend { font-size: 0.8rem; font-weight: 700; padding: 0 4px; }
+.cf-weighs { margin-top: 8px; align-items: center; }
+.cf-eq { font-weight: 700; padding: 0 4px; }
+.cf-summary { font-weight: 600; margin-bottom: 8px; }
+.cf-summary:empty { display: none; }

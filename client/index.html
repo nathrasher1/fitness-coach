@@ -441,9 +441,10 @@
                   <div class="form-row">
                     <label for="food-servings">Amount</label>
                     <div class="serving-input-row">
-                      <input type="number" id="food-servings" step="0.25" min="0.01" value="1" />
-                      <select id="food-amount-unit" class="serving-unit-select"></select>
+                      <input type="number" id="food-servings" step="any" min="0.01" value="1" inputmode="decimal" />
+                      <select id="food-amount-unit" class="serving-unit-select" aria-label="Unit"></select>
                     </div>
+                    <div id="food-unit-hint" class="hint unit-hint"></div>
                   </div>
                   <div class="form-row">
                     <label>This entry</label>
@@ -505,31 +506,70 @@
             </div>
 
             <div class="food-tab-panel" data-fpanel="custom" hidden>
-              <p class="hint">Save a food you eat often. It is selected right away so you can log it.</p>
+              <p class="hint" id="cf-intro">Copy it from the Nutrition Facts label. It is selected right away so you can log it.</p>
+              <input type="hidden" id="cf-edit-id" />
               <div class="grid-2">
                 <div class="form-row">
                   <label for="cf-name">Name</label>
-                  <input type="text" id="cf-name" placeholder="e.g. Homemade chili" />
+                  <input type="text" id="cf-name" placeholder="e.g. Pumpkin spice creamer" />
                 </div>
                 <div class="form-row">
-                  <label for="cf-calories">Calories (per serving)</label>
-                  <input type="number" id="cf-calories" min="0" />
+                  <label for="cf-brand">Brand (optional)</label>
+                  <input type="text" id="cf-brand" placeholder="e.g. Coffee mate" />
+                </div>
+              </div>
+              <fieldset class="cf-serving">
+                <legend>Serving size (from the label)</legend>
+                <div class="serving-input-row">
+                  <input type="number" id="cf-serving-size" step="any" min="0.01" value="1" inputmode="decimal" aria-label="Serving amount" />
+                  <select id="cf-serving-unit" class="serving-unit-select" aria-label="Serving unit">
+                    <option value="tbsp">tbsp</option>
+                    <option value="tsp">tsp</option>
+                    <option value="cup">cup</option>
+                    <option value="fl oz">fl oz</option>
+                    <option value="mL">mL</option>
+                    <option value="g">g</option>
+                    <option value="oz">oz</option>
+                    <option value="piece">piece</option>
+                    <option value="slice">slice</option>
+                    <option value="serving">serving</option>
+                  </select>
+                </div>
+                <div class="serving-input-row cf-weighs" id="cf-weighs-row">
+                  <span class="cf-eq">=</span>
+                  <input type="number" id="cf-serving-measure" step="any" min="0" inputmode="decimal" placeholder="15" aria-label="Weight or volume of one serving" />
+                  <select id="cf-serving-measure-unit" class="serving-unit-select" aria-label="Weight or volume unit">
+                    <option value="g">g</option>
+                    <option value="mL">mL</option>
+                  </select>
+                </div>
+                <p class="hint" id="cf-serving-hint">The label usually shows both, e.g. 1 tbsp (15 mL) or 2 cookies (28 g). Adding the grams lets you log it in g or oz.</p>
+              </fieldset>
+              <div class="grid-2">
+                <div class="form-row">
+                  <label for="cf-calories" id="cf-calories-label">Calories per serving</label>
+                  <input type="number" id="cf-calories" min="0" inputmode="decimal" />
+                </div>
+                <div class="form-row">
+                  <label for="cf-fiber">Fiber (g)</label>
+                  <input type="number" id="cf-fiber" step="0.1" min="0" inputmode="decimal" />
                 </div>
               </div>
               <div class="grid-3">
                 <div class="form-row">
                   <label for="cf-protein">Protein (g)</label>
-                  <input type="number" id="cf-protein" step="0.1" min="0" />
+                  <input type="number" id="cf-protein" step="0.1" min="0" inputmode="decimal" />
                 </div>
                 <div class="form-row">
                   <label for="cf-carbs">Carbs (g)</label>
-                  <input type="number" id="cf-carbs" step="0.1" min="0" />
+                  <input type="number" id="cf-carbs" step="0.1" min="0" inputmode="decimal" />
                 </div>
                 <div class="form-row">
                   <label for="cf-fat">Fat (g)</label>
-                  <input type="number" id="cf-fat" step="0.1" min="0" />
+                  <input type="number" id="cf-fat" step="0.1" min="0" inputmode="decimal" />
                 </div>
               </div>
+              <div id="cf-summary" class="hint cf-summary"></div>
 
               <button class="btn btn-primary btn-block food-sheet-cta" id="btn-create-food">Save food</button>
             </div>
@@ -863,6 +903,7 @@
   <script src="lib/progression.js"></script>
   <script src="lib/activities.js"></script>
   <script src="lib/aboutYou.js"></script>
+  <script src="lib/servings.js"></script>
   <script src="app.js"></script>
   <script src="aboutYouUi.js"></script>
   <script src="social.js"></script>

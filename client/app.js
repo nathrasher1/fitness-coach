@@ -718,74 +718,55 @@ async function loadWeightHistory() {
 let searchTimeout = null;
 let favoriteIds = new Set();
 
-const WEIGHT_UNITS = new Set(['g', 'gram', 'grams', 'oz', 'ounce', 'ounces']);
-const G_PER_OZ = 28.3495;
+const SV = window.Servings;
+const G_PER_OZ = SV.G_PER_OZ;
+function isWeightUnit(unit) { return SV.isWeightUnit(unit); }
+function toGrams(size, unit) { return SV.toGrams(size, unit); }
 
-function isWeightUnit(unit) {
-  return WEIGHT_UNITS.has((unit || '').toLowerCase());
-}
-
-function toGrams(size, unit) {
-  const u = (unit || '').toLowerCase();
-  if (u === 'oz' || u === 'ounce' || u === 'ounces') return size * G_PER_OZ;
-  return size; // already grams
-}
-
-/** Convert amount in the chosen unit into "number of base servings" */
+/** Convert amount in the chosen unit into "number of the food's servings" */
 function amountToServings(amount, chosenUnit, food) {
-  const baseUnit = (food.servingUnit || 'serving').toLowerCase();
-  const chosen = (chosenUnit || 'serving').toLowerCase();
-  // "serving" means a count of the food's defined servings.
-  // Same weight unit still needs dividing by the serving size (38 g of a 38 g food = 1 serving).
-  if (chosen === 'serving') return amount;
-  if (isWeightUnit(baseUnit) && isWeightUnit(chosen)) {
-    const baseGrams = toGrams(food.servingSize, baseUnit) || 1;
-    const amountGrams = chosen === 'oz' || chosen === 'ounces' ? amount * G_PER_OZ : amount;
-    return amountGrams / baseGrams;
-  }
-  if (chosen === baseUnit) return amount;
-  return null;
+  return SV.amountToServings(amount, chosenUnit, food);
 }
 
 function buildUnitOptions(food) {
-  const baseUnit = (food.servingUnit || 'serving').toLowerCase();
   const select = document.getElementById('food-amount-unit');
-  const options = [];
-
-  if (isWeightUnit(baseUnit)) {
-    options.push({ value: 'g', label: 'g' });
-    options.push({ value: 'oz', label: 'oz' });
-    options.push({
-      value: 'serving',
-      label: `serving (${food.servingSize} ${food.servingUnit})`
-    });
-  } else {
-    const n = Number(food.servingSize) || 1;
-    options.push({ value: 'serving', label: n === 1 ? (food.servingUnit || 'serving') : `serving (${n} ${food.servingUnit || ''})`.replace(' )', ')') });
+  const opts = SV.unitOptions(food);
+  const groups = [
+    ['serving', null], ['weight', 'Weight'], ['count', 'Count / size'], ['volume', 'Volume']
+  ];
+  select.innerHTML = groups.map(([kind, label]) => {
+    const list = opts.filter((o) => o.kind === kind);
+    if (!list.length) return '';
+    const html = list.map((o) => `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join('');
+    return label ? `<optgroup label="${label}">${html}</optgroup>` : html;
+  }).join('');
+  const hint = document.getElementById('food-unit-hint');
+  if (hint) {
+    const m = SV.measure(food);
+    hint.textContent = !m.grams
+      ? 'The weight of this serving is not known, so it can only be logged by serving.'
+      : opts.some((o) => o.approx) ? '≈ grams are estimated from volume.' : '';
   }
+}
 
-  const seen = new Set();
-  select.innerHTML = options
-    .filter((o) => {
-      if (seen.has(o.value)) return false;
-      seen.add(o.value);
-      return true;
-    })
-    .map((o) => `<option value="${o.value}">${o.label}</option>`)
-    .join('');
+function unitOption(value) {
+  return selectedFood ? SV.unitOptions(selectedFood).find((o) => o.value === value) : null;
 }
 
 function renderQuickAmounts() {
   const unit = document.getElementById('food-amount-unit').value;
+  const opt = unitOption(unit) || { kind: 'serving' };
   const box = document.getElementById('quick-serving-btns');
   let presets;
   if (unit === 'g') {
-    const base = selectedFood
-      ? Math.round(toGrams(selectedFood.servingSize, selectedFood.servingUnit))
-      : 100;
-    presets = Array.from(new Set([25, 50, 100, base, 150, 200])).sort((a, b) => a - b);
+    const base = Math.round(SV.measure(selectedFood).grams || 100);
+    presets = Array.from(new Set([15, 30, 50, 100, base, 150, 200])).sort((a, b) => a - b);
   } else if (unit === 'oz') {
-    presets = [1, 2, 3, 4, 6];
+    presets = [0.5, 1, 2, 3, 4, 6];
+  } else if (unit === 'ml') {
+    presets = [15, 30, 60, 120, 240];
+  } else if (opt.kind === 'count') {
+    presets = (opt.grams || 100) < 10 ? [5, 10, 15, 20, 30] : [1, 2, 3, 4];
   } else {
     presets = [0.5, 1, 1.5, 2, 3, 4];
   }
@@ -798,34 +779,42 @@ function selectFoodForLog(food) {
   selectedFood = {
     id: food._id || food.id,
     name: food.name,
+    brand: food.brand || '',
+    user: food.user || null,
+    barcode: food.barcode || '',
     calories: Number(food.calories) || 0,
     protein: Number(food.protein) || 0,
     carbs: Number(food.carbs) || 0,
     fat: Number(food.fat) || 0,
+    fiber: Number(food.fiber) || 0,
     servingSize: Number(food.servingSize) || 1,
-    servingUnit: food.servingUnit || 'serving'
+    servingUnit: food.servingUnit || 'serving',
+    gramsPerServing: food.gramsPerServing || null,
+    mlPerServing: food.mlPerServing || null,
+    portions: food.portions || undefined
   };
   document.getElementById('food-selected-name').textContent = selectedFood.name;
-  const serveLabel = `${selectedFood.servingSize} ${selectedFood.servingUnit}`;
-  let perGram = '';
-  if (isWeightUnit(selectedFood.servingUnit)) {
-    const grams = toGrams(selectedFood.servingSize, selectedFood.servingUnit) || 1;
-    perGram = ` · ${(selectedFood.calories / grams).toFixed(2)} kcal/g`;
-  }
+  const m = SV.measure(selectedFood);
+  const bits = [SV.servingLabel(selectedFood)];
+  if (m.grams && !SV.isWeightUnit(selectedFood.servingUnit)) bits.push((m.approxGrams ? '≈' : '') + SV.fmt(m.grams) + ' g');
+  if (m.ml && !SV.isVolumeUnit(selectedFood.servingUnit)) bits.push(SV.fmt(m.ml) + ' mL');
+  const per100 = m.grams && !m.approxGrams ? ` · ${Math.round((selectedFood.calories / m.grams) * 100)} kcal per 100 g` : '';
+  const labelNote = selectedFood.barcode
+    ? `<div class="hint food-label-check">From the Open Food Facts database. Compare with your label. <button type="button" class="link-btn" id="btn-fix-label">Wrong? Save a corrected copy</button></div>`
+    : selectedFood.user
+      ? `<div class="hint food-label-check"><button type="button" class="link-btn" id="btn-edit-food">Edit serving size / label</button></div>`
+      : '';
   document.getElementById('food-selected-meta').innerHTML =
-    esc(`${selectedFood.calories} kcal · P${selectedFood.protein}g C${selectedFood.carbs}g F${selectedFood.fat}g per ${serveLabel}${perGram}`) +
+    esc(`${selectedFood.calories} kcal · P${selectedFood.protein}g C${selectedFood.carbs}g F${selectedFood.fat}g per ${bits.join(' = ')}${per100}`) +
+    labelNote +
     (window.AboutYouUI ? window.AboutYouUI.dietHtml(selectedFood.name + ' ' + (selectedFood.brand || ''), { caveat: true }) : '');
 
   buildUnitOptions(selectedFood);
-  if (isWeightUnit(selectedFood.servingUnit)) {
-    document.getElementById('food-amount-unit').value = 'g';
-    document.getElementById('food-servings').value = String(
-      Math.round(toGrams(selectedFood.servingSize, selectedFood.servingUnit))
-    );
-  } else {
-    document.getElementById('food-amount-unit').value = 'serving';
-    document.getElementById('food-servings').value = '1';
-  }
+  const def = SV.defaultAmount(selectedFood);
+  const sel = document.getElementById('food-amount-unit');
+  sel.value = def.unit;
+  if (sel.value !== def.unit) sel.value = 'serving';
+  document.getElementById('food-servings').value = String(sel.value === def.unit ? def.amount : 1);
   renderQuickAmounts();
   document.getElementById('food-selected-row').style.display = 'block';
   document.getElementById('btn-log-food').disabled = false;
@@ -845,37 +834,39 @@ function updateServingPreview() {
     document.getElementById('btn-log-food').disabled = true;
     return;
   }
-  document.getElementById('btn-log-food').disabled = false;
+  document.getElementById('btn-log-food').disabled = !(amount > 0);
   const cal = Math.round(selectedFood.calories * servings);
   const p = +(selectedFood.protein * servings).toFixed(1);
   const c = +(selectedFood.carbs * servings).toFixed(1);
   const f = +(selectedFood.fat * servings).toFixed(1);
-  const weighed = isWeightUnit(selectedFood.servingUnit);
-  const perG = weighed ? ` (${(selectedFood.calories / (toGrams(selectedFood.servingSize, selectedFood.servingUnit) || 1)).toFixed(2)} kcal/g)` : '';
-  const amountLabel = unit === 'serving' && !weighed
-    ? `${amount} × ${selectedFood.servingSize === 1 ? selectedFood.servingUnit : selectedFood.servingSize + ' ' + selectedFood.servingUnit}`
-    : `${amount} ${unit}`;
-  box.textContent = `${amountLabel} = ${cal} kcal${perG} · P${p} C${c} F${f}`;
+  const grams = SV.amountToGrams(amount, unit, selectedFood);
+  const m = SV.measure(selectedFood);
+  const weightNote = grams && unit !== 'g' ? ` (${m.approxGrams ? '≈' : ''}${SV.fmt(grams)} g)` : '';
+  box.innerHTML = `<strong>${esc(SV.amountLabel(amount, unit, selectedFood))}${esc(weightNote)} = ${cal} kcal</strong> · P${p} C${c} F${f}`;
 }
 
 document.getElementById('food-servings').addEventListener('input', updateServingPreview);
 document.getElementById('food-amount-unit').addEventListener('change', () => {
-  // When switching to g/oz, set a sensible default amount (the base serving size)
+  // Keep the same quantity of food when switching units (e.g. 1 serving -> 15 g -> 0.5 oz).
   if (!selectedFood) return;
   const unit = document.getElementById('food-amount-unit').value;
-  const baseUnit = (selectedFood.servingUnit || '').toLowerCase();
-  if (unit === 'g') {
-    document.getElementById('food-servings').value = String(
-      Math.round(toGrams(selectedFood.servingSize, baseUnit))
-    );
-  } else if (unit === 'oz') {
-    const g = toGrams(selectedFood.servingSize, baseUnit);
-    document.getElementById('food-servings').value = (g / G_PER_OZ).toFixed(1);
-  } else {
-    document.getElementById('food-servings').value = '1';
-  }
+  const prevUnit = document.getElementById('food-amount-unit').dataset.prev || 'serving';
+  const prevAmount = parseFloat(document.getElementById('food-servings').value) || 0;
+  const servings = amountToServings(prevAmount, prevUnit, selectedFood) || 1;
+  const opt = unitOption(unit);
+  let next = opt ? servings / opt.factor : 1;
+  if (opt && opt.kind === 'count') next = Math.max(1, Math.round(next));
+  else next = unit === 'g' || unit === 'ml' ? Math.round(next) : Math.round(next * 100) / 100;
+  document.getElementById('food-servings').value = String(next || 1);
+  document.getElementById('food-amount-unit').dataset.prev = unit;
   updateServingPreview();
   renderQuickAmounts();
+});
+document.getElementById('food-amount-unit').addEventListener('focus', (e) => { e.target.dataset.prev = e.target.value; });
+document.getElementById('food-amount-unit').addEventListener('mousedown', (e) => { e.target.dataset.prev = e.target.value; });
+document.getElementById('food-selected-meta').addEventListener('click', (e) => {
+  if (e.target.closest('#btn-fix-label') && selectedFood) openCustomFoodForm(selectedFood, { copy: true });
+  if (e.target.closest('#btn-edit-food') && selectedFood) openCustomFoodForm(selectedFood);
 });
 
 document.getElementById('quick-serving-btns').addEventListener('click', (e) => {
@@ -1091,11 +1082,8 @@ document.getElementById('btn-log-food').addEventListener('click', async () => {
   const unit = document.getElementById('food-amount-unit').value;
   const servings = amountToServings(amount, unit, selectedFood);
   if (servings == null) return toast('Pick a unit this food is measured in');
-  if (isWeightUnit(unit) && isWeightUnit(selectedFood.servingUnit)) {
-    const grams = unit === 'oz' ? amount * G_PER_OZ : amount;
-    const kcalPerGram = grams > 0 ? (selectedFood.calories * servings) / grams : 0;
-    if (kcalPerGram > 10) return toast('That calorie total is not possible for this amount');
-  }
+  const grams = SV.amountToGrams(amount, unit, selectedFood);
+  if (grams > 0 && (selectedFood.calories * servings) / grams > 10) return toast('That calorie total is not possible for this amount');
 
   try {
     await api('/food-logs', {
@@ -1114,31 +1102,125 @@ document.getElementById('btn-log-food').addEventListener('click', async () => {
   }
 });
 
-document.getElementById('btn-create-food').addEventListener('click', async () => {
-  const name = document.getElementById('cf-name').value.trim();
-  const calories = document.getElementById('cf-calories').value;
-  if (!name || !calories) return toast('Name and calories required');
+// ---------- New food (label serving + per-serving nutrition) ----------
+const CF_FIELDS = ['cf-name', 'cf-brand', 'cf-calories', 'cf-protein', 'cf-carbs', 'cf-fat', 'cf-fiber', 'cf-serving-measure'];
+function cfVal(id) { return document.getElementById(id).value; }
 
+function updateCustomServingUi() {
+  const unit = cfVal('cf-serving-unit');
+  const size = parseFloat(cfVal('cf-serving-size')) || 0;
+  const row = document.getElementById('cf-weighs-row');
+  const mUnit = document.getElementById('cf-serving-measure-unit');
+  const isW = SV.isWeightUnit(unit);
+  const isV = SV.isVolumeUnit(unit);
+  row.hidden = isW;
+  if (isV) {
+    mUnit.value = 'g';
+    mUnit.disabled = true;
+    document.getElementById('cf-serving-measure').placeholder = 'grams (optional)';
+  } else {
+    mUnit.disabled = false;
+    document.getElementById('cf-serving-measure').placeholder = mUnit.value === 'mL' ? 'mL' : 'grams';
+  }
+  const label = size ? `${SV.fmt(size)} ${unit}` : 'serving';
+  document.getElementById('cf-calories-label').textContent = `Calories per ${label}`;
+  const f = customFoodFromForm();
+  const sum = document.getElementById('cf-summary');
+  if (!size || cfVal('cf-calories') === '') { sum.textContent = ''; return; }
+  const m = SV.measure(f);
+  const parts = [`${SV.servingLabel(f)}`];
+  if (m.grams && !isW) parts.push((m.approxGrams ? '≈' : '') + SV.fmt(m.grams) + ' g');
+  if (m.ml && !isV) parts.push(SV.fmt(m.ml) + ' mL');
+  let text = `${parts.join(' = ')} → ${f.calories} kcal`;
+  if (m.grams && !m.approxGrams) text += ` · 100 g = ${Math.round((f.calories / m.grams) * 100)} kcal`;
+  sum.textContent = text;
+}
+
+function customFoodFromForm() {
+  const unit = cfVal('cf-serving-unit');
+  const measure = parseFloat(cfVal('cf-serving-measure')) || null;
+  const mUnit = cfVal('cf-serving-measure-unit');
+  const out = {
+    name: cfVal('cf-name').trim(),
+    brand: cfVal('cf-brand').trim(),
+    servingSize: parseFloat(cfVal('cf-serving-size')) || 1,
+    servingUnit: unit,
+    calories: Number(cfVal('cf-calories')) || 0,
+    protein: Number(cfVal('cf-protein')) || 0,
+    carbs: Number(cfVal('cf-carbs')) || 0,
+    fat: Number(cfVal('cf-fat')) || 0,
+    fiber: Number(cfVal('cf-fiber')) || 0,
+    gramsPerServing: null,
+    mlPerServing: null
+  };
+  if (measure && !SV.isWeightUnit(unit)) {
+    if (SV.isVolumeUnit(unit) || mUnit === 'g') out.gramsPerServing = measure;
+    else out.mlPerServing = measure;
+  }
+  return out;
+}
+
+function resetCustomFoodForm() {
+  CF_FIELDS.forEach((id) => { document.getElementById(id).value = ''; });
+  document.getElementById('cf-serving-size').value = '1';
+  document.getElementById('cf-serving-unit').value = 'tbsp';
+  document.getElementById('cf-serving-measure-unit').value = 'g';
+  document.getElementById('cf-edit-id').value = '';
+  document.getElementById('btn-create-food').textContent = 'Save food';
+  document.getElementById('cf-intro').textContent = 'Copy it from the Nutrition Facts label. It is selected right away so you can log it.';
+  updateCustomServingUi();
+}
+
+/** Prefill the form from a food: edit your own food, or save a corrected copy of a scanned one. */
+function openCustomFoodForm(food, { copy = false } = {}) {
+  resetCustomFoodForm();
+  const set = (id, v) => { document.getElementById(id).value = v == null ? '' : String(v); };
+  set('cf-name', food.name);
+  set('cf-brand', food.brand || '');
+  const unitSel = document.getElementById('cf-serving-unit');
+  let unit = SV.baseUnit(food.servingUnit);
+  if (unit === 'ml') unit = 'mL';
+  if (![...unitSel.options].some((o) => o.value === unit)) {
+    unitSel.insertAdjacentHTML('beforeend', `<option value="${esc(food.servingUnit)}">${esc(food.servingUnit)}</option>`);
+    unit = food.servingUnit;
+  }
+  unitSel.value = unit;
+  set('cf-serving-size', food.servingSize || 1);
+  if (food.gramsPerServing && !SV.isWeightUnit(unit)) { set('cf-serving-measure', food.gramsPerServing); document.getElementById('cf-serving-measure-unit').value = 'g'; }
+  else if (food.mlPerServing && !SV.isVolumeUnit(unit)) { set('cf-serving-measure', food.mlPerServing); document.getElementById('cf-serving-measure-unit').value = 'mL'; }
+  ['calories', 'protein', 'carbs', 'fat', 'fiber'].forEach((k) => set('cf-' + k, food[k] || (k === 'calories' ? 0 : '')));
+  if (!copy && food.user) {
+    set('cf-edit-id', food.id || food._id);
+    document.getElementById('btn-create-food').textContent = 'Save changes';
+    document.getElementById('cf-intro').textContent = 'Fix the serving size or label values. Past entries keep the calories they were saved with.';
+  } else if (copy) {
+    document.getElementById('cf-intro').textContent = 'Check each number against your label, then save your own copy.';
+  }
+  setFoodTab('custom');
+  updateCustomServingUi();
+}
+
+['cf-serving-size', 'cf-serving-unit', 'cf-serving-measure', 'cf-serving-measure-unit', 'cf-calories'].forEach((id) => {
+  document.getElementById(id).addEventListener('input', updateCustomServingUi);
+  document.getElementById(id).addEventListener('change', updateCustomServingUi);
+});
+updateCustomServingUi();
+
+document.getElementById('btn-create-food').addEventListener('click', async () => {
+  const body = customFoodFromForm();
+  if (!body.name || cfVal('cf-calories') === '') return toast('Name and calories required');
+  if (!(parseFloat(cfVal('cf-serving-size')) > 0)) return toast('Enter the serving size from the label');
+  const editId = cfVal('cf-edit-id');
   try {
-    const created = await api('/foods', {
-      method: 'POST',
-      body: JSON.stringify({
-        name,
-        calories: Number(calories),
-        protein: Number(document.getElementById('cf-protein').value) || 0,
-        carbs: Number(document.getElementById('cf-carbs').value) || 0,
-        fat: Number(document.getElementById('cf-fat').value) || 0
-      })
+    const created = await api(editId ? `/foods/${editId}` : '/foods', {
+      method: editId ? 'PUT' : 'POST',
+      body: JSON.stringify(body)
     });
-    document.getElementById('cf-name').value = '';
-    document.getElementById('cf-calories').value = '';
-    document.getElementById('cf-protein').value = '';
-    document.getElementById('cf-carbs').value = '';
-    document.getElementById('cf-fat').value = '';
+    resetCustomFoodForm();
     if (created && (created._id || created.id)) {
       setFoodTab('search');
       selectFoodForLog(created);
-      toast('Saved. Set the amount and add it.');
+      toast(editId ? 'Food updated. Set the amount and add it.' : 'Saved. Set the amount and add it.');
     } else {
       toast('Food saved. Search for it to log');
     }
@@ -1199,7 +1281,9 @@ document.getElementById('btn-copy-yesterday').addEventListener('click', async ()
 });
 
 function amountLabel(log) {
-  if (log.amount && log.amountUnit) return `${log.amount} ${log.amountUnit}`;
+  if (log.amountLabel) return log.amountLabel;
+  if (log.amount && log.amountUnit === 'serving') return `${log.amount} serving${log.amount === 1 ? '' : 's'}`;
+  if (log.amount && log.amountUnit) return `${log.amount} ${String(log.amountUnit).replace(/^p:/, '')}`;
   return `${log.servings} serving${log.servings === 1 ? '' : 's'}`;
 }
 

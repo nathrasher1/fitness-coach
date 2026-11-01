@@ -10,6 +10,7 @@ const foodLogSchema = new mongoose.Schema({
   servings: { type: Number, required: true, min: 0.01, default: 1 },
   amount: { type: Number, default: null },
   amountUnit: { type: String, default: '' },
+  amountLabel: { type: String, default: '' }, // e.g. "2 medium banana", "1.5 tbsp"
   calories: { type: Number, required: true },
   protein: { type: Number, default: 0 },
   carbs: { type: Number, default: 0 },

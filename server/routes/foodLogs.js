@@ -2,7 +2,8 @@ const express = require('express');
 const FoodLog = require('../models/FoodLog');
 const Food = require('../models/Food');
 const { requireAuth } = require('../middleware/auth');
-const { amountToServings, isWeightUnit, toGrams } = require('../services/portions');
+const { amountToServings, amountToGrams } = require('../services/portions');
+const Servings = require('../../client/lib/servings');
 const { computeCalorieRecommendation } = require('../services/recommendations');
 
 const { localToday, daysAgoKey, shiftKey, isDateKey } = require('../services/dates');
@@ -109,13 +110,16 @@ router.post('/', async (req, res) => {
     const qtyFromAmount = amount != null
       ? amountToServings(Number(amount), amountUnit || 'serving', food)
       : null;
+    if (amount != null && amountUnit && qtyFromAmount == null) {
+      return res.status(400).json({ error: 'That unit does not match this food' });
+    }
     const qty = qtyFromAmount != null ? qtyFromAmount : Number(servings) || 1;
     if (!qty || qty <= 0) {
       return res.status(400).json({ error: 'That unit does not match this food' });
     }
     const entryCalories = Math.round(food.calories * qty);
-    if (isWeightUnit(food.servingUnit) && amount != null && isWeightUnit(amountUnit || 'g')) {
-      const grams = (amountUnit || 'g') === 'oz' ? Number(amount) * 28.3495 : Number(amount);
+    if (amount != null) {
+      const grams = amountToGrams(Number(amount), amountUnit || 'serving', food);
       const kcalPerGram = grams > 0 ? entryCalories / grams : 0;
       if (kcalPerGram > 10) {
         return res.status(400).json({
@@ -132,6 +136,7 @@ router.post('/', async (req, res) => {
       servings: qty,
       amount: amount != null ? Number(amount) : null,
       amountUnit: amountUnit || '',
+      amountLabel: amount != null ? Servings.amountLabel(Number(amount), amountUnit || 'serving', food).slice(0, 60) : '',
       calories: entryCalories,
       protein: +(food.protein * qty).toFixed(1),
       carbs: +(food.carbs * qty).toFixed(1),
