@@ -53,7 +53,7 @@ const CONTENT = {
   ],
   suggestions: ['Greek yogurt with berries', 'Eggs and whole-grain toast', 'Apple or banana with peanut butter', 'Chicken, rice and vegetables', 'Bean and veggie burrito bowl', 'Carrots or cucumber with hummus', 'Popcorn (air-popped)', 'Milk or unsweetened soy milk'],
   cutBack: ['Soda and sweet tea', 'Energy and sports drinks (unless training hard)', 'Sweetened coffee drinks', 'Candy and pastries', 'Chips and fried snacks', 'Fast food more than once a week'],
-  parentSees: ['This note about talking with a doctor', 'Your activity and streak', 'Your workouts', 'Meals you log (food names)', 'Food suggestions and the cut-back list'],
+  parentSees: ['This note about talking with a doctor', 'Your activity and streak (including daily steps if you connect a phone health app)', 'Your workouts (including imported ones)', 'Meals you log (food names)', 'Food suggestions and the cut-back list'],
   privateUnlessShared: ['Your weight', 'Body measurements'],
   alwaysPrivate: ['Progress photos'] // BMI is never shown to teens or parents
 };
@@ -81,12 +81,17 @@ async function parentView(teenId, today) {
     WorkoutLog.find({ user: teenId, date: { $gte: from, $lte: today } }).sort({ date: -1 }).select('date name durationMin').limit(20).lean(),
     FoodLog.find({ user: teenId, date: { $gte: from, $lte: today } }).sort({ date: -1 }).select('date meal foodName').limit(40).lean()
   ]);
+  // Activity habits from a connected phone (steps + imported workouts only).
+  const H = require('./health');
+  const [activityDays, importedW] = await Promise.all([H.dailyRange(teenId, from, today).catch(() => ({})), H.recentWorkouts(teenId, 20, from).catch(() => [])]);
   const out = {
     flagged: true,
     note: 'Your teen\'s app is suggesting they check in with their doctor and with you about health and growth, and is showing everyday habit tips. Please keep the conversation supportive and focused on habits, not weight.',
     habits: CONTENT.habits, suggestions: CONTENT.suggestions, cutBack: CONTENT.cutBack,
     streak: streak ? { days: streak.streak, todayDone: streak.todayDone } : null,
-    workouts: workouts.map((w) => ({ date: w.date, name: w.name, durationMin: w.durationMin || null })),
+    workouts: [...workouts.map((w) => ({ date: w.date, name: w.name, durationMin: w.durationMin || null })),
+      ...importedW.map((w) => ({ date: w.date, name: w.name, durationMin: w.durationMin || null, imported: true, app: w.app }))].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 20),
+    activity: Object.values(activityDays).filter((d) => d.steps != null).sort((a, b) => (a.date < b.date ? 1 : -1)).map((d) => ({ date: d.date, steps: d.steps })),
     meals: meals.map((m) => ({ date: m.date, meal: m.meal, name: m.foodName })),
     bodyShared: st.shareBody
   };

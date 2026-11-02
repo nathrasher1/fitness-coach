@@ -452,7 +452,31 @@ function formatServingLabel(servingSize, servingUnit) {
 }
 
 // ========== Dashboard ==========
+async function loadActivity() {
+  const card = document.getElementById('activity-card');
+  try {
+    const d = await api('/health/summary?days=7');
+    if (!d.hasData) { card.hidden = true; return; }
+    card.hidden = false;
+    const t = d.today || {};
+    const fmtN = (v) => (v == null ? '—' : Math.round(v).toLocaleString());
+    document.getElementById('act-steps').textContent = fmtN(t.steps);
+    document.getElementById('act-kcal').textContent = fmtN(t.activeKcal);
+    document.getElementById('act-dist').textContent = t.distanceM == null ? '—' : (t.distanceM / 1609.344).toFixed(1) + ' mi';
+    const max = Math.max(1000, ...d.days.map((x) => x.steps || 0));
+    const wk = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+    document.getElementById('steps-chart').innerHTML = d.days.map((x, i) => {
+      const h = x.steps ? Math.max(4, Math.round((x.steps / max) * 70)) : 3;
+      const lbl = x.steps == null ? '' : x.steps >= 1000 ? (x.steps / 1000).toFixed(1) + 'k' : String(x.steps);
+      return `<div class="steps-bar${i === d.days.length - 1 ? ' today' : ''}" title="${esc(x.date)}: ${fmtN(x.steps)} steps"><b>${lbl}</b><i style="height:${h}px"></i>${wk[new Date(x.date + 'T12:00:00').getDay()]}</div>`;
+    }).join('');
+    document.getElementById('activity-source').textContent = d.lastSync ? 'Synced ' + new Date(d.lastSync).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+  } catch (e) { card.hidden = true; }
+}
+window.loadActivity = loadActivity;
+
 async function loadDashboard() {
+  loadActivity();
   try {
     const data = await api(`/dashboard?days=${currentPeriodDays}`);
     const statsEl = document.getElementById('overview-stats');
@@ -2652,7 +2676,8 @@ document.getElementById('btn-load-routine').addEventListener('click', () => {
 
 async function loadWorkoutHistory() {
   try {
-    const logs = await api('/workouts?limit=15');
+    const [own, imported] = await Promise.all([api('/workouts?limit=15'), api('/health/workouts?limit=15').catch(() => [])]);
+    const logs = [...own, ...imported].sort((a, b) => (a.date === b.date ? 0 : a.date < b.date ? 1 : -1)).slice(0, 20);
     const el = document.getElementById('wo-history');
     if (!logs.length) {
       el.innerHTML = '<div class="empty">No workouts logged yet.</div>';
@@ -2660,7 +2685,14 @@ async function loadWorkoutHistory() {
     }
     el.innerHTML = logs
       .map(
-        (w) => `
+        (w) => w.imported ? `
+      <div class="wo-history-item imported">
+        <div class="flex-between">
+          <strong>${esc(w.name)}<span class="imported-badge">Imported${w.app ? ' · ' + esc(w.app) : ''}</span></strong>
+          <span class="hint">${formatDate(w.date)}</span>
+        </div>
+        <div class="hint">${[w.durationMin ? Math.round(w.durationMin) + ' min' : '', w.activeKcal ? Math.round(w.activeKcal) + ' active kcal' : '', w.distanceM ? (w.distanceM / 1609.344).toFixed(2) + ' mi' : ''].filter(Boolean).join(' · ') || 'Imported workout'}</div>
+      </div>` : `
       <div class="wo-history-item">
         <div class="flex-between">
           <strong>${esc(w.name)}</strong>

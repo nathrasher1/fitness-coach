@@ -71,6 +71,7 @@ app.use('/api/comments', require('./routes/comments'));
 app.use('/api/family', require('./routes/family'));
 app.use('/api/streak', require('./routes/streak'));
 app.use('/api/about-you', require('./routes/aboutYou'));
+app.use('/api/health', require('./routes/health'));
 
 // ---------- Static frontend ----------
 app.use(express.static(path.join(__dirname, '../client')));

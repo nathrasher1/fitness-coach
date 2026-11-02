@@ -9,6 +9,7 @@
 // local calendar (date keys from services/dates).
 const WorkoutLog = require('../models/WorkoutLog');
 const RestDay = require('../models/RestDay');
+const HealthWorkout = require('../models/HealthWorkout');
 const Settings = require('../models/Settings');
 const { shiftKey } = require('./dates');
 
@@ -96,14 +97,15 @@ function explain(schedule) {
 
 async function streakFor(userId, today) {
   const from = shiftKey(today, -LOOKBACK - 7);
-  const [logs, rests, settings, recent] = await Promise.all([
+  const [logs, imported, rests, settings, recent] = await Promise.all([
     WorkoutLog.find({ user: userId, date: { $gte: from, $lte: today } }).select('date').lean(),
+    HealthWorkout.find({ user: userId, date: { $gte: from, $lte: today } }).select('date').lean(),
     RestDay.find({ user: userId, date: { $gte: from, $lte: today } }).select('date').lean(),
     Settings.findOne({ user: userId }).select('trainingDays restDaysPerWeek restSkipsPerWeek').lean(),
     WorkoutLog.findOne({ user: userId, planDay: { $regex: '^[a-z0-9_]+:' }, date: { $gte: shiftKey(today, -28), $lte: today } }).sort({ date: -1, createdAt: -1 }).select('planDay').lean()
   ]);
   const schedule = resolveSchedule(settings, recent && recent.planDay);
-  const out = computeStreak({ workouts: new Set(logs.map((l) => l.date)), rests: new Set(rests.map((r) => r.date)), today, schedule });
+  const out = computeStreak({ workouts: new Set([...logs, ...imported].map((l) => l.date)), rests: new Set(rests.map((r) => r.date)), today, schedule });
   return { ...out, schedule, explanation: explain(schedule) };
 }
 

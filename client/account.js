@@ -119,6 +119,7 @@
       await api('/account', { method: 'DELETE', body: JSON.stringify({ password: $('del-pw').value }) });
       $('del-pw').value = ''; $('del-confirm').value = '';
       if (window.FCNative) window.FCNative.clearReminders();
+      if (window.FCHealth) window.FCHealth.clearLocal();
       currentUser = null; hideGate(); showAuth(); authView('login-form'); toast('Account deleted');
     } catch (err) { $('del-error').textContent = err.message; }
   });
@@ -244,7 +245,8 @@
       <h3>Habit support</h3>
       <p class="ts-note">${escA(d.note)}</p>
       <h4>Activity</h4><p>${d.streak ? `Current streak: <strong>${d.streak.days} day${d.streak.days === 1 ? '' : 's'}</strong>${d.streak.todayDone ? ' · trained today' : ''}` : 'No streak yet.'}</p>
-      <h4>Workouts (last 2 weeks)</h4>${d.workouts.length ? `<ul>${li(d.workouts.map((w) => `${escA(w.date)} · ${escA(w.name)}${w.durationMin ? ' · ' + w.durationMin + ' min' : ''}`))}</ul>` : '<p class="hint">None logged.</p>'}
+      <h4>Workouts (last 2 weeks)</h4>${d.workouts.length ? `<ul>${li(d.workouts.map((w) => `${escA(w.date)} · ${escA(w.name)}${w.durationMin ? ' · ' + w.durationMin + ' min' : ''}${w.imported ? ' · imported' + (w.app ? ' from ' + escA(w.app) : '') : ''}`))}</ul>` : '<p class="hint">None logged.</p>'}
+      ${d.activity && d.activity.length ? `<h4>Daily steps</h4><ul>${li(d.activity.map((a) => `${escA(a.date)} · ${escA(Number(a.steps).toLocaleString())} steps`))}</ul>` : ''}
       <h4>Meals logged (last 2 weeks)</h4>${d.meals.length ? `<ul>${li(d.meals.slice(0, 12).map((m) => `${escA(m.date)} · ${escA(m.meal)} · ${escA(m.name)}`))}</ul>` : '<p class="hint">None logged.</p>'}
       <h4>Foods to try</h4><p>${d.suggestions.map(escA).join(' · ')}</p>
       <h4>Have less often</h4><p>${d.cutBack.map(escA).join(' · ')}</p>

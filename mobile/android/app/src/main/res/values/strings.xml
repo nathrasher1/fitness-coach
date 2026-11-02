@@ -4,4 +4,5 @@
     <string name="title_activity_main">Fitness Coach</string>
     <string name="package_name">com.nathrasher.fitnesscoach</string>
     <string name="custom_url_scheme">com.nathrasher.fitnesscoach</string>
+    <string name="health_connect_privacy_policy_url">https://fitness-coach-xamg.onrender.com/privacy.html#health-connect</string>
 </resources>
