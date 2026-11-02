@@ -1,0 +1,29 @@
+{
+  "name": "fitness-coach-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Capacitor shell for the Fitness Coach iOS and Android apps. Loads the live site (server.url).",
+  "scripts": {
+    "assets": "capacitor-assets generate --iconBackgroundColor '#203227' --splashBackgroundColor '#203227' --iconBackgroundColorDark '#203227' --splashBackgroundColorDark '#203227'",
+    "sync": "cap sync",
+    "android:debug": "cap sync android && cd android && ./gradlew assembleDebug"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/local-notifications": "^8.3.1",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.4"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/assets": "^4.0.0",
+    "@capacitor/cli": "^8.6.0",
+    "@capacitor/ios": "^8.6.0",
+    "typescript": "^7.0.2"
+  }
+}

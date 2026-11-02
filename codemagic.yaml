@@ -1,0 +1,58 @@
+# Codemagic CI for the Fitness Coach iOS app (TestFlight) and Android debug APK.
+# Setup steps are in mobile/README.md. Nothing here holds secrets: the App Store
+# Connect API key is stored in Codemagic as an integration named below.
+workflows:
+  ios-testflight:
+    name: iOS → TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: FitnessCoachASC   # name of the API key integration you create in Codemagic
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.nathrasher.fitnesscoach
+      vars:
+        APP_ID: "0000000000"   # replace with the Apple ID number of the app from App Store Connect
+      node: 22
+      xcode: latest
+    triggering:
+      events: [push]
+      branch_patterns:
+        - pattern: mobile-app
+    scripts:
+      - name: Install Capacitor deps
+        script: cd mobile && npm ci
+      - name: Sync iOS project
+        script: cd mobile && npx cap sync ios
+      - name: Use signing profiles
+        script: xcode-project use-profiles
+      - name: Set build number
+        script: |
+          cd mobile/ios/App
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_ID" || echo 0)
+          agvtool new-version -all $((LATEST + 1))
+      - name: Build IPA
+        script: |
+          xcode-project build-ipa \
+            --project "mobile/ios/App/App.xcodeproj" \
+            --scheme "App"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+
+  android-debug:
+    name: Android debug APK
+    instance_type: linux_x2
+    environment:
+      node: 22
+      java: 21
+    scripts:
+      - script: cd mobile && npm ci && npx cap sync android
+      - script: cd mobile/android && ./gradlew assembleDebug
+    artifacts:
+      - mobile/android/app/build/outputs/apk/debug/*.apk

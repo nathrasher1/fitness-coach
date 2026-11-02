@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>Fitness Coach</title>
+<style>
+html,body{margin:0;height:100%;background:#203227;color:#d3e0d5;font-family:-apple-system,system-ui,Roboto,sans-serif}
+.wrap{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:calc(24px + env(safe-area-inset-top,0px)) 28px calc(24px + env(safe-area-inset-bottom,0px));box-sizing:border-box}
+.logo{width:76px;height:76px;border-radius:20px;background:#e3a873;color:#3a2210;font-weight:800;font-size:30px;display:flex;align-items:center;justify-content:center;margin-bottom:18px}
+h1{color:#fff;font-size:1.35rem;margin:0 0 8px}p{margin:0 0 18px;max-width:320px;line-height:1.5}
+button{background:#e3a873;color:#3a2210;border:0;border-radius:12px;padding:14px 28px;font-size:1rem;font-weight:700;min-width:180px}
+.spin{width:22px;height:22px;border:3px solid rgba(227,168,115,.3);border-top-color:#e3a873;border-radius:50%;animation:s 1s linear infinite;margin:0 auto 14px}@keyframes s{to{transform:rotate(360deg)}}
+small{opacity:.7;margin-top:14px}
+</style></head><body><div class="wrap">
+<div class="logo">FC</div>
+<h1 id="t">Can't reach Fitness Coach</h1>
+<p id="m">The server may be waking up (this can take up to a minute) or you're offline.</p>
+<div class="spin" id="sp" hidden></div>
+<button id="r" type="button">Try again</button>
+<small id="s"></small>
+</div>
+<script>
+(function(){
+  var SERVER = (window.Capacitor && window.Capacitor.getServerUrl && window.Capacitor.getServerUrl()) || 'https://fitness-coach-xamg.onrender.com';
+  if (!/^https?:/.test(SERVER)) SERVER = 'https://fitness-coach-xamg.onrender.com';
+  var tries = 0, busy = false;
+  function $(i){return document.getElementById(i);}
+  function attempt(){
+    if (busy) return; busy = true; tries++;
+    $('sp').hidden = false; $('r').disabled = true;
+    $('t').textContent = 'Waking up Fitness Coach…'; $('s').textContent = 'Attempt ' + tries;
+    var ctl = window.AbortController ? new AbortController() : null;
+    var timer = setTimeout(function(){ if (ctl) ctl.abort(); }, 60000);
+    fetch(SERVER + '/', { cache: 'no-store', mode: 'no-cors', signal: ctl && ctl.signal })
+      .then(function(){ clearTimeout(timer); window.location.replace(SERVER + '/'); })
+      .catch(function(){
+        clearTimeout(timer); busy = false; $('sp').hidden = true; $('r').disabled = false;
+        $('t').textContent = navigator.onLine === false ? "You're offline" : "Can't reach Fitness Coach";
+        $('m').textContent = navigator.onLine === false ? 'Connect to Wi-Fi or mobile data, then try again.' : 'The server may be waking up or down. Trying again shortly.';
+        if (tries < 6) setTimeout(attempt, 8000);
+      });
+  }
+  $('r').addEventListener('click', function(){ tries = 0; attempt(); });
+  window.addEventListener('online', function(){ attempt(); });
+  setTimeout(attempt, 1500);
+})();
+</script></body></html>
