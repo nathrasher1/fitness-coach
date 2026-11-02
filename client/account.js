@@ -110,6 +110,18 @@
       currentUser = null; hideGate(); showAuth(); authView('login-form'); toast('Account deleted');
     } catch (err) { $('gate-locked-error').textContent = err.message; }
   });
+  $('btn-delete-account').addEventListener('click', async () => {
+    $('del-error').textContent = '';
+    if ($('del-confirm').value.trim().toUpperCase() !== 'DELETE') { $('del-error').textContent = 'Type DELETE to confirm.'; return; }
+    if (!$('del-pw').value) { $('del-error').textContent = 'Enter your password.'; return; }
+    if (!confirm('Permanently delete your account and all of its data? This cannot be undone.')) return;
+    try {
+      await api('/account', { method: 'DELETE', body: JSON.stringify({ password: $('del-pw').value }) });
+      $('del-pw').value = ''; $('del-confirm').value = '';
+      if (window.FCNative) window.FCNative.clearReminders();
+      currentUser = null; hideGate(); showAuth(); authView('login-form'); toast('Account deleted');
+    } catch (err) { $('del-error').textContent = err.message; }
+  });
   // Called by api() when the server says the account needs details or is locked.
   function gate(data) {
     if (!currentUser) return;

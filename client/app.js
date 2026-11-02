@@ -81,6 +81,7 @@ async function checkAuth() {
 function showAuth() {
   document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
+  const dt = document.getElementById('draft-toast'); if (dt) dt.hidden = true;
 }
 
 function showApp() {

@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#203227" />
   <title>Fitness Coach</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -26,6 +27,7 @@
         <button type="submit" class="btn btn-primary btn-block">Log in</button>
         <p id="login-error" class="error-msg"></p>
         <p class="auth-alt"><button type="button" class="link-btn" id="btn-forgot">Forgot password?</button></p>
+        <p class="auth-alt legal-links"><a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a></p>
       </form>
 
       <form id="forgot-form" class="auth-form" hidden>
@@ -870,6 +872,28 @@
           <h2>Account</h2>
           <p class="hint card-intro">Email and date of birth are private. They're never on your profile, in search, or in anything you share.</p>
           <dl class="acct-facts" id="acct-facts"></dl>
+          <p class="hint legal-links"><a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms of use</a></p>
+          <details class="delete-account" id="delete-account">
+            <summary>Delete account</summary>
+            <p class="hint">This permanently deletes your account and everything in it: food and workout logs, weights, measurements, progress photos, About-you answers, goals, routines, recipes, custom foods, your profile, shares, comments, and any parent–teen links. It can't be undone.</p>
+            <label for="del-pw">Password</label>
+            <input type="password" id="del-pw" autocomplete="current-password" />
+            <label for="del-confirm">Type DELETE to confirm</label>
+            <input type="text" id="del-confirm" autocomplete="off" autocapitalize="characters" />
+            <button type="button" class="btn btn-danger btn-block" id="btn-delete-account">Delete my account and data</button>
+            <p id="del-error" class="error-msg"></p>
+          </details>
+        </div>
+
+        <div class="card settings-card" id="reminders-card" hidden>
+          <h2>Reminders</h2>
+          <p class="hint card-intro">Notifications from this phone. They're scheduled on the device, so they work even when the server is asleep.</p>
+          <label class="check-row"><input type="checkbox" id="rem-workout" /> Daily workout reminder</label>
+          <input type="time" id="rem-workout-time" value="17:30" />
+          <label class="check-row"><input type="checkbox" id="rem-streak" /> Evening streak check (log something today)</label>
+          <input type="time" id="rem-streak-time" value="20:00" />
+          <button type="button" class="btn btn-primary" id="btn-rem-save">Save reminders</button>
+          <p class="hint" id="rem-status"></p>
         </div>
       </section>
     </main>
@@ -908,5 +932,6 @@
   <script src="aboutYouUi.js"></script>
   <script src="social.js"></script>
   <script src="account.js"></script>
+  <script src="native.js"></script>
 </body>
 </html>
