@@ -26,6 +26,10 @@
 	<string>Fitness Coach uses the camera only while the barcode scanner is open, to read food barcodes. Nothing is recorded.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Fitness Coach lets you choose progress photos from your library to add to your private progress log.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Fitness Coach can read your steps, active calories and workouts to show them in the app. (Apple Health support is coming later.)</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Fitness Coach does not write to Apple Health.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>UIStatusBarStyle</key>

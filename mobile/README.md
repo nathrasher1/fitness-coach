@@ -60,3 +60,13 @@ iOS uses Swift Package Manager (no CocoaPods). Open `ios/App/App.xcodeproj` in X
 - Get a Google Play Console account ($25 one-time).
 - New personal accounts must run a closed test with 12+ testers for 14 days before production.
 - Release builds need an upload keystore. Keep it out of git and add it to Codemagic as a secret.
+
+## Health Connect (Android, v1)
+
+- Plugin: `@capgo/capacitor-health` (Capacitor 8; covers Health Connect now and HealthKit later).
+- Read-only: steps, active calories, distance, exercise sessions. The plugin declares many more permissions. `android/app/src/main/AndroidManifest.xml` strips them with `tools:node="remove"`. After any plugin upgrade, check the merged manifest with `aapt2 dump permissions app-debug.apk | grep health` and confirm only the 4 READ_* permissions remain.
+- minSdk 26. The privacy policy URL shown by Health Connect is set in `strings.xml` (`health_connect_privacy_policy_url`, which points at `/privacy.html#health-connect`).
+- Client: `client/health.js` uses one provider adapter per platform. Only `android` is implemented; add `ios` (HealthKit, source `healthkit`) there later. The server already accepts `source: "healthkit"`.
+- Sync: on app open/resume (at most every 15 min) and via "Sync now". It sends the last 30 days to `POST /api/health/sync`, which upserts by user+date+source and dedupes workouts by user+source+externalId.
+- Must be tested on a real Android device: the permission sheet, "not installed" and "update needed" states, and day bucketing in the phone's time zone.
+- Play Console: complete the Health Connect permissions declaration (see the PR notes) before submitting.

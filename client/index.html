@@ -162,6 +162,17 @@
           <p class="hint" id="avg-details"></p>
         </div>
 
+        <div class="card activity-card" id="activity-card" hidden>
+          <div class="flex-between"><h2 style="margin:0">Activity</h2><span class="hint" id="activity-source"></span></div>
+          <div class="activity-stats">
+            <div class="stat"><div class="value" id="act-steps">—</div><div class="label">Steps today</div></div>
+            <div class="stat"><div class="value" id="act-kcal">—</div><div class="label">Active kcal</div></div>
+            <div class="stat" id="act-dist-wrap"><div class="value" id="act-dist">—</div><div class="label">Distance</div></div>
+          </div>
+          <div class="steps-chart" id="steps-chart" aria-label="Steps, last 7 days"></div>
+          <p class="hint" id="activity-note">Active calories are shown for information. They don't change your calorie target.</p>
+        </div>
+
         <div class="card streak-card" id="streak-card" hidden>
           <div class="streak-head">
             <div class="streak-num"><span id="streak-value">0</span><small id="streak-unit">training-day streak</small></div>
@@ -885,6 +896,24 @@
           </details>
         </div>
 
+        <div class="card settings-card" id="health-card" hidden>
+          <h2>Connected health data</h2>
+          <p class="hint card-intro">Read steps, active calories, distance and workouts from Health Connect (your watch or fitness apps sync there). Fitness Coach only reads. It never writes to Health Connect, and the data is used only for features in this app.</p>
+          <ul class="health-types" id="health-types"></ul>
+          <p class="hint" id="health-status"></p>
+          <div class="health-actions">
+            <button type="button" class="btn btn-primary" id="btn-health-connect">Connect Health Connect</button>
+            <button type="button" class="btn btn-secondary" id="btn-health-sync" hidden>Sync now</button>
+            <button type="button" class="btn btn-ghost-outline" id="btn-health-manage" hidden>Manage permissions</button>
+            <button type="button" class="btn btn-ghost-outline" id="btn-health-disconnect" hidden>Disconnect</button>
+          </div>
+          <details class="delete-account health-remove">
+            <summary>Remove imported health data</summary>
+            <p class="hint">Deletes every step count, calorie total and workout imported from your phone from Fitness Coach's servers. Your data in Health Connect isn't touched.</p>
+            <button type="button" class="btn btn-danger btn-block" id="btn-health-remove">Remove imported health data</button>
+          </details>
+        </div>
+
         <div class="card settings-card" id="reminders-card" hidden>
           <h2>Reminders</h2>
           <p class="hint card-intro">Notifications from this phone. They're scheduled on the device, so they work even when the server is asleep.</p>
@@ -933,5 +962,6 @@
   <script src="social.js"></script>
   <script src="account.js"></script>
   <script src="native.js"></script>
+  <script src="health.js"></script>
 </body>
 </html>

@@ -2306,3 +2306,19 @@ label.switch-line:has(input:checked) { border-color: var(--main); background: va
 #reminders-card .check-row { display: flex; gap: 8px; align-items: center; }
 html.native body { padding-bottom: env(safe-area-inset-bottom, 0px); -webkit-tap-highlight-color: transparent; }
 html.native .scan-card { margin-top: env(safe-area-inset-top, 0px); }
+
+/* Activity (imported health data) */
+.activity-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
+.activity-stats .stat { background: var(--surface2); border-radius: 12px; padding: 10px; text-align: center; }
+.activity-stats .value { font-size: 1.25rem; font-weight: 700; color: var(--text); }
+.activity-stats .label { font-size: .75rem; color: var(--text-muted); }
+.steps-chart { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; align-items: end; height: 96px; margin: 6px 0 2px; }
+.steps-bar { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; font-size: .68rem; color: var(--text-muted); }
+.steps-bar i { display: block; width: 70%; min-height: 3px; border-radius: 6px 6px 2px 2px; background: var(--main); }
+.steps-bar.today i { background: var(--accent-strong); }
+.steps-bar b { font-weight: 600; color: var(--text); font-size: .66rem; margin-bottom: 2px; }
+.health-types { list-style: none; padding: 0; margin: 8px 0; }
+.health-types li { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.health-types .ok { color: var(--main-text); font-weight: 600; } .health-types .no { color: var(--text-muted); }
+.health-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.imported-badge { display: inline-block; font-size: .7rem; font-weight: 600; background: var(--accent-soft); color: var(--accent-text); border-radius: 999px; padding: 2px 8px; margin-left: 6px; vertical-align: middle; }
