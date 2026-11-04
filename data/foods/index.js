@@ -16,7 +16,8 @@ const lists = {
   supplements: require('./supplements'),
   packaged: require('./packaged'),
   world: require('./world'),
-  chains: require('./chains')
+  chains: require('./chains'),
+  candy: require('./candy')
 };
 
 const seen = new Set();
