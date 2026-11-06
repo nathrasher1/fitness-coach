@@ -19,6 +19,11 @@ const settingsSchema = new mongoose.Schema({
   restDaysPerWeek: { type: Number, min: 0, max: 6, default: null },
   // Unplanned "Take a rest day" skips allowed per week without breaking the streak.
   restSkipsPerWeek: { type: Number, min: 0, max: 2, default: 1 },
+  // Flex / holiday days: monthly cap and adult-only surrounding-day buffer (off by default).
+  flexDaysPerMonth: { type: Number, min: 0, max: 10, default: 4 },
+  flexBufferOptIn: { type: Boolean, default: false },
+  // Recurring practice weekdays (0=Sun..6=Sat); empty = none. Acts like planned training days for streaks.
+  practiceDays: { type: [Number], default: undefined },
   favoriteFoodIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Food' }],
   updatedAt: { type: Date, default: Date.now }
 });

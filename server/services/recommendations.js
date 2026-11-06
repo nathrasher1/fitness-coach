@@ -2,6 +2,7 @@ const { isDateKey, shiftKey } = require('./dates');
 const Weight = require('../models/Weight');
 const CalorieLog = require('../models/CalorieLog');
 const FoodLog = require('../models/FoodLog');
+const FlexDay = require('../models/FlexDay');
 const Goal = require('../models/Goal');
 const Settings = require('../models/Settings');
 const User = require('../models/User');
@@ -87,21 +88,34 @@ async function computeCalorieRecommendation(userId, today) {
   ]);
   const group = userGroup(user, todayKey);
   const policy = targetPolicy(group);
-  const suff = sufficiency([...foodLogs.map((l) => l.date), ...calLogs.map((l) => l.date)], weights.map((w) => w.date), todayKey);
+  const flexRows = await FlexDay.find({ user: userId, date: { $gte: cutoffStr, $lte: todayKey } }).select('date addKcal estimate label').lean();
+  const flexKeys = new Set(flexRows.map((f) => f.date));
+  const FD = require('./flexDays');
+  const foodDatesAll = [...foodLogs.map((l) => l.date), ...calLogs.map((l) => l.date)];
+  const suff = FD.sufficiencyExcludingFlex(foodDatesAll, weights.map((w) => w.date), todayKey, flexKeys, SUFFICIENT);
 
   // 1) From your logs: average intake corrected by the weight trend (needs 3+ logged days + 2 weigh-ins).
+  // Flex / holiday days are excluded so a feast (or an empty flex day) doesn't skew next week's target.
   let fromLogs = null;
   let avgCalories = null;
   let calorieSampleSize = 0;
   if (foodLogs.length >= 3) {
     const byDate = {};
-    foodLogs.forEach((l) => { byDate[l.date] = (byDate[l.date] || 0) + l.calories; });
+    foodLogs.forEach((l) => {
+      if (flexKeys.has(l.date)) return;
+      byDate[l.date] = (byDate[l.date] || 0) + l.calories;
+    });
     const dailyTotals = Object.values(byDate);
-    avgCalories = dailyTotals.reduce((a, v) => a + v, 0) / dailyTotals.length;
-    calorieSampleSize = dailyTotals.length;
+    if (dailyTotals.length >= 3) {
+      avgCalories = dailyTotals.reduce((a, v) => a + v, 0) / dailyTotals.length;
+      calorieSampleSize = dailyTotals.length;
+    }
   } else if (calLogs.length >= 3) {
-    avgCalories = calLogs.reduce((a, l) => a + l.calories, 0) / calLogs.length;
-    calorieSampleSize = calLogs.length;
+    const usable = calLogs.filter((l) => !flexKeys.has(l.date));
+    if (usable.length >= 3) {
+      avgCalories = usable.reduce((a, l) => a + l.calories, 0) / usable.length;
+      calorieSampleSize = usable.length;
+    }
   }
   if (weights.length >= 2 && avgCalories != null) {
     const first = weights[0];
@@ -170,6 +184,28 @@ async function computeCalorieRecommendation(userId, today) {
   }
 
   targetDaily = Math.max(1200, Math.round(targetDaily));
+
+  // Adult-only optional buffer: when opted in, nudge target up a little on surrounding days.
+  let flexBufferNote = '';
+  if (policy.allowDeficit) {
+    const settingsFull = await Settings.findOne({ user: userId }).select('flexBufferOptIn').lean();
+    if (settingsFull && settingsFull.flexBufferOptIn) {
+      const near = flexRows.filter((f) => f.date === todayKey || FD.bufferDates(f.date).includes(todayKey));
+      if (near.length) {
+        let bump = 0;
+        for (const f of near) {
+          if (f.date === todayKey) continue; // the flex day itself is excluded from averages; no target change required
+          const plan = FD.bufferPlan(f.date, f.addKcal || 0, { adult: true });
+          const hit = plan.find((p) => p.date === todayKey);
+          if (hit) bump += hit.addKcal;
+        }
+        if (bump > 0) {
+          targetDaily = Math.max(1200, targetDaily + bump);
+          flexBufferNote = `+${bump} kcal buffer from a nearby flex day (opt-in).`;
+        }
+      }
+    }
+  }
   const macros = computeMacros(targetDaily, avgWeightLbs, goalType);
 
   return {
@@ -177,9 +213,11 @@ async function computeCalorieRecommendation(userId, today) {
     basis,
     estimate: !suff.ok, // show the "this is only an estimate" notice
     sufficiency: suff,
+    flexDaysExcluded: [...flexKeys].sort(),
     group,
     policy,
     limitNote,
+    flexBufferNote,
     targetDaily,
     estimatedMaintenance: Math.round(estimatedMaintenance),
     avgCalories: avgCalories == null ? null : Math.round(avgCalories),

@@ -6,6 +6,7 @@ const User = require('../models/User');
 const AboutYou = require('../models/AboutYou');
 const Weight = require('../models/Weight');
 const WorkoutLog = require('../models/WorkoutLog');
+const SportSession = require('../models/SportSession');
 const FoodLog = require('../models/FoodLog');
 const BodyMetric = require('../models/BodyMetric');
 const { userGroup } = require('./age');
@@ -53,7 +54,7 @@ const CONTENT = {
   ],
   suggestions: ['Greek yogurt with berries', 'Eggs and whole-grain toast', 'Apple or banana with peanut butter', 'Chicken, rice and vegetables', 'Bean and veggie burrito bowl', 'Carrots or cucumber with hummus', 'Popcorn (air-popped)', 'Milk or unsweetened soy milk'],
   cutBack: ['Soda and sweet tea', 'Energy and sports drinks (unless training hard)', 'Sweetened coffee drinks', 'Candy and pastries', 'Chips and fried snacks', 'Fast food more than once a week'],
-  parentSees: ['This note about talking with a doctor', 'Your activity and streak (including daily steps if you connect a phone health app)', 'Your workouts (including imported ones)', 'Meals you log (food names)', 'Food suggestions and the cut-back list'],
+  parentSees: ['This note about talking with a doctor', 'Your activity and streak (including daily steps if you connect a phone health app)', 'Your workouts (including imported ones)', 'Sport and practice sessions', 'Meals you log (food names)', 'Food suggestions and the cut-back list'],
   privateUnlessShared: ['Your weight', 'Body measurements'],
   alwaysPrivate: ['Progress photos'] // BMI is never shown to teens or parents
 };
@@ -76,9 +77,10 @@ async function parentView(teenId, today) {
   if (st.group !== 'teen' || !st.flagged) return { flagged: false };
   const from = shiftKey(today, -13);
   const { streakFor } = require('./streak');
-  const [streak, workouts, meals] = await Promise.all([
+  const [streak, workouts, sports, meals] = await Promise.all([
     streakFor(teenId, today).catch(() => null),
     WorkoutLog.find({ user: teenId, date: { $gte: from, $lte: today } }).sort({ date: -1 }).select('date name durationMin').limit(20).lean(),
+    SportSession.find({ user: teenId, date: { $gte: from, $lte: today } }).sort({ date: -1 }).select('date sport durationMin effort activeKcal').limit(20).lean(),
     FoodLog.find({ user: teenId, date: { $gte: from, $lte: today } }).sort({ date: -1 }).select('date meal foodName').limit(40).lean()
   ]);
   // Activity habits from a connected phone (steps + imported workouts only).
@@ -90,7 +92,9 @@ async function parentView(teenId, today) {
     habits: CONTENT.habits, suggestions: CONTENT.suggestions, cutBack: CONTENT.cutBack,
     streak: streak ? { days: streak.streak, todayDone: streak.todayDone } : null,
     workouts: [...workouts.map((w) => ({ date: w.date, name: w.name, durationMin: w.durationMin || null })),
-      ...importedW.map((w) => ({ date: w.date, name: w.name, durationMin: w.durationMin || null, imported: true, app: w.app }))].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 20),
+      ...importedW.map((w) => ({ date: w.date, name: w.name, durationMin: w.durationMin || null, imported: true, app: w.app })),
+      ...sports.map((w) => ({ date: w.date, name: w.sport, durationMin: w.durationMin || null, sport: true, effort: w.effort, activeKcal: w.activeKcal }))].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 20),
+    sportSessions: sports.map((w) => ({ date: w.date, sport: w.sport, durationMin: w.durationMin, effort: w.effort, activeKcal: w.activeKcal })),
     activity: Object.values(activityDays).filter((d) => d.steps != null).sort((a, b) => (a.date < b.date ? 1 : -1)).map((d) => ({ date: d.date, steps: d.steps })),
     meals: meals.map((m) => ({ date: m.date, meal: m.meal, name: m.foodName })),
     bodyShared: st.shareBody
