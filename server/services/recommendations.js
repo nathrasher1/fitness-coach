@@ -2,6 +2,7 @@ const { isDateKey, shiftKey } = require('./dates');
 const Weight = require('../models/Weight');
 const CalorieLog = require('../models/CalorieLog');
 const FoodLog = require('../models/FoodLog');
+const FlexDay = require('../models/FlexDay');
 const Goal = require('../models/Goal');
 const Settings = require('../models/Settings');
 const User = require('../models/User');
@@ -87,21 +88,27 @@ async function computeCalorieRecommendation(userId, today) {
   ]);
   const group = userGroup(user, todayKey);
   const policy = targetPolicy(group);
-  const suff = sufficiency([...foodLogs.map((l) => l.date), ...calLogs.map((l) => l.date)], weights.map((w) => w.date), todayKey);
+  const flexRows = await FlexDay.find({ user: userId, date: { $gte: cutoffStr, $lte: todayKey } }).select('date estimateKcal baselineDaily confidence').lean();
+  const flexByDate = new Map(flexRows.filter((f) => f.estimateKcal > 0).map((f) => [f.date, f]));
+  const flexKeys = new Set(flexByDate.keys());
+  const FD = require('./flexDays');
+  const foodDatesAll = [...foodLogs.map((l) => l.date), ...calLogs.map((l) => l.date)];
+  const suff = FD.sufficiencyWithFlex(foodDatesAll, weights.map((w) => w.date), todayKey, flexKeys, SUFFICIENT);
 
   // 1) From your logs: average intake corrected by the weight trend (needs 3+ logged days + 2 weigh-ins).
+  // Flex-day estimates count at full weight (their midpoint is added to that day's logged food).
+  // They are still flagged as estimates and satisfy the logging requirement.
   let fromLogs = null;
   let avgCalories = null;
   let calorieSampleSize = 0;
-  if (foodLogs.length >= 3) {
-    const byDate = {};
-    foodLogs.forEach((l) => { byDate[l.date] = (byDate[l.date] || 0) + l.calories; });
-    const dailyTotals = Object.values(byDate);
-    avgCalories = dailyTotals.reduce((a, v) => a + v, 0) / dailyTotals.length;
-    calorieSampleSize = dailyTotals.length;
-  } else if (calLogs.length >= 3) {
-    avgCalories = calLogs.reduce((a, l) => a + l.calories, 0) / calLogs.length;
-    calorieSampleSize = calLogs.length;
+  const byDate = {};
+  if (foodLogs.length) foodLogs.forEach((l) => { byDate[l.date] = (byDate[l.date] || 0) + l.calories; });
+  else calLogs.forEach((l) => { byDate[l.date] = (byDate[l.date] || 0) + l.calories; });
+  for (const [d, f] of flexByDate) byDate[d] = (byDate[d] || 0) + f.estimateKcal;
+  const dayRows = Object.entries(byDate).map(([d, kcal]) => ({ kcal, soft: flexKeys.has(d) }));
+  if (dayRows.length >= 3) {
+    avgCalories = FD.weightedAverage(dayRows);
+    calorieSampleSize = dayRows.length;
   }
   if (weights.length >= 2 && avgCalories != null) {
     const first = weights[0];
@@ -170,6 +177,28 @@ async function computeCalorieRecommendation(userId, today) {
   }
 
   targetDaily = Math.max(1200, Math.round(targetDaily));
+
+  // Adult-only optional buffer: when opted in, nudge target up a little on surrounding days.
+  let flexBufferNote = '';
+  if (policy.allowDeficit) {
+    const settingsFull = await Settings.findOne({ user: userId }).select('flexBufferOptIn').lean();
+    if (settingsFull && settingsFull.flexBufferOptIn) {
+      const near = [...flexByDate.values()].filter((f) => f.date === todayKey || FD.bufferDates(f.date).includes(todayKey));
+      if (near.length) {
+        let bump = 0;
+        for (const f of near) {
+          if (f.date === todayKey) continue; // the flex day itself is excluded from averages; no target change required
+          const plan = FD.bufferPlan(f.date, Math.max(0, f.estimateKcal - (f.baselineDaily || 2200)), { adult: true });
+          const hit = plan.find((p) => p.date === todayKey);
+          if (hit) bump += hit.addKcal;
+        }
+        if (bump > 0) {
+          targetDaily = Math.max(1200, targetDaily + bump);
+          flexBufferNote = `+${bump} kcal buffer from a nearby flex day (opt-in).`;
+        }
+      }
+    }
+  }
   const macros = computeMacros(targetDaily, avgWeightLbs, goalType);
 
   return {
@@ -177,9 +206,11 @@ async function computeCalorieRecommendation(userId, today) {
     basis,
     estimate: !suff.ok, // show the "this is only an estimate" notice
     sufficiency: suff,
+    flexDaysSoft: [...flexKeys].sort(), // counted at reduced weight (estimated without a scale)
     group,
     policy,
     limitNote,
+    flexBufferNote,
     targetDaily,
     estimatedMaintenance: Math.round(estimatedMaintenance),
     avgCalories: avgCalories == null ? null : Math.round(avgCalories),

@@ -1,6 +1,7 @@
 const express = require('express');
 const Weight = require('../models/Weight');
 const FoodLog = require('../models/FoodLog');
+const FlexDay = require('../models/FlexDay');
 const { requireAuth } = require('../middleware/auth');
 const { computeCalorieRecommendation } = require('../services/recommendations');
 
@@ -42,6 +43,12 @@ router.get('/', async (req, res) => {
       },
       { calories: 0, protein: 0, carbs: 0, fat: 0 }
     );
+    // A flex-day estimate counts toward today's calories (midpoint), flagged as an estimate.
+    const flexToday = await FlexDay.findOne({ user: req.session.userId, date: today }).select('estimateKcal estimateLow estimateHigh confidence label').lean();
+    if (flexToday && flexToday.estimateKcal > 0) {
+      todayTotals.calories += flexToday.estimateKcal;
+      todayTotals.flexEstimate = { kcal: flexToday.estimateKcal, low: flexToday.estimateLow, high: flexToday.estimateHigh, confidence: flexToday.confidence, label: flexToday.label };
+    }
 
     res.json({
       periodDays: days,

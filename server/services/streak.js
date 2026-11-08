@@ -10,6 +10,8 @@
 const WorkoutLog = require('../models/WorkoutLog');
 const RestDay = require('../models/RestDay');
 const HealthWorkout = require('../models/HealthWorkout');
+const FlexDay = require('../models/FlexDay');
+const SportSession = require('../models/SportSession');
 const Settings = require('../models/Settings');
 const { shiftKey } = require('./dates');
 
@@ -38,9 +40,16 @@ function resolveSchedule(settings, recentPlanDay) {
 }
 
 // Pure calculation. workouts / rests: Set of date keys. Returns the streak and this week's status.
-function computeStreak({ workouts, rests, today, schedule }) {
+function computeStreak({ workouts, rests, flexes, practiceDays, today, schedule }) {
   const s = schedule;
-  const isPlannedRestWeekday = (k) => s.mode === 'weekdays' && !s.days.includes(weekday(k));
+  const flexSet = flexes instanceof Set ? flexes : new Set(flexes || []);
+  const practice = Array.isArray(practiceDays) ? practiceDays : [];
+  const isPracticeDay = (k) => practice.length > 0 && practice.includes(weekday(k));
+  const isPlannedRestWeekday = (k) => {
+    if (flexSet.has(k)) return true; // holiday / flex day never breaks the streak
+    if (s.mode === 'weekdays' && !s.days.includes(weekday(k)) && !isPracticeDay(k)) return true;
+    return false;
+  };
   const weeks = new Map(); // weekStart -> { rest, skips }
   const wk = (k) => { const w = weekStart(k); if (!weeks.has(w)) weeks.set(w, { rest: 0, skips: 0 }); return weeks.get(w); };
 
@@ -52,6 +61,8 @@ function computeStreak({ workouts, rests, today, schedule }) {
     const d = shiftKey(today, -i);
     if (workouts.has(d)) { streak++; continue; }
     if (isPlannedRestWeekday(d)) continue;
+    // Scheduled practice day with no session logged behaves like a training day that can break
+    // unless it was marked rest/flex — already handled above for flex.
     const w = wk(d);
     // A tapped rest day uses the weekly skip allowance first, saving planned rest for untapped days.
     if (rests.has(d) && w.skips < s.skips) { w.skips++; continue; }
@@ -69,13 +80,15 @@ function computeStreak({ workouts, rests, today, schedule }) {
     if (s.mode === 'flex' && restUsed < s.rest) restUsed++;
   }
   const todayTaken = rests.has(today);
-  const plannedRestToday = s.mode === 'weekdays' ? isPlannedRestWeekday(today) : restUsed < s.rest;
+  const todayFlex = flexSet.has(today);
+  const plannedRestToday = todayFlex || (s.mode === 'weekdays' ? isPlannedRestWeekday(today) : restUsed < s.rest);
   // A tap today only matters when today is a training day with no planned rest left.
   const skipsLeft = Math.max(0, s.skips - skipsUsed - (todayTaken && !plannedRestToday ? 1 : 0));
   return {
     streak,
     todayDone,
     todayRest: todayTaken,
+    todayFlex,
     plannedRestToday,
     canTakeRest: !todayDone && !todayTaken && !plannedRestToday && skipsLeft > 0,
     skipsPerWeek: s.skips,
@@ -97,16 +110,27 @@ function explain(schedule) {
 
 async function streakFor(userId, today) {
   const from = shiftKey(today, -LOOKBACK - 7);
-  const [logs, imported, rests, settings, recent] = await Promise.all([
+  const [logs, imported, sports, rests, flexes, settings, recent] = await Promise.all([
     WorkoutLog.find({ user: userId, date: { $gte: from, $lte: today } }).select('date').lean(),
     HealthWorkout.find({ user: userId, date: { $gte: from, $lte: today } }).select('date').lean(),
+    SportSession.find({ user: userId, date: { $gte: from, $lte: today } }).select('date').lean(),
     RestDay.find({ user: userId, date: { $gte: from, $lte: today } }).select('date').lean(),
-    Settings.findOne({ user: userId }).select('trainingDays restDaysPerWeek restSkipsPerWeek').lean(),
+    FlexDay.find({ user: userId, date: { $gte: from, $lte: today } }).select('date').lean(),
+    Settings.findOne({ user: userId }).select('trainingDays restDaysPerWeek restSkipsPerWeek practiceDays').lean(),
     WorkoutLog.findOne({ user: userId, planDay: { $regex: '^[a-z0-9_]+:' }, date: { $gte: shiftKey(today, -28), $lte: today } }).sort({ date: -1, createdAt: -1 }).select('planDay').lean()
   ]);
   const schedule = resolveSchedule(settings, recent && recent.planDay);
-  const out = computeStreak({ workouts: new Set([...logs, ...imported].map((l) => l.date)), rests: new Set(rests.map((r) => r.date)), today, schedule });
-  return { ...out, schedule, explanation: explain(schedule) };
+  const workouts = new Set([...logs, ...imported, ...sports].map((l) => l.date));
+  const out = computeStreak({
+    workouts,
+    rests: new Set(rests.map((r) => r.date)),
+    flexes: new Set(flexes.map((f) => f.date)),
+    practiceDays: (settings && settings.practiceDays) || [],
+    today,
+    schedule
+  });
+  const expl = explain(schedule) + ' Flex / holiday days never break it. Sport and practice sessions count as training.';
+  return { ...out, schedule, explanation: expl, practiceDays: (settings && settings.practiceDays) || [] };
 }
 
 module.exports = { computeStreak, resolveSchedule, streakFor, explain, weekStart, weekday, DEFAULT_REST };
