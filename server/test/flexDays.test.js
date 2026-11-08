@@ -22,33 +22,22 @@ describe('flexDays', () => {
     assert.equal(FD.canAddFlex({ existingCount: 3, cap: 4, alreadyMarked: false }).ok, true);
   });
 
-  it('normalizes estimate presets and custom addKcal', () => {
-    assert.deepEqual(FD.normalizeEstimate({ estimate: 'feast' }), {
-      estimate: 'feast', addKcal: 2000, label: 'Feast'
-    });
-    assert.equal(FD.normalizeEstimate({ estimate: 'light', addKcal: 750 }).addKcal, 750);
-    assert.equal(FD.normalizeEstimate({ estimate: 'none' }).addKcal, 0);
-  });
-
-  it('excludes flex days from sufficiency without firing estimate caveat', () => {
-    // 4 food days + 1 flex day in window → effective 5; 2 weigh-ins → ok
+  it('counts a flex day as soft food data so the insufficient-logs caveat does not fire', () => {
     const food = ['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04'];
-    const weights = ['2026-11-01', '2026-11-05'];
-    const flex = new Set(['2026-11-05']);
-    const s = FD.sufficiencyExcludingFlex(food, weights, '2026-11-06', flex, {
-      windowDays: 7, foodDays: 5, weighIns: 2
-    });
+    const s = FD.sufficiencyWithFlex(food, ['2026-11-01', '2026-11-05'], '2026-11-06', new Set(['2026-11-05']), { windowDays: 7, foodDays: 5, weighIns: 2 });
     assert.equal(s.ok, true);
     assert.equal(s.loggedFoodDays, 4);
     assert.equal(s.flexDaysInWindow, 1);
     assert.equal(s.effectiveFoodDays, 5);
   });
 
-  it('excludeFlexFromDates drops flex keys', () => {
-    assert.deepEqual(
-      FD.excludeFlexFromDates(['2026-11-01', '2026-11-26', '2026-11-02'], new Set(['2026-11-26'])),
-      ['2026-11-01', '2026-11-02']
-    );
+  it('down-weights soft (flex) days in the weighted average but still counts them', () => {
+    const hard = [2000, 2000, 2000].map((kcal) => ({ kcal, soft: false }));
+    const withFlex = FD.weightedAverage([...hard, { kcal: 5000, soft: true }]);
+    // (6000 + 0.5*5000) / 3.5 ≈ 2428.6 — higher than 2000, lower than the unweighted 2750
+    assert.ok(Math.abs(withFlex - 8500 / 3.5) < 0.01);
+    assert.ok(withFlex > 2000 && withFlex < 2750);
+    assert.equal(FD.weightedAverage([]), null);
   });
 
   it('buffer plan is adult-only and splits ~25%', () => {

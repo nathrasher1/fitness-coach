@@ -187,7 +187,7 @@
 
         <div class="card" id="flex-card">
           <h2>Flex / holiday day</h2>
-          <p class="hint">Mark a day when tracking is hard (Thanksgiving, a party). Optional rough estimate — or skip logging. Flex days never break your streak and stay out of the weekly calorie average.</p>
+          <p class="hint">Mark a day when tracking is hard (Thanksgiving, a party). No scale needed: pick what you ate and how full you got, and we estimate it from your own usual meals. The estimate counts toward your weekly totals (as lower-confidence data) and flex days never break your streak.</p>
           <div class="grid-2 form-grid">
             <div class="form-row">
               <label for="flex-date">Date</label>
@@ -203,21 +203,40 @@
             <input type="text" id="flex-label" maxlength="80" placeholder="e.g. Friendsgiving" />
           </div>
           <div class="form-row">
-            <span class="section-label">Rough intake estimate</span>
-            <div class="check-grid" id="flex-estimate" role="radiogroup">
-              <label class="check-tile"><input type="radio" name="flex-est" value="none" checked /><span>No log</span></label>
-              <label class="check-tile"><input type="radio" name="flex-est" value="light" /><span>Light (+500)</span></label>
-              <label class="check-tile"><input type="radio" name="flex-est" value="moderate" /><span>Moderate (+1000)</span></label>
-              <label class="check-tile"><input type="radio" name="flex-est" value="feast" /><span>Feast (+2000)</span></label>
+            <span class="section-label">What did you eat? (no amounts needed)</span>
+            <div class="check-grid flex-menu" id="flex-menu"></div>
+            <input type="text" id="flex-food-search" placeholder="Search more foods…" autocomplete="off" />
+            <div id="flex-food-results" class="search-results"></div>
+          </div>
+          <div id="flex-picked" class="flex-picked"></div>
+          <div class="form-row">
+            <span class="section-label">How full did you get?</span>
+            <div class="check-grid" id="flex-fullness" role="radiogroup">
+              <label class="check-tile"><input type="radio" name="flex-full" value="light" /><span>Light</span></label>
+              <label class="check-tile"><input type="radio" name="flex-full" value="comfortable" checked /><span>Comfortable</span></label>
+              <label class="check-tile"><input type="radio" name="flex-full" value="full" /><span>Full</span></label>
+              <label class="check-tile"><input type="radio" name="flex-full" value="stuffed" /><span>Stuffed</span></label>
             </div>
           </div>
-          <div class="form-row" id="flex-add-row" hidden>
-            <label for="flex-add-kcal">Custom add-on kcal</label>
-            <input type="number" id="flex-add-kcal" min="0" max="10000" step="50" placeholder="Leave blank to use preset" />
+          <div class="grid-2 form-grid">
+            <div class="form-row">
+              <span class="section-label">Plates / rounds</span>
+              <div class="check-grid" role="radiogroup">
+                <label class="check-tile"><input type="radio" name="flex-plates" value="1" checked /><span>1</span></label>
+                <label class="check-tile"><input type="radio" name="flex-plates" value="2" /><span>2</span></label>
+                <label class="check-tile"><input type="radio" name="flex-plates" value="3" /><span>3+</span></label>
+              </div>
+            </div>
+            <div class="form-row">
+              <label for="flex-dessert">Dessert servings (optional)</label>
+              <input type="number" id="flex-dessert" min="0" max="6" step="1" value="0" />
+            </div>
           </div>
+          <div class="flex-estimate" id="flex-estimate-out" aria-live="polite"></div>
           <p class="hint" id="flex-cap-hint"></p>
           <div class="card-actions">
-            <button type="button" class="btn btn-primary" id="btn-flex-save">Mark flex day</button>
+            <button type="button" class="btn btn-secondary" id="btn-flex-estimate">Estimate</button>
+            <button type="button" class="btn btn-primary" id="btn-flex-save">Save flex day</button>
             <button type="button" class="btn btn-ghost-outline" id="btn-flex-clear" hidden>Remove</button>
           </div>
           <div id="flex-list" class="diary" style="margin-top:12px"></div>
@@ -958,7 +977,7 @@
 
         <div class="card settings-card" id="flex-settings-card">
           <h2>Flex / holiday days</h2>
-          <p class="hint card-intro">Cap how many flex days you can mark each month. Adults can optionally spread a small calorie buffer to the days around a flex day (off by default). Minors never see deficit or buffer math.</p>
+          <p class="hint card-intro">Cap how many flex days you can mark each month. Estimates learn from your weigh-ins over the next few days. Adults can optionally spread a small calorie buffer to the days around a flex day (off by default). Members under 18 never see deficit or compensation advice.</p>
           <div class="grid-2 form-grid">
             <div class="form-row">
               <label for="flex-cap">Flex days per month</label>
@@ -975,7 +994,7 @@
             </div>
             <div class="form-row" id="flex-buffer-row">
               <label class="check-row"><input type="checkbox" id="flex-buffer" /> Surrounding-day buffer (adults)</label>
-              <p class="hint">When on, about 25% of a flex-day estimate is split across the day before and after.</p>
+              <p class="hint">When on, about 25% of the estimated surplus is split across the day before and after.</p>
             </div>
           </div>
           <div class="settings-section" style="margin-top:12px">

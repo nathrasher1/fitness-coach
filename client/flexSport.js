@@ -10,89 +10,127 @@
     return d.toISOString().slice(0, 10);
   }
 
-  // ---------- Flex days ----------
+  // ---------- Flex days (scale-free estimator) ----------
+  const NUDGES = [['little', 'A little'], ['normal', 'Normal'], ['lot', 'A lot']];
+  let picked = []; // [{ key?, foodId?, label, category, kcalPerG?, nudge }]
+  let minor = false;
+
+  function flexInputs() {
+    return {
+      foods: picked.map(({ key, foodId, label, category, kcalPerG, nudge }) => ({ key, foodId, label, category, kcalPerG, nudge })),
+      fullness: (document.querySelector('input[name="flex-full"]:checked') || {}).value || 'comfortable',
+      plates: Number((document.querySelector('input[name="flex-plates"]:checked') || {}).value || 1),
+      dessertServings: Number($('flex-dessert').value || 0)
+    };
+  }
+
+  function renderPicked() {
+    const el = $('flex-picked'); if (!el) return;
+    el.innerHTML = picked.map((f, i) => `<div class="flex-pick"><span>${esc(f.label)}</span><span class="nudge">${NUDGES.map(([k, l]) => `<button type="button" data-i="${i}" data-n="${k}" class="${f.nudge === k ? 'on' : ''}">${l}</button>`).join('')}<button type="button" data-rm="${i}" aria-label="Remove">×</button></span></div>`).join('');
+    el.querySelectorAll('[data-n]').forEach((b) => b.addEventListener('click', () => { picked[Number(b.dataset.i)].nudge = b.dataset.n; renderPicked(); }));
+    el.querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => {
+      const f = picked.splice(Number(b.dataset.rm), 1)[0];
+      const box = f && f.key && document.querySelector(`#flex-menu input[value="${f.key}"]`); if (box) box.checked = false;
+      renderPicked();
+    }));
+  }
+
+  function renderEstimate(r) {
+    const out = $('flex-estimate-out'); if (!out) return;
+    if (!r) { out.innerHTML = ''; return; }
+    const src = r.baselineSource === 'personal' ? 'your usual big meals' : r.baselineSource === 'blended' ? 'your logs + typical values' : 'typical values (log more meals to personalise)';
+    out.innerHTML = `<div><span class="est-mid">≈${r.kcal.toLocaleString()} kcal</span><span class="est-badge">Estimate · ${esc(r.confidence)} confidence</span></div>
+      <div class="hint">Likely ${r.low.toLocaleString()}–${r.high.toLocaleString()} kcal · based on ${esc(src)}${r.correction && r.correction !== 1 ? ` · adjusted ×${r.correction} from your weigh-ins` : ''}</div>
+      <ul class="hint">${(r.items || []).map((it) => `<li>${esc(it.label)}: ~${it.kcal} kcal${it.grams ? ` (~${it.grams} g)` : ''}</li>`).join('')}</ul>
+      <p class="hint">The middle number counts toward today's and this week's totals and your weight trend, marked as an estimate.</p>`;
+  }
+
   async function loadFlex() {
     if (!$('flex-card')) return;
     try {
       const data = await api('/flex-days');
+      minor = !!data.minor;
       const dateEl = $('flex-date');
       if (dateEl && !dateEl.value) dateEl.value = todayLocal();
       const hol = $('flex-holiday');
       if (hol) {
         const cur = hol.value;
-        hol.innerHTML = '<option value="">Custom / none</option>' + (data.holidays || []).map((h) =>
-          `<option value="${esc(h.key)}" data-date="${esc(h.date)}">${esc(h.name)} (${esc(h.date)})</option>`
-        ).join('');
+        hol.innerHTML = '<option value="">Custom / none</option>' + (data.holidays || []).map((h) => `<option value="${esc(h.key)}" data-date="${esc(h.date)}">${esc(h.name)} (${esc(h.date)})</option>`).join('');
         hol.value = cur;
+      }
+      const menu = $('flex-menu');
+      if (menu && !menu.dataset.ready) {
+        menu.dataset.ready = '1';
+        menu.innerHTML = (data.menu || []).map((m) => `<label class="check-tile"><input type="checkbox" value="${esc(m.key)}" data-label="${esc(m.label)}" data-cat="${esc(m.category)}" /><span>${esc(m.label)}</span></label>`).join('');
+        menu.addEventListener('change', (e) => {
+          const i = e.target; if (!i.value) return;
+          if (i.checked) picked.push({ key: i.value, label: i.dataset.label, category: i.dataset.cat, nudge: 'normal' });
+          else picked = picked.filter((f) => f.key !== i.value);
+          renderPicked();
+        });
       }
       $('flex-cap-hint').textContent = `${data.used} of ${data.cap} flex days used this month · ${data.remaining} left`;
       if ($('flex-cap')) $('flex-cap').value = String(data.cap);
       if ($('flex-buffer')) $('flex-buffer').checked = !!data.bufferOptIn;
       const list = $('flex-list');
-      if (!data.days.length) {
-        list.innerHTML = '<p class="hint">No flex days marked this month.</p>';
-      } else {
-        list.innerHTML = data.days.map((d) => {
-          const est = d.estimate === 'none' ? 'No log' : `${d.estimate}${d.addKcal ? ` (+${d.addKcal} kcal)` : ''}`;
-          return `<div class="food-log-item" data-flex="${esc(d.date)}">
-            <div><strong>${esc(d.date)}</strong> ${d.label ? '· ' + esc(d.label) : ''}<div class="hint">${esc(est)}</div></div>
-            <button type="button" class="btn btn-ghost-outline btn-sm" data-flex-del="${esc(d.date)}">Remove</button>
-          </div>`;
-        }).join('');
-      }
+      list.innerHTML = data.days.length ? data.days.map((d) => `<div class="food-log-item" data-flex="${esc(d.date)}">
+          <div><strong>${esc(d.date)}</strong>${d.label ? ' · ' + esc(d.label) : ''}<div class="hint">${d.estimateKcal ? `≈${d.estimateKcal} kcal (${d.estimateLow}–${d.estimateHigh}) · estimate` : 'No estimate'}</div></div>
+          <button type="button" class="btn btn-ghost-outline btn-sm" data-flex-del="${esc(d.date)}">Remove</button></div>`).join('') : '<p class="hint">No flex days marked this month.</p>';
       list.querySelectorAll('[data-flex-del]').forEach((btn) => btn.addEventListener('click', async () => {
-        try {
-          await api('/flex-days/' + btn.dataset.flexDel, { method: 'DELETE' });
-          toast('Flex day removed');
-          loadFlex();
-          if (window.Account) window.Account.loadStreak();
-        } catch (err) { toast(err.message); }
+        try { await api('/flex-days/' + btn.dataset.flexDel, { method: 'DELETE' }); toast('Flex day removed'); loadFlex(); if (window.Account) window.Account.loadStreak(); } catch (err) { toast(err.message); }
       }));
-      // Prefill if selected date is already marked
       syncFlexFormForDate();
     } catch (e) { /* ignore */ }
   }
 
   function syncFlexFormForDate() {
     const date = $('flex-date') && $('flex-date').value;
-    const clear = $('btn-flex-clear');
-    if (!date || !clear) return;
-    // Presence of a matching row in the list
-    const marked = !!document.querySelector(`[data-flex="${date}"]`);
-    clear.hidden = !marked;
+    if ($('btn-flex-clear')) $('btn-flex-clear').hidden = !(date && document.querySelector(`[data-flex="${date}"]`));
   }
 
   if ($('flex-holiday')) {
     $('flex-holiday').addEventListener('change', () => {
       const opt = $('flex-holiday').selectedOptions[0];
-      if (opt && opt.dataset.date) {
-        $('flex-date').value = opt.dataset.date;
-        if (!$('flex-label').value) $('flex-label').value = opt.textContent.replace(/\s*\(.*\)$/, '');
-      }
+      if (opt && opt.dataset.date) { $('flex-date').value = opt.dataset.date; if (!$('flex-label').value) $('flex-label').value = opt.textContent.replace(/\s*\(.*\)$/, ''); }
       syncFlexFormForDate();
     });
   }
   if ($('flex-date')) $('flex-date').addEventListener('change', syncFlexFormForDate);
-  document.querySelectorAll('input[name="flex-est"]').forEach((r) => r.addEventListener('change', () => {
-    $('flex-add-row').hidden = r.value === 'none' && document.querySelector('input[name="flex-est"]:checked').value === 'none';
-    const v = document.querySelector('input[name="flex-est"]:checked').value;
-    $('flex-add-row').hidden = v === 'none';
-  }));
 
+  // Food database search: adds a custom food (density from grams-based servings when available).
+  let searchTimer = null;
+  if ($('flex-food-search')) {
+    $('flex-food-search').addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      const q = $('flex-food-search').value.trim();
+      if (q.length < 2) { $('flex-food-results').innerHTML = ''; return; }
+      searchTimer = setTimeout(async () => {
+        try {
+          const foods = await api('/foods?q=' + encodeURIComponent(q) + '&limit=8');
+          $('flex-food-results').innerHTML = foods.map((f, i) => `<div class="search-result" data-i="${i}">${esc(f.name)}</div>`).join('');
+          $('flex-food-results').querySelectorAll('[data-i]').forEach((el) => el.addEventListener('click', () => {
+            const f = foods[Number(el.dataset.i)];
+            const grams = /^(g|gram|grams)$/i.test(f.servingUnit || '') ? f.servingSize : null;
+            picked.push({ foodId: String(f._id), label: f.name, category: 'other', kcalPerG: grams ? f.calories / grams : undefined, nudge: 'normal' });
+            $('flex-food-search').value = ''; $('flex-food-results').innerHTML = '';
+            renderPicked();
+          }));
+        } catch { /* ignore */ }
+      }, 250);
+    });
+  }
+
+  if ($('btn-flex-estimate')) {
+    $('btn-flex-estimate').addEventListener('click', async () => {
+      try { renderEstimate(await api('/flex-days/estimate', { method: 'POST', body: JSON.stringify(flexInputs()) })); } catch (err) { toast(err.message); }
+    });
+  }
   if ($('btn-flex-save')) {
     $('btn-flex-save').addEventListener('click', async () => {
-      const estimate = (document.querySelector('input[name="flex-est"]:checked') || {}).value || 'none';
-      const body = {
-        date: $('flex-date').value,
-        label: $('flex-label').value.trim(),
-        holidayKey: $('flex-holiday').value || '',
-        estimate
-      };
-      const custom = $('flex-add-kcal').value;
-      if (custom !== '') body.addKcal = Number(custom);
+      const body = { date: $('flex-date').value, label: $('flex-label').value.trim(), holidayKey: $('flex-holiday').value || '', ...flexInputs() };
       try {
-        await api('/flex-days', { method: 'POST', body: JSON.stringify(body) });
-        toast('Flex day marked — streak safe, left out of calorie average');
+        const r = await api('/flex-days', { method: 'POST', body: JSON.stringify(body) });
+        toast(`Flex day saved · ${r.estimateLabel}`);
         loadFlex();
         if (window.Account) window.Account.loadStreak();
         if (typeof loadDashboard === 'function') loadDashboard();
@@ -101,14 +139,8 @@
   }
   if ($('btn-flex-clear')) {
     $('btn-flex-clear').addEventListener('click', async () => {
-      const date = $('flex-date').value;
-      if (!date) return;
-      try {
-        await api('/flex-days/' + date, { method: 'DELETE' });
-        toast('Flex day removed');
-        loadFlex();
-        if (window.Account) window.Account.loadStreak();
-      } catch (err) { toast(err.message); }
+      const date = $('flex-date').value; if (!date) return;
+      try { await api('/flex-days/' + date, { method: 'DELETE' }); toast('Flex day removed'); loadFlex(); if (window.Account) window.Account.loadStreak(); } catch (err) { toast(err.message); }
     });
   }
 
@@ -242,7 +274,6 @@
 
   window.FlexSport = { loadFlex, loadSport, loadFlexSettings };
   // Initial load after app enters
-  const prev = window.Account && window.Account.loadStreak;
   document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => { loadFlex(); loadSport(); }, 800);
   });

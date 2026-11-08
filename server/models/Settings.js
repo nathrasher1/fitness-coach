@@ -22,6 +22,8 @@ const settingsSchema = new mongoose.Schema({
   // Flex / holiday days: monthly cap and adult-only surrounding-day buffer (off by default).
   flexDaysPerMonth: { type: Number, min: 0, max: 10, default: 4 },
   flexBufferOptIn: { type: Boolean, default: false },
+  // Per-user flex estimate correction from weigh-in calibration (bounded 0.7–1.4).
+  flexCorrection: { type: Number, min: 0.7, max: 1.4, default: 1 },
   // Recurring practice weekdays (0=Sun..6=Sat); empty = none. Acts like planned training days for streaks.
   practiceDays: { type: [Number], default: undefined },
   favoriteFoodIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Food' }],

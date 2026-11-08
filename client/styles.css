@@ -2322,3 +2322,15 @@ html.native .scan-card { margin-top: env(safe-area-inset-top, 0px); }
 .health-types .ok { color: var(--main-text); font-weight: 600; } .health-types .no { color: var(--text-muted); }
 .health-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .imported-badge { display: inline-block; font-size: .7rem; font-weight: 600; background: var(--accent-soft); color: var(--accent-text); border-radius: 999px; padding: 2px 8px; margin-left: 6px; vertical-align: middle; }
+
+/* Flex-day estimator */
+.flex-menu { margin-bottom: 8px; }
+.flex-picked { display: grid; gap: 6px; margin: 6px 0 10px; }
+.flex-pick { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; border: 1px solid var(--border, #dfe6dc); border-radius: 10px; }
+.flex-pick .nudge { display: inline-flex; gap: 4px; }
+.flex-pick .nudge button { border: 1px solid var(--border, #dfe6dc); background: transparent; border-radius: 999px; padding: 2px 10px; font-size: .8rem; cursor: pointer; }
+.flex-pick .nudge button.on { background: var(--accent, #2f6b4f); color: #fff; border-color: transparent; }
+.flex-estimate { margin: 10px 0; }
+.flex-estimate .est-mid { font-size: 1.4rem; font-weight: 700; }
+.flex-estimate .est-badge { display: inline-block; font-size: .75rem; padding: 2px 8px; border-radius: 999px; background: #fff3d6; color: #7a5a00; margin-left: 6px; vertical-align: middle; }
+.flex-estimate ul { margin: 6px 0 0; padding-left: 18px; }

@@ -1,15 +1,9 @@
-// Holiday / flex days: mark a day so it never breaks streaks and is excluded
-// from the weekly calorie average. Logging is optional (Light / Moderate / Feast
-// presets, or none). Cap ~4 per calendar month by default.
+// Holiday / flex days: mark a day so it never breaks streaks. The scale-free estimate
+// (services/flexEstimator) counts in weekly totals and the weight trend as soft data.
+// Cap ~4 per calendar month by default.
 const { isDateKey, shiftKey } = require('./dates');
 
 const DEFAULT_CAP = 4;
-const ESTIMATE_PRESETS = {
-  none: { key: 'none', label: 'No log', addKcal: 0 },
-  light: { key: 'light', label: 'Light', addKcal: 500 },
-  moderate: { key: 'moderate', label: 'Moderate', addKcal: 1000 },
-  feast: { key: 'feast', label: 'Feast', addKcal: 2000 }
-};
 
 // US-style floating holidays for the given year (local calendar keys).
 function thanksgiving(year) {
@@ -54,18 +48,6 @@ function normalizeCap(n) {
   return Math.max(0, Math.min(10, Math.round(v)));
 }
 
-function normalizeEstimate(body) {
-  const key = String((body && body.estimate) || 'none').toLowerCase();
-  const preset = ESTIMATE_PRESETS[key] || ESTIMATE_PRESETS.none;
-  let addKcal = preset.addKcal;
-  if (body && body.addKcal != null && body.addKcal !== '') {
-    const n = Number(body.addKcal);
-    if (Number.isFinite(n)) addKcal = Math.max(0, Math.min(10000, Math.round(n)));
-  }
-  if (key === 'none' && (body == null || body.addKcal == null || body.addKcal === '')) addKcal = 0;
-  return { estimate: preset.key, addKcal, label: preset.label };
-}
-
 /** Surrounding buffer days for adult opt-in (day before + day after). */
 function bufferDates(dateKey) {
   if (!isDateKey(dateKey)) return [];
@@ -85,41 +67,33 @@ function bufferPlan(dateKey, addKcal, { fraction = 0.25, adult = true } = {}) {
 }
 
 /**
- * Filter food/calorie log dates for weekly averages: drop flex-day keys so a
- * feast (or an empty flex day) doesn't drag suggested calories or trip the
- * "insufficient logs" caveat by itself.
+ * Sufficiency with flex days as soft data: a flex day with an estimate counts as a logged
+ * food day (so it never triggers the "insufficient logs" caveat). Reported separately.
  */
-function excludeFlexFromDates(dateKeys, flexKeys) {
-  const skip = flexKeys instanceof Set ? flexKeys : new Set(flexKeys || []);
-  return (dateKeys || []).filter((d) => !skip.has(d));
+function sufficiencyWithFlex(foodDates, weightDates, todayKey, flexKeys, SUFFICIENT) {
+  const from = shiftKey(todayKey, -(SUFFICIENT.windowDays - 1));
+  const inWin = (d) => d >= from && d <= todayKey;
+  const flex = flexKeys instanceof Set ? flexKeys : new Set(flexKeys || []);
+  const hard = new Set(foodDates.filter((d) => inWin(d) && !flex.has(d)));
+  const soft = [...flex].filter(inWin).length;
+  const weighIns = new Set(weightDates.filter(inWin)).size;
+  return {
+    ...SUFFICIENT, from, to: todayKey,
+    loggedFoodDays: hard.size, flexDaysInWindow: soft, effectiveFoodDays: hard.size + soft,
+    loggedWeighIns: weighIns,
+    ok: hard.size + soft >= SUFFICIENT.foodDays && weighIns >= SUFFICIENT.weighIns
+  };
 }
 
 /**
- * Sufficiency after excluding flex days from the food-day count (weigh-ins stay).
- * A flex day with no food log does not reduce loggedFoodDays.
- * A flex day WITH a food log also does not count toward the 5-day requirement
- * (and its calories are excluded from the average elsewhere).
+ * Weighted average daily intake. days: [{ kcal, soft }]; soft (flex-estimate) days get weight
+ * SOFT_WEIGHT so one uncertain feast moves the average less than a logged day would.
  */
-function sufficiencyExcludingFlex(foodDates, weightDates, todayKey, flexKeys, SUFFICIENT) {
-  const from = shiftKey(todayKey, -(SUFFICIENT.windowDays - 1));
-  const inWin = (d) => d >= from && d <= todayKey;
-  const skip = flexKeys instanceof Set ? flexKeys : new Set(flexKeys || []);
-  // Count non-flex food days; also treat a flex day inside the window as "covered"
-  // so missing food on a marked flex day doesn't tank sufficiency.
-  const foodDays = new Set(foodDates.filter((d) => inWin(d) && !skip.has(d))).size;
-  const flexInWin = [...skip].filter(inWin).length;
-  const effectiveFoodDays = foodDays + flexInWin; // flex days count as present without using their kcal
-  const weighIns = new Set(weightDates.filter(inWin)).size;
-  return {
-    ...SUFFICIENT,
-    from,
-    to: todayKey,
-    loggedFoodDays: foodDays,
-    flexDaysInWindow: flexInWin,
-    effectiveFoodDays,
-    loggedWeighIns: weighIns,
-    ok: effectiveFoodDays >= SUFFICIENT.foodDays && weighIns >= SUFFICIENT.weighIns
-  };
+const SOFT_WEIGHT = 0.5;
+function weightedAverage(days) {
+  let num = 0, den = 0;
+  for (const d of days || []) { if (!(d.kcal > 0)) continue; const w = d.soft ? SOFT_WEIGHT : 1; num += w * d.kcal; den += w; }
+  return den ? num / den : null;
 }
 
 function canAddFlex({ existingCount, cap, alreadyMarked }) {
@@ -131,16 +105,15 @@ function canAddFlex({ existingCount, cap, alreadyMarked }) {
 
 module.exports = {
   DEFAULT_CAP,
-  ESTIMATE_PRESETS,
+  SOFT_WEIGHT,
   thanksgiving,
   holidayPresets,
   monthKey,
   monthBounds,
   normalizeCap,
-  normalizeEstimate,
   bufferDates,
   bufferPlan,
-  excludeFlexFromDates,
-  sufficiencyExcludingFlex,
+  sufficiencyWithFlex,
+  weightedAverage,
   canAddFlex
 };
