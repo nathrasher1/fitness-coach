@@ -103,6 +103,34 @@ function canAddFlex({ existingCount, cap, alreadyMarked }) {
   return { ok: true, reason: null };
 }
 
+/**
+ * Flex meals for a FlexDay doc. Older docs (before per-meal logging) have no meals[] but a
+ * whole-day estimate; they appear as one read-only 'other' entry so nothing is lost.
+ */
+function mealsOf(doc) {
+  if (!doc) return [];
+  if (Array.isArray(doc.meals) && doc.meals.length) return doc.meals;
+  if (doc.estimateKcal > 0) {
+    return [{ _id: 'legacy', legacy: true, meal: 'other', label: doc.label || 'Flex day (whole-day estimate)', foods: doc.foods || [],
+      fullness: doc.fullness, plates: doc.plates, dessertServings: doc.dessertServings,
+      estimateKcal: doc.estimateKcal, estimateLow: doc.estimateLow, estimateHigh: doc.estimateHigh,
+      confidence: doc.confidence, baselineSource: doc.baselineSource, correctionUsed: doc.correctionUsed }];
+  }
+  return [];
+}
+
+/** Day totals from its flex meals: midpoints and range bounds sum; confidence is the weakest. */
+function sumMeals(meals) {
+  const list = meals || [];
+  const sum = (k) => list.reduce((a, m) => a + (Number(m[k]) || 0), 0);
+  return {
+    estimateKcal: Math.round(sum('estimateKcal')),
+    estimateLow: Math.round(sum('estimateLow')),
+    estimateHigh: Math.round(sum('estimateHigh')),
+    confidence: list.length && list.every((m) => m.confidence === 'medium') ? 'medium' : 'low'
+  };
+}
+
 module.exports = {
   DEFAULT_CAP,
   SOFT_WEIGHT,
@@ -115,5 +143,7 @@ module.exports = {
   bufferPlan,
   sufficiencyWithFlex,
   weightedAverage,
-  canAddFlex
+  canAddFlex,
+  mealsOf,
+  sumMeals
 };

@@ -38,25 +38,42 @@
   function renderEstimate(r) {
     const out = $('flex-estimate-out'); if (!out) return;
     if (!r) { out.innerHTML = ''; return; }
-    const src = r.baselineSource === 'personal' ? 'your usual big meals' : r.baselineSource === 'blended' ? 'your logs + typical values' : 'typical values (log more meals to personalise)';
+    const src = r.baselineSource === 'personal' ? 'your usual meals in this slot' : r.baselineSource === 'blended' ? 'your logs + typical values' : 'typical values (log more meals to personalise)';
     out.innerHTML = `<div><span class="est-mid">≈${r.kcal.toLocaleString()} kcal</span><span class="est-badge">Estimate · ${esc(r.confidence)} confidence</span></div>
       <div class="hint">Likely ${r.low.toLocaleString()}–${r.high.toLocaleString()} kcal · based on ${esc(src)}${r.correction && r.correction !== 1 ? ` · adjusted ×${r.correction} from your weigh-ins` : ''}</div>
       <ul class="hint">${(r.items || []).map((it) => `<li>${esc(it.label)}: ~${it.kcal} kcal${it.grams ? ` (~${it.grams} g)` : ''}</li>`).join('')}</ul>
-      <p class="hint">The middle number counts toward today's and this week's totals and your weight trend, marked as an estimate.</p>`;
+      <p class="hint">Saved as its own entry in this meal. The middle number counts toward the day's and week's totals and your weight trend, marked as an estimate.</p>`;
   }
 
+  const MEAL_NAMES = { breakfast: 'breakfast', lunch: 'lunch', dinner: 'dinner (your big meal)', snack: 'snack', other: 'meal' };
+  let flexMeal = 'dinner';
+  let flexDate = null;
+  let flexMeta = null; // /flex-days payload (menu, holidays, cap)
+  const sheet = $('flex-sheet');
+
+  function foodDate() { return ($('food-date') && $('food-date').value) || todayLocal(); }
+
+  function resetFlexForm() {
+    picked = [];
+    renderPicked(); renderEstimate(null);
+    document.querySelectorAll('#flex-menu input').forEach((i) => { i.checked = false; });
+    const c = document.querySelector('input[name="flex-full"][value="comfortable"]'); if (c) c.checked = true;
+    const p1 = document.querySelector('input[name="flex-plates"][value="1"]'); if (p1) p1.checked = true;
+    if ($('flex-dessert')) $('flex-dessert').value = '0';
+    if ($('flex-label')) $('flex-label').value = '';
+    if ($('flex-holiday')) $('flex-holiday').value = '';
+  }
+
+  // Loads menu/holidays/cap once per month and the slot baseline for the chosen meal.
   async function loadFlex() {
-    if (!$('flex-card')) return;
+    if (!sheet) return;
     try {
-      const data = await api('/flex-days');
-      minor = !!data.minor;
-      const dateEl = $('flex-date');
-      if (dateEl && !dateEl.value) dateEl.value = todayLocal();
+      const month = (flexDate || foodDate()).slice(0, 7);
+      const data = await api('/flex-days?month=' + month);
+      flexMeta = data; minor = !!data.minor;
       const hol = $('flex-holiday');
       if (hol) {
-        const cur = hol.value;
-        hol.innerHTML = '<option value="">Custom / none</option>' + (data.holidays || []).map((h) => `<option value="${esc(h.key)}" data-date="${esc(h.date)}">${esc(h.name)} (${esc(h.date)})</option>`).join('');
-        hol.value = cur;
+        hol.innerHTML = '<option value="">Holiday…</option>' + (data.holidays || []).map((h) => `<option value="${esc(h.name)}">${esc(h.name)} (${esc(h.date)})</option>`).join('');
       }
       const menu = $('flex-menu');
       if (menu && !menu.dataset.ready) {
@@ -69,33 +86,70 @@
           renderPicked();
         });
       }
-      $('flex-cap-hint').textContent = `${data.used} of ${data.cap} flex days used this month · ${data.remaining} left`;
-      if ($('flex-cap')) $('flex-cap').value = String(data.cap);
-      if ($('flex-buffer')) $('flex-buffer').checked = !!data.bufferOptIn;
-      const list = $('flex-list');
-      list.innerHTML = data.days.length ? data.days.map((d) => `<div class="food-log-item" data-flex="${esc(d.date)}">
-          <div><strong>${esc(d.date)}</strong>${d.label ? ' · ' + esc(d.label) : ''}<div class="hint">${d.estimateKcal ? `≈${d.estimateKcal} kcal (${d.estimateLow}–${d.estimateHigh}) · estimate` : 'No estimate'}</div></div>
-          <button type="button" class="btn btn-ghost-outline btn-sm" data-flex-del="${esc(d.date)}">Remove</button></div>`).join('') : '<p class="hint">No flex days marked this month.</p>';
-      list.querySelectorAll('[data-flex-del]').forEach((btn) => btn.addEventListener('click', async () => {
-        try { await api('/flex-days/' + btn.dataset.flexDel, { method: 'DELETE' }); toast('Flex day removed'); loadFlex(); if (window.Account) window.Account.loadStreak(); } catch (err) { toast(err.message); }
-      }));
-      syncFlexFormForDate();
+      const already = (data.days || []).some((d) => d.date === flexDate);
+      $('flex-cap-hint').textContent = already
+        ? `Already a flex day · this meal adds to that day's total (${data.used} of ${data.cap} flex days used this month)`
+        : `Saving marks ${flexDate} as a flex day · ${data.used} of ${data.cap} used this month, ${data.remaining} left`;
     } catch (e) { /* ignore */ }
   }
 
-  function syncFlexFormForDate() {
-    const date = $('flex-date') && $('flex-date').value;
-    if ($('btn-flex-clear')) $('btn-flex-clear').hidden = !(date && document.querySelector(`[data-flex="${date}"]`));
+  async function openFlexSheet(meal) {
+    if (!sheet) return;
+    flexMeal = meal || 'dinner';
+    flexDate = foodDate();
+    resetFlexForm();
+    const name = MEAL_NAMES[flexMeal] || flexMeal;
+    $('flex-sheet-title').textContent = 'Log flex/holiday · ' + flexMeal.charAt(0).toUpperCase() + flexMeal.slice(1);
+    $('flex-sheet-date').textContent = flexDate === todayLocal() ? 'Today' : flexDate;
+    $('flex-meal-name').textContent = name;
+    $('flex-meal-base').textContent = '—';
+    sheet.hidden = false;
+    document.body.classList.add('sheet-open');
+    loadFlex();
+    try {
+      const r = await api('/flex-days/estimate', { method: 'POST', body: JSON.stringify({ meal: flexMeal, foods: [] }) });
+      $('flex-meal-base').textContent = Number(r.baselineMeal || 0).toLocaleString();
+    } catch { /* ignore */ }
+  }
+  function closeFlexSheet() {
+    if (!sheet) return;
+    sheet.hidden = true;
+    document.body.classList.remove('sheet-open');
+  }
+  if (sheet) {
+    sheet.addEventListener('click', (e) => { if (e.target === sheet || e.target.closest('#flex-sheet-close')) closeFlexSheet(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !sheet.hidden) closeFlexSheet(); });
+  }
+  if ($('flex-holiday')) {
+    $('flex-holiday').addEventListener('change', () => { const v = $('flex-holiday').value; if (v) $('flex-label').value = v; });
   }
 
-  if ($('flex-holiday')) {
-    $('flex-holiday').addEventListener('change', () => {
-      const opt = $('flex-holiday').selectedOptions[0];
-      if (opt && opt.dataset.date) { $('flex-date').value = opt.dataset.date; if (!$('flex-label').value) $('flex-label').value = opt.textContent.replace(/\s*\(.*\)$/, ''); }
-      syncFlexFormForDate();
-    });
+  async function removeFlexMeal(date, id) {
+    await api(`/flex-days/${date}/meals/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    toast('Flex entry removed');
+    afterFlexChange();
   }
-  if ($('flex-date')) $('flex-date').addEventListener('change', syncFlexFormForDate);
+  function afterFlexChange() {
+    if (typeof loadFoodLog === 'function') loadFoodLog();
+    if (typeof loadDashboard === 'function') loadDashboard();
+    if (window.Account) window.Account.loadStreak();
+    loadFlexSummary();
+  }
+
+  // Dashboard: small read-only summary of today's flex meals.
+  async function loadFlexSummary() {
+    const card = $('flex-summary-card'); if (!card) return;
+    try {
+      const { day } = await api('/flex-days/day?date=' + todayLocal());
+      if (!day || !day.estimateKcal) { card.hidden = true; return; }
+      card.hidden = false;
+      const parts = (day.meals || []).map((m) => `${esc(m.meal)} ≈${m.estimateKcal}`).join(' · ');
+      $('flex-summary-line').innerHTML = `<strong>≈${day.estimateKcal.toLocaleString()} kcal</strong> <span class="hint">(${day.estimateLow.toLocaleString()}–${day.estimateHigh.toLocaleString()})</span>${day.label ? ' · ' + esc(day.label) : ''}<br><span class="hint">${parts}</span>`;
+    } catch { card.hidden = true; }
+  }
+  if ($('flex-summary-open')) {
+    $('flex-summary-open').addEventListener('click', () => { const b = document.querySelector('#main-nav button[data-panel="food"]'); if (b) b.click(); });
+  }
 
   // Food database search: adds a custom food (density from grams-based servings when available).
   let searchTimer = null;
@@ -122,25 +176,18 @@
 
   if ($('btn-flex-estimate')) {
     $('btn-flex-estimate').addEventListener('click', async () => {
-      try { renderEstimate(await api('/flex-days/estimate', { method: 'POST', body: JSON.stringify(flexInputs()) })); } catch (err) { toast(err.message); }
+      try { renderEstimate(await api('/flex-days/estimate', { method: 'POST', body: JSON.stringify({ meal: flexMeal, ...flexInputs() }) })); } catch (err) { toast(err.message); }
     });
   }
   if ($('btn-flex-save')) {
     $('btn-flex-save').addEventListener('click', async () => {
-      const body = { date: $('flex-date').value, label: $('flex-label').value.trim(), holidayKey: $('flex-holiday').value || '', ...flexInputs() };
+      const body = { date: flexDate || foodDate(), meal: flexMeal, label: $('flex-label').value.trim(), ...flexInputs() };
       try {
-        const r = await api('/flex-days', { method: 'POST', body: JSON.stringify(body) });
-        toast(`Flex day saved · ${r.estimateLabel}`);
-        loadFlex();
-        if (window.Account) window.Account.loadStreak();
-        if (typeof loadDashboard === 'function') loadDashboard();
+        const r = await api('/flex-days/meals', { method: 'POST', body: JSON.stringify(body) });
+        toast(`${r.newFlexDay ? 'Flex day marked · ' : ''}Added to ${flexMeal} · ${r.estimateLabel}`);
+        closeFlexSheet();
+        afterFlexChange();
       } catch (err) { toast(err.message); }
-    });
-  }
-  if ($('btn-flex-clear')) {
-    $('btn-flex-clear').addEventListener('click', async () => {
-      const date = $('flex-date').value; if (!date) return;
-      try { await api('/flex-days/' + date, { method: 'DELETE' }); toast('Flex day removed'); loadFlex(); if (window.Account) window.Account.loadStreak(); } catch (err) { toast(err.message); }
     });
   }
 
@@ -257,7 +304,6 @@
         const practiceDays = [...$('practice-days').querySelectorAll('input')].filter((i) => i.checked).map((i) => Number(i.value));
         await api('/sport-sessions/practice-days', { method: 'PUT', body: JSON.stringify({ practiceDays }) });
         toast('Flex & practice settings saved');
-        loadFlex();
         if (window.Account) window.Account.loadStreak();
       } catch (err) { toast(err.message); }
     });
@@ -266,15 +312,15 @@
   // Hook into panel switches
   document.querySelectorAll('#main-nav button[data-panel]').forEach((b) => {
     b.addEventListener('click', () => {
-      if (b.dataset.panel === 'dashboard') loadFlex();
+      if (b.dataset.panel === 'dashboard') loadFlexSummary();
       if (b.dataset.panel === 'workouts') loadSport();
       if (b.dataset.panel === 'settings') loadFlexSettings();
     });
   });
 
-  window.FlexSport = { loadFlex, loadSport, loadFlexSettings };
+  window.FlexSport = { loadFlex, loadSport, loadFlexSettings, openFlexSheet, removeFlexMeal, loadFlexSummary };
   // Initial load after app enters
   document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => { loadFlex(); loadSport(); }, 800);
+    setTimeout(() => { loadFlexSummary(); loadSport(); }, 800);
   });
 })();

@@ -185,61 +185,10 @@
         </div>
 
 
-        <div class="card" id="flex-card">
-          <h2>Flex / holiday day</h2>
-          <p class="hint">Mark a day when tracking is hard (Thanksgiving, a party). No scale needed: pick what you ate and how full you got, and we estimate it from your own usual meals. The estimate counts toward your weekly totals (as lower-confidence data) and flex days never break your streak.</p>
-          <div class="grid-2 form-grid">
-            <div class="form-row">
-              <label for="flex-date">Date</label>
-              <input type="date" id="flex-date" />
-            </div>
-            <div class="form-row">
-              <label for="flex-holiday">Suggested holiday</label>
-              <select id="flex-holiday"><option value="">Custom / none</option></select>
-            </div>
-          </div>
-          <div class="form-row">
-            <label for="flex-label">Label (optional)</label>
-            <input type="text" id="flex-label" maxlength="80" placeholder="e.g. Friendsgiving" />
-          </div>
-          <div class="form-row">
-            <span class="section-label">What did you eat? (no amounts needed)</span>
-            <div class="check-grid flex-menu" id="flex-menu"></div>
-            <input type="text" id="flex-food-search" placeholder="Search more foods…" autocomplete="off" />
-            <div id="flex-food-results" class="search-results"></div>
-          </div>
-          <div id="flex-picked" class="flex-picked"></div>
-          <div class="form-row">
-            <span class="section-label">How full did you get?</span>
-            <div class="check-grid" id="flex-fullness" role="radiogroup">
-              <label class="check-tile"><input type="radio" name="flex-full" value="light" /><span>Light</span></label>
-              <label class="check-tile"><input type="radio" name="flex-full" value="comfortable" checked /><span>Comfortable</span></label>
-              <label class="check-tile"><input type="radio" name="flex-full" value="full" /><span>Full</span></label>
-              <label class="check-tile"><input type="radio" name="flex-full" value="stuffed" /><span>Stuffed</span></label>
-            </div>
-          </div>
-          <div class="grid-2 form-grid">
-            <div class="form-row">
-              <span class="section-label">Plates / rounds</span>
-              <div class="check-grid" role="radiogroup">
-                <label class="check-tile"><input type="radio" name="flex-plates" value="1" checked /><span>1</span></label>
-                <label class="check-tile"><input type="radio" name="flex-plates" value="2" /><span>2</span></label>
-                <label class="check-tile"><input type="radio" name="flex-plates" value="3" /><span>3+</span></label>
-              </div>
-            </div>
-            <div class="form-row">
-              <label for="flex-dessert">Dessert servings (optional)</label>
-              <input type="number" id="flex-dessert" min="0" max="6" step="1" value="0" />
-            </div>
-          </div>
-          <div class="flex-estimate" id="flex-estimate-out" aria-live="polite"></div>
-          <p class="hint" id="flex-cap-hint"></p>
-          <div class="card-actions">
-            <button type="button" class="btn btn-secondary" id="btn-flex-estimate">Estimate</button>
-            <button type="button" class="btn btn-primary" id="btn-flex-save">Save flex day</button>
-            <button type="button" class="btn btn-ghost-outline" id="btn-flex-clear" hidden>Remove</button>
-          </div>
-          <div id="flex-list" class="diary" style="margin-top:12px"></div>
+        <div class="card flex-summary" id="flex-summary-card" hidden>
+          <div class="flex-between"><h2 style="margin:0">Flex day today</h2><button type="button" class="link-btn" id="flex-summary-open">Open Food log</button></div>
+          <p class="flex-summary-line" id="flex-summary-line"></p>
+          <p class="hint">Logged from the Food page with “Log flex/holiday” on a meal. Counts toward your totals as an estimate; your streak is protected.</p>
         </div>
 
         <div class="card">
@@ -504,6 +453,64 @@
         </div>
 
         <div id="food-log-list" class="diary"></div>
+
+        <!-- Flex / holiday estimate: opened from a meal card's "Log flex/holiday" button -->
+        <div id="flex-sheet" class="sheet-backdrop" hidden>
+          <div class="sheet flex-sheet" role="dialog" aria-modal="true" aria-labelledby="flex-sheet-title">
+            <div class="sheet-grip" aria-hidden="true"></div>
+            <div class="sheet-head">
+              <div>
+                <div class="summary-kicker" id="flex-sheet-date"></div>
+                <h2 id="flex-sheet-title" class="food-sheet-title">Log flex/holiday</h2>
+              </div>
+              <button type="button" class="btn btn-ghost btn-sm" id="flex-sheet-close" aria-label="Close">✕</button>
+            </div>
+            <p class="hint">No scale needed: pick what you ate and how full you got. We estimate this meal from your own usual <span id="flex-meal-name">meal</span> (about <span id="flex-meal-base">—</span> kcal). Flex days never break your streak.</p>
+            <div class="form-row">
+              <label for="flex-label">Label (optional)</label>
+              <div class="flex-label-row">
+                <input type="text" id="flex-label" maxlength="80" placeholder="e.g. Thanksgiving dinner" />
+                <select id="flex-holiday" aria-label="Suggested holiday"><option value="">Holiday…</option></select>
+              </div>
+            </div>
+            <div class="form-row">
+              <span class="section-label">What did you eat? (no amounts needed)</span>
+              <div class="check-grid flex-menu" id="flex-menu"></div>
+              <input type="text" id="flex-food-search" placeholder="Search more foods…" autocomplete="off" />
+              <div id="flex-food-results" class="search-results"></div>
+            </div>
+            <div id="flex-picked" class="flex-picked"></div>
+            <div class="form-row">
+              <span class="section-label">How full did you get?</span>
+              <div class="check-grid" id="flex-fullness" role="radiogroup">
+                <label class="check-tile"><input type="radio" name="flex-full" value="light" /><span>Light</span></label>
+                <label class="check-tile"><input type="radio" name="flex-full" value="comfortable" checked /><span>Comfortable</span></label>
+                <label class="check-tile"><input type="radio" name="flex-full" value="full" /><span>Full</span></label>
+                <label class="check-tile"><input type="radio" name="flex-full" value="stuffed" /><span>Stuffed</span></label>
+              </div>
+            </div>
+            <div class="grid-2 form-grid">
+              <div class="form-row">
+                <span class="section-label">Plates / rounds</span>
+                <div class="check-grid" role="radiogroup">
+                  <label class="check-tile"><input type="radio" name="flex-plates" value="1" checked /><span>1</span></label>
+                  <label class="check-tile"><input type="radio" name="flex-plates" value="2" /><span>2</span></label>
+                  <label class="check-tile"><input type="radio" name="flex-plates" value="3" /><span>3+</span></label>
+                </div>
+              </div>
+              <div class="form-row">
+                <label for="flex-dessert">Dessert servings (optional)</label>
+                <input type="number" id="flex-dessert" min="0" max="6" step="1" value="0" />
+              </div>
+            </div>
+            <div class="flex-estimate" id="flex-estimate-out" aria-live="polite"></div>
+            <p class="hint" id="flex-cap-hint"></p>
+            <div class="card-actions">
+              <button type="button" class="btn btn-secondary" id="btn-flex-estimate">Estimate</button>
+              <button type="button" class="btn btn-primary" id="btn-flex-save">Add to meal</button>
+            </div>
+          </div>
+        </div>
 
         <!-- Add food: opened from a meal card's "+ Add food" button -->
         <div id="food-sheet" class="sheet-backdrop" hidden>

@@ -1372,13 +1372,33 @@ async function loadFoodLog() {
       if (!groups[l.meal]) groups[l.meal] = [];
       groups[l.meal].push(l);
     });
+    const flexGroups = {};
+    (data.flexMeals || []).forEach((m) => {
+      const k = order.includes(m.meal) ? m.meal : 'other';
+      (flexGroups[k] = flexGroups[k] || []).push(m);
+    });
+    const escH = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
     listEl.innerHTML = order
       .map((meal) => {
         const mealLogs = groups[meal] || [];
-        const mealCals = mealLogs.reduce((s, l) => s + l.calories, 0);
-        const items = mealLogs.length
-          ? mealLogs
+        const flexItems = flexGroups[meal] || [];
+        const mealCals = mealLogs.reduce((s, l) => s + l.calories, 0) + flexItems.reduce((s, m) => s + (m.estimateKcal || 0), 0);
+        const flexHtml = flexItems
+          .map(
+            (m) => `
+          <div class="diary-item flex-entry">
+            <div class="info">
+              <div class="name">${escH(m.label || 'Flex/holiday meal')} <span class="badge-flex">estimate</span></div>
+              <div class="meta">${m.estimateLow}–${m.estimateHigh} kcal likely${m.foods && m.foods.length ? ' · ' + m.foods.map((f) => escH(f.label)).join(', ') : ''}</div>
+            </div>
+            <div class="cals">≈${m.estimateKcal}</div>
+            <button class="btn btn-danger btn-sm" data-flex-meal="${escH(m.id)}" aria-label="Remove flex entry">×</button>
+          </div>`
+          )
+          .join('');
+        const items = mealLogs.length || flexItems.length
+          ? flexHtml + mealLogs
               .map(
                 (l) => `
           <div class="diary-item">
@@ -1401,7 +1421,10 @@ async function loadFoodLog() {
             </button>
             <div class="meal-items">
               ${items}
-              <button type="button" class="add-meal-btn" data-add-meal="${meal}">+ Add food</button>
+              <div class="meal-actions">
+                <button type="button" class="add-meal-btn" data-add-meal="${meal}">+ Add food</button>
+                <button type="button" class="add-meal-btn flex-meal-btn" data-flex-add="${meal}">Log flex/holiday</button>
+              </div>
             </div>
           </div>`;
       })
@@ -1420,7 +1443,16 @@ async function loadFoodLog() {
       btn.addEventListener('click', () => openFoodSheet(btn.dataset.addMeal));
     });
 
-    listEl.querySelectorAll('.btn-danger').forEach((btn) => {
+    listEl.querySelectorAll('[data-flex-add]').forEach((btn) => {
+      btn.addEventListener('click', () => window.FlexSport && window.FlexSport.openFlexSheet(btn.dataset.flexAdd));
+    });
+    listEl.querySelectorAll('[data-flex-meal]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        try { await window.FlexSport.removeFlexMeal(date, btn.dataset.flexMeal); } catch (err) { toast(err.message); }
+      });
+    });
+
+    listEl.querySelectorAll('.btn-danger[data-id]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         await api(`/food-logs/${btn.dataset.id}`, { method: 'DELETE' });
         toast('Removed');

@@ -11,6 +11,25 @@ const flexFoodSchema = new mongoose.Schema({
   grams: { type: Number, min: 0, default: 0 }
 }, { _id: false });
 
+// One flex/holiday estimate logged inside a meal slot on the Food page (additive; older docs
+// have no meals[] and keep their whole-day estimate in estimateKcal).
+const flexMealSchema = new mongoose.Schema({
+  meal: { type: String, enum: ['breakfast', 'lunch', 'dinner', 'snack', 'other'], default: 'dinner' },
+  label: { type: String, default: '', maxlength: 80 },
+  foods: { type: [flexFoodSchema], default: [] },
+  fullness: { type: String, enum: ['light', 'comfortable', 'full', 'stuffed'], default: 'comfortable' },
+  plates: { type: Number, min: 1, max: 3, default: 1 },
+  dessertServings: { type: Number, min: 0, max: 6, default: 0 },
+  estimateKcal: { type: Number, min: 0, default: 0 },
+  estimateLow: { type: Number, min: 0, default: 0 },
+  estimateHigh: { type: Number, min: 0, default: 0 },
+  confidence: { type: String, enum: ['low', 'medium'], default: 'low' },
+  baselineMeal: { type: Number, default: null }, // the slot baseline the estimate scaled from
+  baselineSource: { type: String, default: 'population' },
+  correctionUsed: { type: Number, default: 1 },
+  createdAt: { type: Date, default: Date.now }
+});
+
 const flexDaySchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   date: { type: String, required: true }, // local YYYY-MM-DD
@@ -20,6 +39,7 @@ const flexDaySchema = new mongoose.Schema({
   fullness: { type: String, enum: ['light', 'comfortable', 'full', 'stuffed'], default: 'comfortable' },
   plates: { type: Number, min: 1, max: 3, default: 1 },
   dessertServings: { type: Number, min: 0, max: 6, default: 0 },
+  meals: { type: [flexMealSchema], default: undefined }, // per-meal entries; day estimate = their sum
   estimateKcal: { type: Number, min: 0, default: 0 }, // midpoint; counts in totals
   estimateLow: { type: Number, min: 0, default: 0 },
   estimateHigh: { type: Number, min: 0, default: 0 },
