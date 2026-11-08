@@ -44,10 +44,10 @@ router.get('/', async (req, res) => {
       { calories: 0, protein: 0, carbs: 0, fat: 0 }
     );
     // A flex-day estimate counts toward today's calories (midpoint), flagged as an estimate.
-    const flexToday = await FlexDay.findOne({ user: req.session.userId, date: today }).select('estimateKcal estimateLow estimateHigh confidence label').lean();
+    const flexToday = await FlexDay.findOne({ user: req.session.userId, date: today }).select('estimateKcal estimateLow estimateHigh confidence label meals.meal meals.estimateKcal').lean();
     if (flexToday && flexToday.estimateKcal > 0) {
       todayTotals.calories += flexToday.estimateKcal;
-      todayTotals.flexEstimate = { kcal: flexToday.estimateKcal, low: flexToday.estimateLow, high: flexToday.estimateHigh, confidence: flexToday.confidence, label: flexToday.label };
+      todayTotals.flexEstimate = { kcal: flexToday.estimateKcal, low: flexToday.estimateLow, high: flexToday.estimateHigh, confidence: flexToday.confidence, label: flexToday.label, meals: (flexToday.meals || []).map((m) => ({ meal: m.meal, kcal: m.estimateKcal })) };
     }
 
     res.json({

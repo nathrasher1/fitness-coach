@@ -19,6 +19,17 @@ const CORRECTION_MIN = 0.7, CORRECTION_MAX = 1.4;
 const POP = { bigMeal: 1100, daily: 2200, minor: { bigMeal: 950, daily: 2000 } };
 // Percentile of per-meal totals used as "your big meal" (between 75th and 90th).
 const BIG_MEAL_PCT = 0.85;
+const MEAL_SLOTS = ['breakfast', 'lunch', 'dinner', 'snack', 'other'];
+// Typical size of each slot relative to the big meal, used until that slot has its own history.
+const SLOT_SHARE = { breakfast: 0.55, lunch: 0.75, dinner: 1, snack: 0.35, other: 0.6 };
+
+/** Baseline scaled for one meal slot: bigMeal becomes that slot's typical (85th pct) meal. */
+function forMeal(baseline, meal) {
+  const slot = MEAL_SLOTS.includes(meal) ? meal : 'dinner';
+  const slots = baseline.slots || {};
+  const v = slots[slot] || Math.round(baseline.bigMeal * SLOT_SHARE[slot]);
+  return { ...baseline, bigMeal: v, meal: slot, slotSource: slots[slot] ? baseline.source : 'population' };
+}
 
 // key, label, category, kcal per gram, typical plate share (relative weight), typical grams
 const HOLIDAY_MENU = [
@@ -66,11 +77,12 @@ function percentile(values, p) {
  */
 function computeBaseline(logs, { minor = false, excludeDates } = {}) {
   const skip = excludeDates instanceof Set ? excludeDates : new Set(excludeDates || []);
-  const meals = {}, days = {}, grams = {};
+  const meals = {}, days = {}, grams = {}, slotOf = {};
   for (const l of logs || []) {
     if (!l || skip.has(l.date) || !(l.calories > 0)) continue;
     const mk = l.date + '|' + (l.meal || 'other');
     meals[mk] = (meals[mk] || 0) + l.calories;
+    slotOf[mk] = MEAL_SLOTS.includes(l.meal) ? l.meal : 'other';
     days[l.date] = (days[l.date] || 0) + l.calories;
     if (l.amount > 0 && /^(g|gram|grams)$/i.test(l.amountUnit || '')) {
       const k = String(l.foodName || '').toLowerCase().trim();
@@ -89,7 +101,18 @@ function computeBaseline(logs, { minor = false, excludeDates } = {}) {
   const daily = Math.round(pDay ? w * pDay + (1 - w) * pop.daily : pop.daily);
   const portions = {};
   for (const [k, arr] of Object.entries(grams)) if (arr.length >= 2) portions[k] = Math.round(percentile(arr, 0.5));
-  return { bigMeal, daily, history, dayCount, mealCount: mealTotals.length, portions, source: w === 0 ? 'population' : w === 1 ? 'personal' : 'blended' };
+  // Per-slot baselines: dinner = big meal; other slots use their own 85th percentile when there
+  // is history for that slot (blended), else a population share of the big meal.
+  const slots = { dinner: bigMeal };
+  for (const slot of MEAL_SLOTS) {
+    if (slot === 'dinner') continue;
+    const vals = Object.keys(meals).filter((k) => slotOf[k] === slot).map((k) => meals[k]);
+    const fallback = Math.round(bigMeal * SLOT_SHARE[slot]);
+    const sw = vals.length >= 8 ? 1 : vals.length >= 3 ? 0.6 : 0;
+    const p = percentile(vals, BIG_MEAL_PCT);
+    slots[slot] = Math.round(p && sw ? Math.min(bigMeal, sw * p + (1 - sw) * fallback) : fallback);
+  }
+  return { bigMeal, daily, slots, history, dayCount, mealCount: mealTotals.length, portions, source: w === 0 ? 'population' : w === 1 ? 'personal' : 'blended' };
 }
 
 /** Resolve one selected food (menu key, or custom/database food with optional kcalPerG). */
@@ -200,4 +223,4 @@ function trendDelta(weights, flexDate) {
   return { deltaLbs: Math.round((mean(after) - mean(before) - slope * gapDays) * 100) / 100, weighIns: after.length };
 }
 
-module.exports = { trendDelta, FULLNESS, PLATES, NUDGE, DESSERT_KCAL, POP, BIG_MEAL_PCT, CORRECTION_MIN, CORRECTION_MAX, HOLIDAY_MENU, percentile, computeBaseline, resolveFood, estimate, calibrate, spreadFor };
+module.exports = { forMeal, MEAL_SLOTS, SLOT_SHARE, trendDelta, FULLNESS, PLATES, NUDGE, DESSERT_KCAL, POP, BIG_MEAL_PCT, CORRECTION_MIN, CORRECTION_MAX, HOLIDAY_MENU, percentile, computeBaseline, resolveFood, estimate, calibrate, spreadFor };

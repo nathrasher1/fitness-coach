@@ -1,6 +1,8 @@
 const express = require('express');
 const FoodLog = require('../models/FoodLog');
 const Food = require('../models/Food');
+const FlexDay = require('../models/FlexDay');
+const FD = require('../services/flexDays');
 const { requireAuth } = require('../middleware/auth');
 const { amountToServings, amountToGrams } = require('../services/portions');
 const Servings = require('../../client/lib/servings');
@@ -54,6 +56,20 @@ router.get('/', async (req, res) => {
     const totals = dayTotals(logs);
     const out = await withAmountLabels(logs);
 
+    // Flex/holiday estimates live in their own meal entries (separate from regular foods).
+    // Their midpoints count toward the day's calories; macros are unknown, so they add none.
+    const flexDoc = await FlexDay.findOne({ user: req.session.userId, date }).lean();
+    const flexMeals = FD.mealsOf(flexDoc).map((m) => ({
+      id: String(m._id), meal: m.meal, label: m.label || '', legacy: !!m.legacy,
+      estimateKcal: m.estimateKcal, estimateLow: m.estimateLow, estimateHigh: m.estimateHigh, confidence: m.confidence,
+      foods: (m.foods || []).map((f) => ({ label: f.label, nudge: f.nudge, kcal: f.kcal }))
+    }));
+    const flexSum = FD.sumMeals(flexMeals);
+    if (flexSum.estimateKcal > 0) {
+      totals.calories += flexSum.estimateKcal;
+      totals.flexEstimate = { kcal: flexSum.estimateKcal, low: flexSum.estimateLow, high: flexSum.estimateHigh, confidence: flexSum.confidence };
+    }
+
     // Attach recommendation targets so the UI can show remaining macros
     let targets = null;
     try {
@@ -73,7 +89,7 @@ router.get('/', async (req, res) => {
       // non-fatal
     }
 
-    res.json({ logs: out, totals, targets, date });
+    res.json({ logs: out, flexMeals, flexDay: !!flexDoc, totals, targets, date });
   } catch (err) {
     res.status(500).json({ error: 'Failed to load food logs' });
   }

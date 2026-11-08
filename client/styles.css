@@ -2334,3 +2334,15 @@ html.native .scan-card { margin-top: env(safe-area-inset-top, 0px); }
 .flex-estimate .est-mid { font-size: 1.4rem; font-weight: 700; }
 .flex-estimate .est-badge { display: inline-block; font-size: .75rem; padding: 2px 8px; border-radius: 999px; background: #fff3d6; color: #7a5a00; margin-left: 6px; vertical-align: middle; }
 .flex-estimate ul { margin: 6px 0 0; padding-left: 18px; }
+
+/* Flex / holiday entries inside meal cards */
+.meal-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.meal-actions .add-meal-btn { width: auto; }
+.meal-actions .flex-meal-btn { color: var(--accent); text-align: right; }
+.flex-entry { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.badge-flex { font-size: 0.7rem; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: var(--accent); color: #fff; margin-left: 4px; vertical-align: middle; }
+.flex-sheet .flex-menu { max-height: 220px; overflow-y: auto; }
+.flex-summary-line { margin: 8px 0 4px; }
+.flex-label-row { display: flex; gap: 8px; }
+.flex-label-row input { flex: 1 1 auto; min-width: 0; }
+.flex-label-row select { flex: 0 0 auto; max-width: 42%; }
