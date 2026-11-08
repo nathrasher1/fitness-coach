@@ -96,8 +96,8 @@ async function computeCalorieRecommendation(userId, today) {
   const suff = FD.sufficiencyWithFlex(foodDatesAll, weights.map((w) => w.date), todayKey, flexKeys, SUFFICIENT);
 
   // 1) From your logs: average intake corrected by the weight trend (needs 3+ logged days + 2 weigh-ins).
-  // Flex-day estimates count (their midpoint is added to that day's logged food) but as soft data,
-  // down-weighted in the average (FD.SOFT_WEIGHT) because they were estimated without a scale.
+  // Flex-day estimates count at full weight (their midpoint is added to that day's logged food).
+  // They are still flagged as estimates and satisfy the logging requirement.
   let fromLogs = null;
   let avgCalories = null;
   let calorieSampleSize = 0;

@@ -86,10 +86,10 @@ function sufficiencyWithFlex(foodDates, weightDates, todayKey, flexKeys, SUFFICI
 }
 
 /**
- * Weighted average daily intake. days: [{ kcal, soft }]; soft (flex-estimate) days get weight
- * SOFT_WEIGHT so one uncertain feast moves the average less than a logged day would.
+ * Average daily intake. days: [{ kcal, soft }]. Flex-estimate (soft) days count at SOFT_WEIGHT,
+ * currently full weight by design; kept as a knob in case it needs tuning later.
  */
-const SOFT_WEIGHT = 0.5;
+const SOFT_WEIGHT = 1; // flex estimates count at full weight (user decision); still flagged as estimates
 function weightedAverage(days) {
   let num = 0, den = 0;
   for (const d of days || []) { if (!(d.kcal > 0)) continue; const w = d.soft ? SOFT_WEIGHT : 1; num += w * d.kcal; den += w; }

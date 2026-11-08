@@ -31,12 +31,10 @@ describe('flexDays', () => {
     assert.equal(s.effectiveFoodDays, 5);
   });
 
-  it('down-weights soft (flex) days in the weighted average but still counts them', () => {
+  it('counts flex (soft) days at full weight in the average', () => {
     const hard = [2000, 2000, 2000].map((kcal) => ({ kcal, soft: false }));
-    const withFlex = FD.weightedAverage([...hard, { kcal: 5000, soft: true }]);
-    // (6000 + 0.5*5000) / 3.5 ≈ 2428.6 — higher than 2000, lower than the unweighted 2750
-    assert.ok(Math.abs(withFlex - 8500 / 3.5) < 0.01);
-    assert.ok(withFlex > 2000 && withFlex < 2750);
+    assert.equal(FD.SOFT_WEIGHT, 1);
+    assert.equal(FD.weightedAverage([...hard, { kcal: 5000, soft: true }]), 2750);
     assert.equal(FD.weightedAverage([]), null);
   });
 
