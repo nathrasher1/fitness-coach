@@ -2351,3 +2351,9 @@ html.native .scan-card { margin-top: env(safe-area-inset-top, 0px); }
 .wo-activity-picks { display: flex; flex-direction: column; gap: 12px; }
 .wo-act-group .section-label { margin-bottom: 6px; }
 .wo-act-group .check-grid { margin: 0; }
+
+/* Select activities sheet (programs stay on the main Workouts card) */
+.wo-select-activities-row { margin-bottom: 8px; }
+.wo-activities-sheet { max-height: 90vh; }
+.wo-activities-sheet .wo-activity-picks { max-height: 42vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.wo-activities-sheet #wo-recommended { display: flex; flex-wrap: wrap; gap: 8px; }
