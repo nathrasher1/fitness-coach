@@ -69,3 +69,37 @@ test('Settings schema adds activeRoutine and suggestedDaysPerWeek additively', (
   assert.match(src, /suggestedDaysPerWeek:/);
   assert.match(src, /enum: \['program', 'routine'\]/);
 });
+
+const W = require('../routes/workouts');
+
+test('catalog program lookup is independent of suggestion filters', () => {
+  const id = 'court_jump';
+  const filteredOut = choosePrograms(['Basketball'], PROGRAMS, { daysPerWeek: 4 });
+  assert.equal(filteredOut.length, 0, '4-day filter excludes court_jump');
+  const hit = W.findCatalogProgram(id);
+  assert.ok(hit);
+  assert.equal(hit.id, id);
+  assert.equal(hit.days.length, 2);
+  assert.equal(W.findCatalogProgram('missing-program'), null);
+});
+
+test('client opens active routine via detail fetch helpers (not suggestion cache alone)', () => {
+  const app = fs.readFileSync(path.join(__dirname, '../../client/app.js'), 'utf8');
+  assert.match(app, /async function ensureProgramCached/);
+  assert.match(app, /async function ensureRoutineDayCached/);
+  assert.match(app, /async function openActiveRoutineDetail/);
+  assert.match(app, /\/workouts\/programs\/' \+ encodeURIComponent\(id\)/);
+  assert.match(app, /\/workouts\/routines\/' \+ encodeURIComponent\(id\)/);
+  assert.match(app, /active-routine-open[\s\S]{0,200}openActiveRoutineDetail/);
+  assert.doesNotMatch(
+    app,
+    /active-routine-open[\s\S]{0,400}woPrograms\.has\(active\.id\)[\s\S]{0,80}loadPlans\(\)/
+  );
+});
+
+test('routes expose authenticated program and routine detail by id', () => {
+  const src = fs.readFileSync(path.join(__dirname, '../routes/workouts.js'), 'utf8');
+  assert.match(src, /router\.get\('\/programs\/:id'/);
+  assert.match(src, /router\.get\("\/routines\/:id"/);
+  assert.match(src, /Not filtered by activity selection/);
+});

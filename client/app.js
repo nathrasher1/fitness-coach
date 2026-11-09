@@ -2470,6 +2470,62 @@ function planCard(p, filtered) {
     <div class="plan-card-side">${bodyMapSvg(all, 'body-map-sm')}<span class="plan-open">View days ›</span></div>
   </button>`;
 }
+/** Fetch one catalog program by id (ignores activity / days filters) and cache it for the plan sheet. */
+async function ensureProgramCached(id) {
+  if (woPrograms.has(id)) return woPrograms.get(id);
+  const p = await api('/workouts/programs/' + encodeURIComponent(id));
+  const days = programDays(p);
+  woPrograms.set(p.id, { ...p, planDays: days });
+  return woPrograms.get(p.id);
+}
+
+/** Fetch one owned saved routine and register its day for openDayView. */
+async function ensureRoutineDayCached(id) {
+  const r = await api('/workouts/routines/' + encodeURIComponent(id));
+  const planDay = r.planDay || `routine:${r._id || r.id}`;
+  const day = {
+    planDay,
+    number: 1,
+    name: r.name,
+    sessionName: r.name,
+    details: r.details || (r.exercises || []).map((e) => ({
+      name: e.exerciseName || e.name,
+      exerciseId: e.exerciseId || e.exercise,
+      targetSets: e.targetSets,
+      targetReps: e.targetReps,
+      repMin: e.repMin,
+      repMax: e.repMax,
+      restSec: e.restSec
+    })),
+    routineId: String(r._id || r.id)
+  };
+  woPlanDays.set(planDay, day);
+  return day;
+}
+
+/** Home → Workouts: always open the pinned program/routine detail, independent of suggestion filters. */
+async function openActiveRoutineDetail() {
+  const active = settings && settings.activeRoutine;
+  if (!active || !active.id) return toast('No active routine set');
+  const nav = document.querySelector('#main-nav button[data-panel="workouts"]');
+  if (nav) nav.click();
+  try {
+    if (active.kind === 'program') {
+      await ensureProgramCached(active.id);
+      openPlanSheet(active.id);
+      return;
+    }
+    if (active.kind === 'routine') {
+      const day = await ensureRoutineDayCached(active.id);
+      openDayView(day.planDay);
+      return;
+    }
+    toast('Unknown active routine type');
+  } catch (err) {
+    toast(err.message || 'Could not open active routine');
+  }
+}
+
 function openPlanSheet(id) {
   const p = woPrograms.get(id);
   if (!p) return;
@@ -2855,14 +2911,7 @@ document.getElementById('active-routine-clear')?.addEventListener('click', async
   } catch (err) { toast(err.message); }
 });
 document.getElementById('active-routine-open')?.addEventListener('click', () => {
-  const b = document.querySelector('#main-nav button[data-panel="workouts"]');
-  if (b) b.click();
-  const active = settings && settings.activeRoutine;
-  if (active && active.kind === 'program') {
-    setTimeout(() => { if (woPrograms.has(active.id)) openPlanSheet(active.id); else loadPlans(); }, 200);
-  } else {
-    setTimeout(() => document.getElementById('wo-routines')?.scrollIntoView({ behavior: 'smooth' }), 200);
-  }
+  openActiveRoutineDetail();
 });
 
 document.getElementById('btn-select-activities')?.addEventListener('click', openActivitiesSheet);

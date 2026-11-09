@@ -296,6 +296,56 @@ router.get('/programs', async (req, res) => {
   }
 });
 
+/** Catalog lookup by id (independent of activity / days filters). */
+function findCatalogProgram(id) {
+  const key = String(id || '').trim();
+  return PROGRAMS.find((p) => p.id === key) || null;
+}
+
+async function programDetailsPayload(prog, userId, settings) {
+  const focusName = (settings?.trainingFocus || [])[0];
+  const range = P.rangeFor({ focus: focusName });
+  const defaults = { sets: range.focus === 'strength' || range.focus === 'power' ? 4 : 3, low: range.low, high: range.high };
+  const orders = settings?.programOrders || null;
+  const customNames = orders ? [...orders.values()].flat() : [];
+  const lookup = await exerciseLookup(
+    [...prog.days.flatMap((d) => d.exercises), ...customNames],
+    userId
+  );
+  return {
+    ...prog,
+    matchScore: 0,
+    matchFor: null,
+    days: prog.days.map((d, i) => {
+      const planDay = `${prog.id}:${d.name}`;
+      const custom = orders && orders.get(planDay);
+      const exercises = custom && custom.length ? custom : d.exercises;
+      return {
+        ...d,
+        exercises,
+        customized: !!(custom && custom.length),
+        number: i + 1,
+        planDay,
+        details: exercises.map((n) => detailFor(n, lookup.get(n.toLowerCase()), defaults))
+      };
+    })
+  };
+}
+
+// GET /api/workouts/programs/:id – one catalog program with day details (auth).
+// Not filtered by activity selection or days/week preference.
+router.get('/programs/:id', async (req, res) => {
+  try {
+    const prog = findCatalogProgram(req.params.id);
+    if (!prog) return res.status(404).json({ error: 'Program not found' });
+    const settings = await Settings.findOne({ user: req.session.userId });
+    res.json(await programDetailsPayload(prog, req.session.userId, settings));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load program' });
+  }
+});
+
 // GET /api/workouts/activities – the activity catalog (groups and types) for pickers
 router.get('/activities', (req, res) => {
   res.json({
@@ -668,6 +718,32 @@ router.post("/routines", async (req, res) => {
   }
 });
 
+// GET /api/workouts/routines/:id – one owned saved routine (auth + ownership)
+router.get("/routines/:id", async (req, res) => {
+  try {
+    if (!require('mongoose').Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid routine' });
+    }
+    const r = await Routine.findOne({ _id: req.params.id, user: req.session.userId }).lean();
+    if (!r) return res.status(404).json({ error: 'Routine not found' });
+    const lookup = await exerciseLookup(r.exercises.map((e) => e.exerciseName), req.session.userId);
+    res.json({
+      ...r,
+      id: String(r._id),
+      planDay: `routine:${r._id}`,
+      details: r.exercises.map((e) => {
+        const d = detailFor(e.exerciseName, lookup.get(String(e.exerciseName).toLowerCase()), {
+          sets: e.targetSets || 3, low: e.repMin || e.targetReps || 8, high: e.repMax || e.targetReps || 8
+        });
+        return { ...d, exerciseId: e.exercise || d.exerciseId, targetSets: e.targetSets || 3, targetReps: e.targetReps || 8, restSec: e.restSec };
+      })
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to load routine" });
+  }
+});
+
 // PUT /api/workouts/routines/:id – rename / reorder / swap exercises
 router.put("/routines/:id", async (req, res) => {
   try {
@@ -710,3 +786,4 @@ router.delete("/routines/:id", async (req, res) => {
 module.exports = router;
 module.exports.PROGRAMS = PROGRAMS;
 module.exports.CATALOG_DAY_OPTIONS = CATALOG_DAY_OPTIONS;
+module.exports.findCatalogProgram = findCatalogProgram;
