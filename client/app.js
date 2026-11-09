@@ -2578,25 +2578,53 @@ async function openActiveRoutineDetail() {
 }
 
 
-/** Static progression coaching for a catalog plan (teen-safe copy when needed). */
+/** Soften or drop adult max/failure wording before showing progression text to teens. */
+function teenSanitizeProgressionText(text) {
+  if (text == null || text === '') return '';
+  let t = String(text);
+  t = t
+    .replace(/\b1\s*-?\s*RM\b/gi, 'heavy single')
+    .replace(/training max(?:es)?/gi, 'working target')
+    .replace(/\bAMRAP\b/gi, 'optional extra reps')
+    .replace(/closer to failure/gi, 'a bit harder while still leaving reps in reserve')
+    .replace(/short of failure/gi, 'short of all-out')
+    .replace(/true failure/gi, 'all-out effort')
+    .replace(/to failure/gi, 'to all-out')
+    .replace(/\bfailure\b/gi, 'all-out effort')
+    .replace(/max[- ]?out(?:s|ing)?/gi, 'max attempt')
+    .replace(/max testing/gi, 'max attempts')
+    .replace(/max attempts?/gi, 'max attempts');
+  // Still unsafe after rewrite → hide the field rather than leak adult advice.
+  if (/\b(1\s*-?\s*rm|amrap|failure|max[- ]?out)\b/i.test(t)) return '';
+  return t;
+}
+
+/** Static progression coaching for a catalog plan (teen-safe across all fields). */
 function progressionPanelHtml(p) {
   const prog = p && p.progression;
   if (!prog) return '';
   const teen = !!(typeof currentUser !== 'undefined' && currentUser && currentUser.ageGroup === 'teen');
+  const show = (text) => (teen ? teenSanitizeProgressionText(text) : (text || ''));
   const row = (label, text) => text
     ? `<div class="prog-row"><strong>${esc(label)}</strong><p>${esc(text)}</p></div>`
     : '';
-  const effort = teen ? (prog.effortTeen || prog.effort) : prog.effort;
+  const effort = teen ? show(prog.effortTeen || prog.effort) : (prog.effort || '');
   const bits = [
-    row('How this app helps', prog.autoBehavior),
+    row('What the app automates', show(prog.autoBehavior)),
     row('Effort', effort),
-    row('Sets & reps', prog.setsReps),
-    row('When to progress', prog.whenToProgress),
-    row('Increments', prog.increments),
-    row('If you miss / fatigue', prog.ifMissed),
-    row('Recovery', prog.recovery)
+    row('Sets & reps', show(prog.setsReps)),
+    row('When to progress', show(prog.whenToProgress)),
+    row('Increments', show(prog.increments)),
+    row('If you miss / fatigue', show(prog.ifMissed)),
+    row('Recovery', show(prog.recovery))
   ].filter(Boolean);
   if (!teen && prog.adultOnly) bits.push(row('Advanced note', prog.adultOnly));
+  bits.unshift(row(
+    'Read this first',
+    teen
+      ? 'Longer-term notes are advisory only. The only automated tip is the next load/reps from your last logged sets. Leave reps in the tank; skip max attempts.'
+      : 'Longer-term cycle/wave notes are advisory only and are not enforced. The only automated tip is next load/reps from your last logged sets (double progression). If advisory text conflicts with that tip, follow the tip for this session.'
+  ));
   const insp = p.inspiration;
   let sources = '';
   if (insp && Array.isArray(insp.coaches)) {
@@ -2608,6 +2636,7 @@ function progressionPanelHtml(p) {
       sources = `<div class="prog-row"><strong>Public sources</strong><ul class="prog-sources">${links.join('')}</ul><p class="hint">Inspired by publicly shared principles; not affiliated or endorsed.</p></div>`;
     }
   }
+  // Teens: show sources without coach principle blurbs (those can mention failure in adult research notes).
   return `<details class="prog-panel"><summary>Progression guide</summary><div class="prog-body">${bits.join('')}${sources}</div></details>`;
 }
 

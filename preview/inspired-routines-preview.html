@@ -31,7 +31,7 @@
 <body>
   <div class="banner">SAMPLE PREVIEW — static mock of inspired catalog expansion. Not a logged-in Fitness Coach session. Not affiliated/endorsed by named coaches.</div>
   <h1>Inspired routines preview</h1>
-  <p class="hint">Filter by days/week (Any / 2 / 3 / 4 / 5). Existing plans like Full Body 3× and Upper/Lower stay in the real app; this preview focuses on the new inspired set.</p>
+  <p class="hint"><strong>Auto vs advisory:</strong> only logged double progression is automated; cycle/wave text is manual. Filter by days/week (Any / 2 / 3 / 4 / 5). Existing plans like Full Body 3× and Upper/Lower stay in the real app; this preview focuses on the new inspired set.</p>
   <div class="filters" role="radiogroup" aria-label="Days per week">
     <label><input type="radio" name="days" value="" checked /> Any</label>
     <label><input type="radio" name="days" value="2" /> 2</label>
@@ -42,9 +42,9 @@
   <div class="grid" id="list"></div>
 <script>
 const PROGRAMS = [
-  {id:'steady_strength_4day',name:'Steady Strength Builder',days:4,coach:'Marc Lobliner',effort:'Main lifts ~1–3 RIR; volume follow-ups further from failure. Cycle bump ~+5 upper / +10 lower after ~4 good weeks; deload week 4 (guidance only).',daysList:['Press + Volume','Hinge + Volume','Bench + Volume','Squat + Volume'],src:'tigerfitness.com 5/3/1 BBB guide'},
+  {id:'steady_strength_4day',name:'Steady Strength Builder',days:4,coach:'Wendler method (Tiger Fitness Lobliner-bylined discussion) + Lobliner overload article',effort:'Session tip = logged double progression only. Cycle/deload notes are manual advisory and do not override the tip.',daysList:['Press + Volume','Hinge + Volume','Bench + Volume','Squat + Volume'],src:'jimwendler.com BBB + tigerfitness 5/3/1 BBB discussion + Lobliner TUT/overload'},
   {id:'compound_ladder_3day',name:'Compound Ladder Strength',days:3,coach:'Marc Lobliner',effort:'Finish planned sets×reps before adding load. Mains ~5×5. Miss → repeat weight.',daysList:['Squat Focus','Press Focus','Hinge Focus'],src:'tigerfitness.com VPO-10 article (idea only)'},
-  {id:'athlete_mass_3day',name:'Athlete MASS Builder',days:3,coach:'Judd Lienhard',effort:'MASS pillars; quality landings; strength ~1–3 RIR. Paywalled Substack rules not attributed.',daysList:['Move + Strength','Athleticism + Pull','Strength + Speed'],src:'juddlienhard.com/about + Playbook blurb'},
+  {id:'athlete_mass_3day',name:'Athlete Strength Builder',days:3,coach:'Judd Lienhard',effort:'Movement/athleticism/strength/speed blend; quality landings. Not an official MASS product. Paywalled Substack rules not attributed.',daysList:['Move + Strength','Athleticism + Pull','Strength + Speed'],src:'juddlienhard.com/about + Playbook blurb'},
   {id:'frequent_stimulus_5day',name:'Frequent Stimulus Split',days:5,coach:'Judd Lienhard',effort:'Primary hard / secondary easy each day; short sessions. Progress primaries first.',daysList:['Push Hard · Pull Easy','Legs Hard · Core Easy','Pull Hard · Push Easy','Hinge/Glute Hard · Arms Easy','Shoulders/Arms Hard · Legs Easy'],src:'Playbook public hypertrophy description'},
   {id:'athletic_compound_4day',name:'Athletic Compound Strength',days:4,coach:'Jeff Cavaliere',effort:'Compounds + multi-plane work; overload via load/reps/density; form first.',daysList:['Push + Pull','Squat + Hinge','Press + Row Variety','Legs + Multi-Plane'],src:'learn.athleanx.com How To Get Stronger'},
   {id:'effort_physique_3day',name:'Effort-Based Physique',days:3,coach:'Sean Nalewanyj',effort:'Most sets ~1–2 RIR (RPE 8–9). Double progression on logged sets in the real app.',daysList:['Full Body A','Full Body B','Full Body C'],src:'seannal.com RPE article'},

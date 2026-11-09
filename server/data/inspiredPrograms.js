@@ -11,36 +11,47 @@ module.exports = [
     name: 'Steady Strength Builder',
     focus: 'strength',
     notes:
-      'Four main-lift days with lighter volume follow-ups. Inspired by publicly shared principles; not affiliated or endorsed. Sources: Marc Lobliner / Tiger Fitness 5/3/1 BBB guide.',
+      'Four main-lift days with lighter volume follow-ups. Inspired by publicly shared principles; not affiliated or endorsed. 5/3/1 BBB originated with Jim Wendler; a Tiger Fitness guide bylined Marc Lobliner discusses that method. Lobliner’s own verified progressive-overload writing is cited separately.',
     inspiration: {
       coaches: [
         {
-          name: 'Marc Lobliner',
+          name: 'Jim Wendler (method origin)',
           principles: [
-            'Long-term progressive overload with a training max, not a daily max-out.',
-            'Main lift for strength, then higher-rep volume on the same (or related) pattern.',
-            'Small training-max bumps after a multi-week cycle (+5 lb upper / +10 lb lower in his public guide).',
-            'A lighter recovery week every fourth week is part of the process.'
+            '5/3/1 + Boring But Big (BBB): main lift strength work plus higher-rep volume on the same lift pattern.',
+            'Long-term progressive overload using a training max, with planned lighter recovery weeks in the public method discussion.'
           ],
           sources: [
+            'https://www.jimwendler.com/blogs/jimwendler-com/101077382-boring-but-big',
             'https://tigerfitness.com/blogs/training/the-complete-5-3-1-bbb-program-guide-the-ultimate-blueprint-for-strength-size-and-simplicity'
-          ]
+          ],
+          note: 'Tiger Fitness hosting/byline does not make Wendler’s method a Lobliner creation. Cycle % tables are Wendler-associated; we do not ship them.'
+        },
+        {
+          name: 'Marc Lobliner',
+          principles: [
+            'Progressive overload (increasing load, reps, volume, or related variables over time) is the main driver of muscle gains (public Tiger Fitness article bylined Marc Lobliner).',
+            'Favor compound lifts with controlled form while progressing overload.'
+          ],
+          sources: [
+            'https://tigerfitness.com/blogs/training/time-under-tension-bad'
+          ],
+          note: 'Verified Lobliner byline on progressive overload. The same site’s 5/3/1 BBB guide is also bylined Lobliner but discusses Wendler’s method — credited under Wendler above, not as Lobliner-authored programming.'
         }
       ],
       designNote:
-        'Original exercise list and day names. We do not ship Wendler percentage tables or AMRAP prescriptions. Day-to-day load tips use this app’s logged-set double progression; cycle bumps and deload timing are written guidance only.'
+        'Original exercise list and day names. We do not ship Wendler percentage tables or AMRAP prescriptions. Optional multi-week cycle bumps/deloads are static advisory only and are not enforced by the app; day-to-day next-load tips come only from logged-set double progression.'
     },
     progression: {
       autoBehavior:
-        'When you log working sets, the app suggests the next load/reps with double progression (add a rep until the top of the range on every set, then add weight). That is not a personalized periodization engine and does not auto-run cycle bumps or deloads.',
+        'Automated next-load tips come only from your last logged working sets (double progression: add reps to the top of the range, then add weight). The app does not run training-max cycles, week-4 deloads, or percentage waves. If a longer-term advisory below disagrees with today’s in-session tip, follow the logged suggestion for this session and apply cycle/deload ideas manually only when you choose.',
       effort:
-        'On main lifts, stop with about 1–3 reps in reserve (RIR = how many clean reps you could still do). On volume follow-ups, stay further from failure and keep form crisp.',
+        'On main lifts, stop with about 1–3 reps in reserve (RIR = how many clean reps you could still do). On volume follow-ups, stay further from all-out and keep form crisp.',
       effortTeen:
         'Use challenging but controlled sets. Stop when form slows down — leave a couple of clean reps in the tank. Do not test maxes or grind until you cannot move the weight.',
       setsReps:
         'Main lifts: about 3–4 working sets in a strength range (roughly 3–6 reps). Volume follow-ups: 3–5 sets of about 8–12. Accessories: 2–3 sets of 10–15.',
       whenToProgress:
-        'Session to session: use the in-app suggestion from your last log. Every ~4 weeks of good sessions, optionally add ~5 lb to upper main lifts and ~10 lb to lower main lifts (smallest practical plates), then keep volume work moderate.',
+        'For each session: trust the automated tip from your last log. Separately (manual advisory only, not enforced): after ~4 weeks of good training you may choose a small upper/lower bump and an easier recovery week — that never overrides the per-session logged suggestion.',
       increments:
         'Upper compounds: +2.5–5 lb (or +1–2.5 kg). Lower compounds: +5–10 lb (or +2.5–5 kg). Dumbbells: next available pair.',
       ifMissed:
@@ -79,19 +90,22 @@ module.exports = [
         {
           name: 'Marc Lobliner',
           principles: [
-            'Prioritize standing compound lifts that load the whole chain (squat, hinge, overhead press).',
-            'Progressive overload: only add load after you complete the planned sets × reps.',
-            'If you miss sets/reps, repeat the same weight until you own it, then go up.'
+            'Prioritize standing compound lifts that load the whole chain (squat, hinge, overhead press) — VPO-10 article bylined Marc Lobliner.',
+            'Progressive overload: only add load after you complete the planned sets × reps; if you miss, repeat the weight until you own it (VPO-10).',
+            'Progressive overload (load, reps, volume, or related variables over time) is the main determinant of muscle gains (separate Lobliner-bylined Tiger Fitness article).'
           ],
-          sources: ['https://tigerfitness.com/blogs/workouts/vpo-10-training-muscle-growth']
+          sources: [
+            'https://tigerfitness.com/blogs/workouts/vpo-10-training-muscle-growth',
+            'https://tigerfitness.com/blogs/training/time-under-tension-bad'
+          ]
         }
       ],
       designNote:
-        'Original 3-day layout and set structure. We do not reproduce VPO-10’s 10×5 tables or six-day template. Ladder means: finish the planned sets at the target reps before adding weight.'
+        'Original 3-day layout and set structure. We do not reproduce VPO-10’s 10×5 tables or six-day template. Ladder means: finish the planned sets at the target reps before adding weight. This is verified Lobliner-bylined public writing, not Wendler 5/3/1.'
     },
     progression: {
       autoBehavior:
-        'In-app next-load tips still come from logged-set double progression. The ladder rule below is static coaching text, not an automated set-counter.',
+        'Automated next-load tips come only from logged-set double progression. The ladder “finish sets before adding load” note below is static advisory; if it conflicts with today’s in-session tip, follow the logged suggestion for this session.',
       effort:
         'Main compounds: leave ~1–2 reps in reserve (RIR). Assistance: ~2–3 RIR. Skip grinding form breakdown.',
       effortTeen:
@@ -124,10 +138,10 @@ module.exports = [
   },
   {
     id: 'athlete_mass_3day',
-    name: 'Athlete MASS Builder',
+    name: 'Athlete Strength Builder',
     focus: 'power',
     notes:
-      'Movement, athleticism, strength, and speed blended across three days. Inspired by publicly shared principles; not affiliated or endorsed. Sources: Judd Lienhard About (MASS Method) and public Playbook hypertrophy blurb.',
+      'Movement, athleticism, strength, and speed blended across three days. Inspired by publicly shared principles; not affiliated or endorsed. Not an official MASS Method product. Sources: Judd Lienhard About page and public Playbook blurb.',
     inspiration: {
       coaches: [
         {
@@ -147,7 +161,7 @@ module.exports = [
     },
     progression: {
       autoBehavior:
-        'Logged-set double progression still suggests next loads. Athletic quality (landing, sprint intent, ROM) is coached in text only — the app does not auto-score athleticism.',
+        'Automated next-load tips come only from logged-set double progression. Athletic quality (landing, sprint intent, ROM) is static advisory — the app does not auto-score athleticism or override the session tip.',
       effort:
         'Strength sets ~1–3 RIR. Jumps and med-ball work: quality and crisp landings over max fatigue. Stop a drill when speed or control drops.',
       effortTeen:
@@ -161,7 +175,7 @@ module.exports = [
       ifMissed:
         'Missed strength reps → hold load. Sloppy landings → regress height/volume. Soreness from sport practice → keep this session lighter (design intent: support athleticism, not bury it).',
       recovery:
-        'Leave room for skill/sport work. If you have hard practice days, treat one MASS day as movement quality only.'
+        'Leave room for skill/sport work. If you have hard practice days, treat one day as movement quality only.'
     },
     days: [
       {
@@ -203,7 +217,7 @@ module.exports = [
     },
     progression: {
       autoBehavior:
-        'In-app suggestions follow logged double progression per exercise. Weekly volume targets are guidance, not auto-adjusted.',
+        'Automated next-load tips come only from logged-set double progression per exercise. Weekly volume targets below are static advisory, not auto-adjusted; they do not override today’s session tip.',
       effort:
         'Primary lifts of the day: ~1–2 RIR. Secondary/minor work: ~2–4 RIR so it does not steal recovery from the next primary day.',
       effortTeen:
@@ -266,7 +280,7 @@ module.exports = [
     },
     progression: {
       autoBehavior:
-        'Weight/rep suggestions use logged double progression. Rest-time and ROM overloads are manual — log how you feel; the app does not time rests automatically.',
+        'Automated next-load tips come only from logged double progression. Rest-time and ROM overloads are manual advisory — the app does not time rests or override today’s session tip.',
       effort:
         'Compounds ~1–3 RIR with strict form. If weight will not move up, add a rep or keep rest honest before forcing load.',
       effortTeen:
@@ -324,7 +338,7 @@ module.exports = [
     },
     progression: {
       autoBehavior:
-        'Next-load tips still come from logged double progression. RPE/RIR is not auto-detected from your logs — you apply the effort target yourself.',
+        'Automated next-load tips come only from logged double progression. RPE/RIR is not auto-detected — you apply effort yourself. Effort text is advisory and does not change the session tip algorithm.',
       effort:
         'Aim to finish most working sets about 1–2 reps short of failure (RIR 1–2 ≈ RPE 8–9). RIR means “reps in reserve”: how many clean reps you could still do.',
       effortTeen:
@@ -378,7 +392,7 @@ module.exports = [
     },
     progression: {
       autoBehavior:
-        'The app does not auto-advance mesocycles or change your RIR for you. Logged double progression still suggests next session loads. Follow the wave text manually.',
+        'Automated next-load tips come only from logged-set double progression. The app does not auto-advance mesocycles, change RIR, or enforce deloads. Wave/deload text below is manual advisory; if it conflicts with today’s in-session tip, follow the logged suggestion for this session.',
       effort:
         'Example 4-week feel: week 1 ~3–4 RIR, week 2 ~2–3 RIR, week 3 ~1–2 RIR, week 4 deload (~4+ RIR, fewer sets). RIR = clean reps left in the tank.',
       effortTeen:
@@ -386,7 +400,7 @@ module.exports = [
       setsReps:
         'Compounds: 3–4×6–12. Isolation: 2–3×10–15. Optionally add one set to a lagging movement in weeks 2–3 only.',
       whenToProgress:
-        'Within a week: double progression on load/reps. Across the block: slightly closer to failure and/or +1 set on key lifts if recovering well.',
+        'Within a week: follow the automated double-progression tip from your log. Across a block (manual advisory only): you may choose slightly harder effort and/or +1 set on key lifts if recovering well — never as an automatic override of the session tip.',
       increments:
         'Small load bumps (~5 lb / next DB). Volume bumps: +1 set at a time, not a sudden jump.',
       ifMissed:
@@ -435,7 +449,7 @@ module.exports = [
     },
     progression: {
       autoBehavior:
-        'This plan aligns with the app’s built-in double progression suggestions from your last logged working sets. Still not a full auto-coach — you confirm loads in the session.',
+        'Automated next-load tips come only from logged-set double progression (this plan’s advisory matches that model). Still not a full auto-coach — confirm loads in the session; longer notes below never override the tip.',
       effort:
         'Work ~1–3 RIR. Prefer clean reps over sloppy load jumps. Tempo or stricter form counts as progress when weight is stuck.',
       effortTeen:

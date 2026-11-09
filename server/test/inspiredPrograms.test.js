@@ -104,3 +104,40 @@ test('sources file documents coaches without invented quotes', () => {
   assert.match(src, /not affiliated/i);
   assert.doesNotMatch(src, /"I always tell my athletes/);
 });
+
+test('Athlete Strength Builder display name; stable id unchanged', () => {
+  const p = findCatalogProgram('athlete_mass_3day');
+  assert.ok(p);
+  assert.equal(p.name, 'Athlete Strength Builder');
+  assert.doesNotMatch(p.name, /MASS Builder/i);
+});
+
+test('5/3/1 BBB credited as Wendler origin; Lobliner not claimed as method author', () => {
+  const p = findCatalogProgram('steady_strength_4day');
+  assert.ok(p);
+  const coaches = (p.inspiration.coaches || []).map((c) => c.name).join(' | ');
+  assert.match(coaches, /Wendler/i);
+  assert.match(coaches, /Lobliner/i);
+  assert.match(p.notes, /Wendler/i);
+  assert.match(p.notes, /not a Lobliner|Lobliner.?s own verified|discusses that method/i);
+  const lob = p.inspiration.coaches.find((c) => /Lobliner/i.test(c.name));
+  assert.ok(lob);
+  assert.ok(lob.sources.some((u) => /time-under-tension-bad/.test(u)));
+  assert.ok(!lob.principles.some((pr) => /5\/3\/1|Boring But Big|training max bumps/i.test(pr)));
+});
+
+test('compound ladder keeps verified Lobliner VPO-10 progression principle', () => {
+  const p = findCatalogProgram('compound_ladder_3day');
+  const lob = p.inspiration.coaches.find((c) => /Lobliner/i.test(c.name));
+  assert.ok(lob);
+  assert.ok(lob.sources.some((u) => /vpo-10/.test(u)));
+  assert.ok(lob.principles.some((pr) => /complete the planned sets|finish planned|repeat the weight/i.test(pr)));
+});
+
+test('client teen-sanitizes shared progression fields and clarifies auto vs advisory', () => {
+  const app = fs.readFileSync(path.join(__dirname, '../../client/app.js'), 'utf8');
+  assert.match(app, /function teenSanitizeProgressionText/);
+  assert.match(app, /What the app automates/);
+  assert.match(app, /If advisory text conflicts/);
+  assert.match(app, /teenSanitizeProgressionText\(text\)/);
+});
