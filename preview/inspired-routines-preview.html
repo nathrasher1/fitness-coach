@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sample preview — Inspired routines (not logged-in app)</title>
+<style>
+  :root { --bg:#0f1419; --card:#1a2332; --text:#e7ecf3; --muted:#9aa7b8; --accent:#5b9fd4; --border:#2a3548; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--text); padding:16px; }
+  .banner { background:#7a3b00; color:#fff; padding:10px 14px; border-radius:10px; font-weight:600; margin-bottom:16px; }
+  h1 { font-size:1.25rem; margin:0 0 8px; }
+  .hint { color:var(--muted); font-size:0.9rem; margin:0 0 16px; }
+  .filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+  .filters label { background:var(--card); border:1px solid var(--border); border-radius:999px; padding:6px 12px; font-size:0.85rem; cursor:pointer; }
+  .filters input { margin-right:6px; }
+  .grid { display:grid; gap:12px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px; cursor:pointer; text-align:left; color:inherit; width:100%; }
+  .card:hover, .card[aria-expanded="true"] { border-color:var(--accent); }
+  .tag { display:inline-block; font-size:0.7rem; background:rgba(91,159,212,.2); color:var(--accent); padding:2px 8px; border-radius:999px; margin-right:6px; }
+  .meta { color:var(--muted); font-size:0.8rem; margin-top:4px; }
+  .detail { display:none; margin-top:12px; border-top:1px solid var(--border); padding-top:12px; }
+  .card[aria-expanded="true"] .detail { display:block; }
+  .detail h3 { margin:12px 0 6px; font-size:0.95rem; }
+  .detail ul { margin:0; padding-left:1.1rem; color:var(--muted); font-size:0.88rem; }
+  .prog { background:rgba(0,0,0,.25); border-radius:10px; padding:10px; margin-top:8px; font-size:0.85rem; color:var(--muted); }
+  .prog strong { color:var(--text); }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+  <div class="banner">SAMPLE PREVIEW — static mock of inspired catalog expansion. Not a logged-in Fitness Coach session. Not affiliated/endorsed by named coaches.</div>
+  <h1>Inspired routines preview</h1>
+  <p class="hint">Filter by days/week (Any / 2 / 3 / 4 / 5). Existing plans like Full Body 3× and Upper/Lower stay in the real app; this preview focuses on the new inspired set.</p>
+  <div class="filters" role="radiogroup" aria-label="Days per week">
+    <label><input type="radio" name="days" value="" checked /> Any</label>
+    <label><input type="radio" name="days" value="2" /> 2</label>
+    <label><input type="radio" name="days" value="3" /> 3</label>
+    <label><input type="radio" name="days" value="4" /> 4</label>
+    <label><input type="radio" name="days" value="5" /> 5</label>
+  </div>
+  <div class="grid" id="list"></div>
+<script>
+const PROGRAMS = [
+  {id:'steady_strength_4day',name:'Steady Strength Builder',days:4,coach:'Marc Lobliner',effort:'Main lifts ~1–3 RIR; volume follow-ups further from failure. Cycle bump ~+5 upper / +10 lower after ~4 good weeks; deload week 4 (guidance only).',daysList:['Press + Volume','Hinge + Volume','Bench + Volume','Squat + Volume'],src:'tigerfitness.com 5/3/1 BBB guide'},
+  {id:'compound_ladder_3day',name:'Compound Ladder Strength',days:3,coach:'Marc Lobliner',effort:'Finish planned sets×reps before adding load. Mains ~5×5. Miss → repeat weight.',daysList:['Squat Focus','Press Focus','Hinge Focus'],src:'tigerfitness.com VPO-10 article (idea only)'},
+  {id:'athlete_mass_3day',name:'Athlete MASS Builder',days:3,coach:'Judd Lienhard',effort:'MASS pillars; quality landings; strength ~1–3 RIR. Paywalled Substack rules not attributed.',daysList:['Move + Strength','Athleticism + Pull','Strength + Speed'],src:'juddlienhard.com/about + Playbook blurb'},
+  {id:'frequent_stimulus_5day',name:'Frequent Stimulus Split',days:5,coach:'Judd Lienhard',effort:'Primary hard / secondary easy each day; short sessions. Progress primaries first.',daysList:['Push Hard · Pull Easy','Legs Hard · Core Easy','Pull Hard · Push Easy','Hinge/Glute Hard · Arms Easy','Shoulders/Arms Hard · Legs Easy'],src:'Playbook public hypertrophy description'},
+  {id:'athletic_compound_4day',name:'Athletic Compound Strength',days:4,coach:'Jeff Cavaliere',effort:'Compounds + multi-plane work; overload via load/reps/density; form first.',daysList:['Push + Pull','Squat + Hinge','Press + Row Variety','Legs + Multi-Plane'],src:'learn.athleanx.com How To Get Stronger'},
+  {id:'effort_physique_3day',name:'Effort-Based Physique',days:3,coach:'Sean Nalewanyj',effort:'Most sets ~1–2 RIR (RPE 8–9). Double progression on logged sets in the real app.',daysList:['Full Body A','Full Body B','Full Body C'],src:'seannal.com RPE article'},
+  {id:'size_wave_4day',name:'Size Wave Upper/Lower',days:4,coach:'Mike Israetel',effort:'Wave RIR easier→harder over ~3 weeks then deload. Not auto-mesocycle.',daysList:['Upper A','Lower A','Upper B','Lower B'],src:'rpstrength.com Progressing for Hypertrophy'},
+  {id:'double_progress_2day',name:'Double Progression Essentials',days:2,coach:'Jeremy Ethier',effort:'Add reps in range then add weight. Matches app suggestNext behavior.',daysList:['Session A','Session B'],src:'builtwithscience.com progressive overload'}
+];
+const list = document.getElementById('list');
+function render() {
+  const days = document.querySelector('input[name=days]:checked').value;
+  const rows = PROGRAMS.filter(p => !days || String(p.days) === days);
+  list.innerHTML = rows.map(p => `
+    <button type="button" class="card" aria-expanded="false" data-id="${p.id}">
+      <span class="tag">Inspired</span><span class="tag">${p.days} days</span>
+      <div><strong>${p.name}</strong></div>
+      <div class="meta">${p.coach} · sample preview</div>
+      <div class="detail">
+        <div class="prog"><strong>Progression (static guidance):</strong> ${p.effort}<br/><em>In the real app, logged-set double progression still suggests next loads — not a full auto periodization engine.</em></div>
+        <h3>Days</h3><ul>${p.daysList.map(d=>`<li>${d}</li>`).join('')}</ul>
+        <h3>Source note</h3><p class="meta">Inspired by publicly shared principles; not affiliated/endorsed. ${p.src}</p>
+      </div>
+    </button>`).join('') || '<p class="hint">No plans for that day count in this preview.</p>';
+  list.querySelectorAll('.card').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const open = btn.getAttribute('aria-expanded') === 'true';
+      list.querySelectorAll('.card').forEach(b => b.setAttribute('aria-expanded','false'));
+      btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+    });
+  });
+}
+document.querySelectorAll('input[name=days]').forEach(i => i.addEventListener('change', render));
+render();
+</script>
+</body>
+</html>

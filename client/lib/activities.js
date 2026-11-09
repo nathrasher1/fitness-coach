@@ -12,9 +12,9 @@
   const ARCHETYPES = {
     grappling: { label: 'Grappling (BJJ, wrestling, judo)', programs: ['bjj_strength'], lifts: ['Pull-Up', 'Romanian Deadlift', 'Farmer Carry', 'Pallof Press'] },
     striking: { label: 'Striking (boxing, Muay Thai, MMA)', programs: ['striking'], lifts: ['Medicine Ball Slam', 'Landmine Press', 'Trap Bar Deadlift', 'Jump Rope'] },
-    field_power: { label: 'Collision field sports (football, rugby)', programs: ['football'], lifts: ['Back Squat', 'Trap Bar Deadlift', 'Bench Press', 'Box Jump'] },
-    field_speed: { label: 'Running field sports (soccer, lacrosse)', programs: ['field_speed'], lifts: ['Trap Bar Deadlift', 'Bulgarian Split Squat', 'Broad Jump', 'Leg Curl'] },
-    court: { label: 'Court & jumping (basketball, volleyball)', programs: ['court_jump'], lifts: ['Box Jump', 'Front Squat', 'Bulgarian Split Squat', 'Calf Raise'] },
+    field_power: { label: 'Collision field sports (football, rugby)', programs: ['football', 'athlete_mass_3day', 'athletic_compound_4day'], lifts: ['Back Squat', 'Trap Bar Deadlift', 'Bench Press', 'Box Jump'] },
+    field_speed: { label: 'Running field sports (soccer, lacrosse)', programs: ['field_speed', 'athlete_mass_3day'], lifts: ['Trap Bar Deadlift', 'Bulgarian Split Squat', 'Broad Jump', 'Leg Curl'] },
+    court: { label: 'Court & jumping (basketball, volleyball)', programs: ['court_jump', 'athlete_mass_3day'], lifts: ['Box Jump', 'Front Squat', 'Bulgarian Split Squat', 'Calf Raise'] },
     racket: { label: 'Racket sports (tennis, pickleball)', programs: ['racket'], lifts: ['Lateral Lunge', 'Landmine Press', 'Face Pull', 'Pallof Press'] },
     rotational: { label: 'Bat, club & throwing (baseball, golf)', programs: ['softball'], lifts: ['Landmine Press', 'Pallof Press', 'Front Squat', 'Single-Arm Dumbbell Row'] },
     skating: { label: 'Skating & ice (hockey, figure skating)', programs: ['snow', 'field_speed'], lifts: ['Lateral Lunge', 'Front Squat', 'Box Jump', 'Pallof Press'] },
@@ -24,13 +24,13 @@
     snow: { label: 'Snow sports (ski, snowboard)', programs: ['snow'], lifts: ['Front Squat', 'Lateral Lunge', 'Box Jump', 'Romanian Deadlift'] },
     climbing: { label: 'Climbing (rock, bouldering)', programs: ['climbing'], lifts: ['Pull-Up', 'Chin-Up', 'Hanging Leg Raise', 'Farmer Carry'] },
     outdoor: { label: 'Hiking & outdoors (backpacking, rucking)', programs: ['endurance', 'mobility_core'], lifts: ['Step-Up', 'Walking Lunge', 'Suitcase Carry', 'Calf Raise'] },
-    strength: { label: 'Strength & physique (lifting)', programs: ['full_body_3day', 'upper_lower'], lifts: ['Back Squat', 'Bench Press', 'Barbell Row', 'Overhead Press'] },
-    olympic: { label: 'Olympic lifting & strongman', programs: ['football', 'full_body_3day'], lifts: ['Power Clean', 'Snatch', 'Front Squat', 'Push Press'] },
-    conditioning: { label: 'Fitness racing & HIIT (CrossFit, HYROX)', programs: ['metcon'], lifts: ['Wall Ball', 'Sled Push', 'Kettlebell Swing', 'Rowing Machine'] },
+    strength: { label: 'Strength & physique (lifting)', programs: ['full_body_3day', 'upper_lower', 'steady_strength_4day', 'compound_ladder_3day', 'athletic_compound_4day', 'effort_physique_3day', 'size_wave_4day', 'double_progress_2day', 'frequent_stimulus_5day'], lifts: ['Back Squat', 'Bench Press', 'Barbell Row', 'Overhead Press'] },
+    olympic: { label: 'Olympic lifting & strongman', programs: ['football', 'full_body_3day', 'athlete_mass_3day', 'athletic_compound_4day', 'steady_strength_4day'], lifts: ['Power Clean', 'Snatch', 'Front Squat', 'Push Press'] },
+    conditioning: { label: 'Fitness racing & HIIT (CrossFit, HYROX)', programs: ['metcon', 'athlete_mass_3day', 'frequent_stimulus_5day'], lifts: ['Wall Ball', 'Sled Push', 'Kettlebell Swing', 'Rowing Machine'] },
     mobility: { label: 'Mind-body & mobility (yoga, Pilates)', programs: ['mobility_core'], lifts: ['Turkish Get-Up', 'Dead Bug', 'Goblet Squat', 'Pallof Press'] },
     dance: { label: 'Dance, gymnastics & cheer', programs: ['court_jump', 'mobility_core'], lifts: ['Box Jump', 'Bulgarian Split Squat', 'Hanging Leg Raise', 'Push-Up'] },
     adaptive: { label: 'Adaptive & seated (wheelchair, para sports)', programs: ['seated_upper'], lifts: ['Lat Pulldown', 'Seated Cable Row', 'Dumbbell Shoulder Press', 'Pallof Press'] },
-    general: { label: 'General fitness', programs: ['full_body_3day', 'mobility_core'], lifts: ['Goblet Squat', 'Push-Up', 'Single-Arm Dumbbell Row', 'Plank'] }
+    general: { label: 'General fitness', programs: ['full_body_3day', 'mobility_core', 'double_progress_2day', 'effort_physique_3day'], lifts: ['Goblet Squat', 'Push-Up', 'Single-Arm Dumbbell Row', 'Plank'] }
   };
 
   // [name, archetype, optional secondary archetype]

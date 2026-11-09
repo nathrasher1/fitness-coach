@@ -2361,3 +2361,26 @@ html.native .scan-card { margin-top: env(safe-area-inset-top, 0px); }
 /* Home active routine card */
 .active-routine-line { font-size: 1.15rem; font-weight: 700; margin: 8px 0 4px; color: var(--main-text, var(--main)); }
 #wo-days-filter { margin-top: 4px; }
+
+
+/* Catalog progression coaching (static text; not auto-periodization) */
+.prog-panel {
+  margin: 8px 0 14px;
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 12px;
+  background: var(--surface-2, rgba(0,0,0,.03));
+  padding: 8px 12px;
+}
+.prog-panel summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style: disclosure-closed;
+}
+.prog-panel[open] summary { margin-bottom: 8px; }
+.prog-body { display: grid; gap: 10px; }
+.prog-row strong { display: block; font-size: 0.85rem; margin-bottom: 2px; }
+.prog-row p { margin: 0; font-size: 0.9rem; line-height: 1.4; color: var(--muted, #475467); }
+.prog-sources { margin: 4px 0 0; padding-left: 1.1rem; font-size: 0.85rem; }
+.plan-tag-inspired {
+  background: color-mix(in srgb, var(--accent, #3b82f6) 18%, transparent);
+}
