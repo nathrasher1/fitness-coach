@@ -290,18 +290,39 @@
 
         <div class="card wo-plan-card">
           <h2>Suggested Programs</h2>
-          <div class="form-row">
-            <span class="section-label" id="wo-program-activities-label">Activities</span>
-            <div class="check-grid wo-activity-picks" id="wo-program-activities" role="group" aria-labelledby="wo-program-activities-label"></div>
+          <div class="form-row wo-select-activities-row">
+            <button type="button" class="btn btn-secondary btn-block" id="btn-select-activities">Select activities</button>
+            <p class="hint" id="wo-activities-summary" aria-live="polite">No activities selected yet.</p>
             <p class="hint" id="wo-program-hint">Select one or more activities to see suggested programs.</p>
           </div>
           <div id="wo-programs"></div>
         </div>
 
-        <div class="card wo-plan-card">
-          <h2>Recommended lifts</h2>
-          <p class="hint">Based on your interests and training goal.</p>
-          <div id="wo-recommended"></div>
+        <!-- Activities + recommended lifts: opened by "Select activities" -->
+        <div id="wo-activities-sheet" class="sheet-backdrop" hidden>
+          <div class="sheet wo-activities-sheet" role="dialog" aria-modal="true" aria-labelledby="wo-activities-sheet-title">
+            <div class="sheet-grip" aria-hidden="true"></div>
+            <div class="sheet-head">
+              <div>
+                <div class="summary-kicker">Workouts</div>
+                <h2 id="wo-activities-sheet-title" class="food-sheet-title">Select activities</h2>
+              </div>
+              <button type="button" class="btn btn-ghost btn-sm" id="wo-activities-sheet-close" aria-label="Close">✕</button>
+            </div>
+            <p class="hint">Pick one or more activities for suggested programs. Recommended lifts still follow the sports you turned on in Settings.</p>
+            <div class="form-row">
+              <span class="section-label" id="wo-program-activities-label">Activities</span>
+              <div class="check-grid wo-activity-picks" id="wo-program-activities" role="group" aria-labelledby="wo-program-activities-label"></div>
+            </div>
+            <div class="form-row" style="margin-top:16px">
+              <h3 class="section-label" style="font-size:1rem;text-transform:none;letter-spacing:0">Recommended lifts</h3>
+              <p class="hint">Based on your interests and training goal.</p>
+              <div id="wo-recommended"></div>
+            </div>
+            <div class="card-actions" style="margin-top:16px">
+              <button type="button" class="btn btn-primary btn-block" id="wo-activities-sheet-done">Done</button>
+            </div>
+          </div>
         </div>
 
 

@@ -299,7 +299,47 @@ function selectedProgramActivities() {
   return [...document.querySelectorAll('#wo-program-activities .wo-act-check:checked')].map((c) => c.value);
 }
 
-/** Activity multi-select on the Workouts page: the user's own activities first, then every activity type. */
+function updateActivitiesSummary() {
+  const el = document.getElementById('wo-activities-summary');
+  if (!el) return;
+  const acts = selectedProgramActivities();
+  if (!acts.length) {
+    el.textContent = 'No activities selected yet.';
+    return;
+  }
+  const labels = acts.map((a) => ACT.ARCHETYPES[a]?.label || a);
+  el.textContent = labels.length === 1
+    ? `Selected: ${labels[0]}`
+    : `Selected: ${labels.length} activities (${labels.slice(0, 3).join(', ')}${labels.length > 3 ? '…' : ''})`;
+}
+
+const woActivitiesSheet = document.getElementById('wo-activities-sheet');
+let woActivitiesOpener = null;
+
+function openActivitiesSheet() {
+  if (!woActivitiesSheet) return;
+  woActivitiesOpener = document.activeElement;
+  renderActivityOptions();
+  renderRecommendedLifts();
+  woActivitiesSheet.hidden = false;
+  document.body.classList.add('sheet-open');
+  const closeBtn = document.getElementById('wo-activities-sheet-close');
+  if (closeBtn) closeBtn.focus();
+}
+
+function closeActivitiesSheet() {
+  if (!woActivitiesSheet || woActivitiesSheet.hidden) return;
+  woActivitiesSheet.hidden = true;
+  document.body.classList.remove('sheet-open');
+  updateActivitiesSummary();
+  const back = woActivitiesOpener && document.body.contains(woActivitiesOpener)
+    ? woActivitiesOpener
+    : document.getElementById('btn-select-activities');
+  if (back && back.focus) back.focus();
+  woActivitiesOpener = null;
+}
+
+/** Activity multi-select inside the Select activities sheet. */
 function renderActivityOptions() {
   const box = document.getElementById('wo-program-activities');
   if (!box) return;
@@ -319,6 +359,7 @@ function renderActivityOptions() {
     parts.unshift('<p class="hint">Tip: turn on sports in Settings to pin your own activities here.</p>');
   }
   box.innerHTML = parts.join('');
+  updateActivitiesSummary();
 }
 
 const TRAINING_FOCUS = ['Strength', 'Power', 'Hypertrophy', 'Conditioning', 'Endurance'];
@@ -2327,9 +2368,10 @@ async function loadPlans() {
           : `Plans for ${labels.length} activities (combined), best match first.`;
       }
     }
+    updateActivitiesSummary();
     woPrograms = new Map();
     if (!activities.length) {
-      pEl.innerHTML = '<div class="empty">No activities selected yet. Choose above to populate suggestions.</div>';
+      pEl.innerHTML = '<div class="empty">No activities selected yet. Use Select activities to populate suggestions.</div>';
       return;
     }
     if (!programs.length) { pEl.innerHTML = '<div class="empty">No programs for these activities.</div>'; return; }
@@ -2721,9 +2763,26 @@ async function restoreWorkoutDraft() {
 window.addEventListener('pagehide', () => flushDraft(true));
 document.addEventListener('visibilitychange', () => { if (document.hidden) flushDraft(true); });
 
-document.getElementById('wo-program-activities')?.addEventListener('change', (e) => {
-  if (e.target && e.target.classList.contains('wo-act-check')) loadPlans();
-});
+document.getElementById('btn-select-activities')?.addEventListener('click', openActivitiesSheet);
+document.getElementById('wo-activities-sheet-close')?.addEventListener('click', closeActivitiesSheet);
+document.getElementById('wo-activities-sheet-done')?.addEventListener('click', closeActivitiesSheet);
+if (woActivitiesSheet) {
+  woActivitiesSheet.addEventListener('click', (e) => {
+    if (e.target === woActivitiesSheet) closeActivitiesSheet();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && woActivitiesSheet && !woActivitiesSheet.hidden) {
+      e.preventDefault();
+      closeActivitiesSheet();
+    }
+  });
+  woActivitiesSheet.addEventListener('change', (e) => {
+    if (e.target && e.target.classList.contains('wo-act-check')) {
+      updateActivitiesSummary();
+      loadPlans();
+    }
+  });
+}
 
 document.getElementById('btn-load-routine').addEventListener('click', () => {
   loadPlans();
