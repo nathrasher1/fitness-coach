@@ -2,10 +2,13 @@
  * Rank suggested workout programs for one or more activities.
  * Empty selection → no suggestions (the Workouts page starts blank until the user picks).
  * Multiple selections → union of matches, deduped by program id (best score kept).
+ * Optional daysPerWeek → exact day-count match only (no invented/compressed plans).
  */
 const A = require('../../client/lib/activities');
 
 const GENERAL_IDS = ['full_body_3day', 'upper_lower', 'mobility_core'];
+/** Day counts present in the shipped PROGRAMS catalog (keep UI in sync). */
+const CATALOG_DAY_OPTIONS = [2, 3, 4];
 
 /** Parse ?activities=a,b and/or repeated ?activity= / ?focus= into a unique list. */
 function parseActivities(query = {}) {
@@ -30,6 +33,25 @@ function parseActivities(query = {}) {
   return out;
 }
 
+/** Parse days/week filter. null = any. Only exact integers; unknown values → null (any). */
+function parseDaysPerWeek(query = {}, fallback = null) {
+  const has =
+    Object.prototype.hasOwnProperty.call(query, 'daysPerWeek') ||
+    Object.prototype.hasOwnProperty.call(query, 'days');
+  if (!has) return normalizeDaysPerWeek(fallback);
+  const raw = query.daysPerWeek != null ? query.daysPerWeek : query.days;
+  // Explicit "any" (or empty) clears the filter even if a saved preference exists.
+  if (raw == null || raw === '' || String(raw).toLowerCase() === 'any') return null;
+  return normalizeDaysPerWeek(raw);
+}
+
+function normalizeDaysPerWeek(v) {
+  if (v == null || v === '' || String(v).toLowerCase() === 'any') return null;
+  const n = Number(v);
+  if (!Number.isInteger(n) || !CATALOG_DAY_OPTIONS.includes(n)) return null;
+  return n;
+}
+
 function forOne(activity, programs) {
   const arches = A.archetypesFor(activity);
   const weights = new Map(arches.map((a, i) => [a, i === 0 ? 2 : 1]));
@@ -52,9 +74,10 @@ function forOne(activity, programs) {
 /**
  * @param {string[]} activities selected activity names and/or archetype keys
  * @param {object[]} programs PROGRAMS catalog
+ * @param {{ daysPerWeek?: number|null }} [opts]
  * @returns {{ program, score, why }[]}
  */
-function choosePrograms(activities, programs) {
+function choosePrograms(activities, programs, opts = {}) {
   const list = (activities || []).map((a) => String(a || '').trim()).filter(Boolean);
   if (!list.length) return [];
 
@@ -80,9 +103,22 @@ function choosePrograms(activities, programs) {
     }
   }
 
-  return [...byId.values()].sort(
+  let out = [...byId.values()].sort(
     (a, b) => b.score - a.score || String(a.program.name).localeCompare(String(b.program.name))
   );
+  const days = normalizeDaysPerWeek(opts.daysPerWeek);
+  if (days != null) {
+    out = out.filter((r) => Array.isArray(r.program.days) && r.program.days.length === days);
+  }
+  return out;
 }
 
-module.exports = { parseActivities, choosePrograms, forOne, GENERAL_IDS };
+module.exports = {
+  parseActivities,
+  parseDaysPerWeek,
+  normalizeDaysPerWeek,
+  choosePrograms,
+  forOne,
+  GENERAL_IDS,
+  CATALOG_DAY_OPTIONS
+};

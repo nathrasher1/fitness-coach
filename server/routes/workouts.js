@@ -7,7 +7,7 @@ const WorkoutDraft = require('../models/WorkoutDraft');
 const { requireAuth } = require('../middleware/auth');
 const P = require('../../client/lib/progression');
 const A = require('../../client/lib/activities');
-const { parseActivities, choosePrograms } = require('../services/programPicker');
+const { parseActivities, parseDaysPerWeek, choosePrograms, CATALOG_DAY_OPTIONS } = require('../services/programPicker');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -262,7 +262,8 @@ function detailFor(name, doc, defaults) {
 router.get('/programs', async (req, res) => {
   const settings = await Settings.findOne({ user: req.session.userId });
   const activities = parseActivities(req.query);
-  const picks = choosePrograms(activities, PROGRAMS);
+  const daysPerWeek = parseDaysPerWeek(req.query, settings && settings.suggestedDaysPerWeek);
+  const picks = choosePrograms(activities, PROGRAMS, { daysPerWeek });
   const chosen = picks.map((r) => r.program);
   try {
     const focusName = (settings?.trainingFocus || [])[0];
@@ -297,7 +298,101 @@ router.get('/programs', async (req, res) => {
 
 // GET /api/workouts/activities – the activity catalog (groups and types) for pickers
 router.get('/activities', (req, res) => {
-  res.json({ groups: A.GROUPS.map((g) => ({ label: g.label, items: g.items.map((i) => i[0]) })), types: Object.entries(A.ARCHETYPES).map(([key, a]) => ({ key, label: a.label })) });
+  res.json({
+    groups: A.GROUPS.map((g) => ({ label: g.label, items: g.items.map((i) => i[0]) })),
+    types: Object.entries(A.ARCHETYPES).map(([key, a]) => ({ key, label: a.label })),
+    dayOptions: CATALOG_DAY_OPTIONS
+  });
+});
+
+function activeView(doc) {
+  if (!doc || !doc.kind || !doc.id) return null;
+  return {
+    kind: doc.kind,
+    id: String(doc.id),
+    name: doc.name || '',
+    daysPerWeek: doc.daysPerWeek == null ? null : doc.daysPerWeek,
+    setAt: doc.setAt || null
+  };
+}
+
+// GET /api/workouts/active-routine – Home card payload (null when none set)
+router.get('/active-routine', async (req, res) => {
+  try {
+    const settings = await Settings.findOne({ user: req.session.userId }).select('activeRoutine').lean();
+    res.json({ active: activeView(settings && settings.activeRoutine) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load active routine' });
+  }
+});
+
+// PUT /api/workouts/active-routine { kind:'program'|'routine', id } or { clear:true }
+// Replaces the Home active plan without deleting saved routines or history.
+router.put('/active-routine', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const userId = req.session.userId;
+    if (b.clear === true || b.active === null) {
+      await Settings.findOneAndUpdate(
+        { user: userId },
+        { $unset: { activeRoutine: 1 }, $set: { updatedAt: new Date() } },
+        { upsert: true, setDefaultsOnInsert: true }
+      );
+      return res.json({ active: null });
+    }
+    const kind = String(b.kind || '').trim();
+    const id = String(b.id || '').trim().slice(0, 80);
+    if (kind !== 'program' && kind !== 'routine') return res.status(400).json({ error: 'Pick a program or saved routine' });
+    if (!id) return res.status(400).json({ error: 'Missing id' });
+
+    let name = '';
+    let daysPerWeek = null;
+    if (kind === 'program') {
+      const prog = PROGRAMS.find((p) => p.id === id);
+      if (!prog) return res.status(404).json({ error: 'Program not found' });
+      name = prog.name;
+      daysPerWeek = prog.days.length;
+    } else {
+      if (!require('mongoose').Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid routine' });
+      const routine = await Routine.findOne({ _id: id, user: userId }).lean();
+      if (!routine) return res.status(404).json({ error: 'Routine not found' });
+      name = routine.name;
+      daysPerWeek = 1; // a saved routine is one session
+    }
+    const activeRoutine = { kind, id, name, daysPerWeek, setAt: new Date() };
+    await Settings.findOneAndUpdate(
+      { user: userId },
+      { $set: { activeRoutine, updatedAt: new Date() } },
+      { upsert: true, setDefaultsOnInsert: true }
+    );
+    res.json({ active: activeView(activeRoutine) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save active routine' });
+  }
+});
+
+// PUT /api/workouts/suggested-days { daysPerWeek: 2|3|4|null }
+router.put('/suggested-days', async (req, res) => {
+  try {
+    const raw = (req.body || {}).daysPerWeek;
+    let daysPerWeek = null;
+    if (raw != null && raw !== '' && String(raw).toLowerCase() !== 'any') {
+      const n = Number(raw);
+      if (!CATALOG_DAY_OPTIONS.includes(n)) return res.status(400).json({ error: 'Days per week must be 2, 3, or 4 (or any)' });
+      daysPerWeek = n;
+    }
+    const settings = await Settings.findOneAndUpdate(
+      { user: req.session.userId },
+      { $set: { suggestedDaysPerWeek: daysPerWeek, updatedAt: new Date() } },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    res.json({ daysPerWeek: settings.suggestedDaysPerWeek == null ? null : settings.suggestedDaysPerWeek, dayOptions: CATALOG_DAY_OPTIONS });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save days filter' });
+  }
 });
 
 // ---------- In-progress workout draft (autosave) ----------
@@ -614,3 +709,4 @@ router.delete("/routines/:id", async (req, res) => {
 
 module.exports = router;
 module.exports.PROGRAMS = PROGRAMS;
+module.exports.CATALOG_DAY_OPTIONS = CATALOG_DAY_OPTIONS;

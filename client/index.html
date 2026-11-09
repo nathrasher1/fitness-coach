@@ -191,6 +191,16 @@
           <p class="hint">Logged from the Food page with “Log flex/holiday” on a meal. Counts toward your totals as an estimate; your streak is protected.</p>
         </div>
 
+
+        <div class="card" id="active-routine-card" hidden>
+          <div class="flex-between"><h2 style="margin:0">Active routine</h2><button type="button" class="link-btn" id="active-routine-clear" hidden>Clear</button></div>
+          <p class="active-routine-line" id="active-routine-line"></p>
+          <p class="hint" id="active-routine-meta"></p>
+          <div class="card-actions">
+            <button type="button" class="btn btn-primary btn-block" id="active-routine-open">Open in Workouts</button>
+          </div>
+        </div>
+
         <div class="card">
           <h2>Today’s Intake</h2>
           <div id="today-intake" class="macro-progress"></div>
@@ -313,6 +323,16 @@
             <div class="form-row">
               <span class="section-label" id="wo-program-activities-label">Activities</span>
               <div class="check-grid wo-activity-picks" id="wo-program-activities" role="group" aria-labelledby="wo-program-activities-label"></div>
+            </div>
+            <div class="form-row" style="margin-top:16px">
+              <span class="section-label" id="wo-days-label">Days per week</span>
+              <p class="hint">Exact match to the plan’s schedule. Catalog plans are 2, 3, or 4 days — we don’t invent shorter versions.</p>
+              <div class="check-grid" id="wo-days-filter" role="radiogroup" aria-labelledby="wo-days-label">
+                <label class="check-tile"><input type="radio" name="wo-days" value="" checked /><span>Any</span></label>
+                <label class="check-tile"><input type="radio" name="wo-days" value="2" /><span>2 days</span></label>
+                <label class="check-tile"><input type="radio" name="wo-days" value="3" /><span>3 days</span></label>
+                <label class="check-tile"><input type="radio" name="wo-days" value="4" /><span>4 days</span></label>
+              </div>
             </div>
             <div class="form-row" style="margin-top:16px">
               <h3 class="section-label" style="font-size:1rem;text-transform:none;letter-spacing:0">Recommended lifts</h3>

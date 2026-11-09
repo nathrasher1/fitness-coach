@@ -303,14 +303,38 @@ function updateActivitiesSummary() {
   const el = document.getElementById('wo-activities-summary');
   if (!el) return;
   const acts = selectedProgramActivities();
+  const days = selectedDaysPerWeek();
+  const dayBit = days ? `, ${days} days/week` : '';
   if (!acts.length) {
-    el.textContent = 'No activities selected yet.';
+    el.textContent = 'No activities selected yet' + (days ? ` · filtering ${days} days/week` : '') + '.';
     return;
   }
   const labels = acts.map((a) => ACT.ARCHETYPES[a]?.label || a);
   el.textContent = labels.length === 1
-    ? `Selected: ${labels[0]}`
-    : `Selected: ${labels.length} activities (${labels.slice(0, 3).join(', ')}${labels.length > 3 ? '…' : ''})`;
+    ? `Selected: ${labels[0]}${dayBit}`
+    : `Selected: ${labels.length} activities (${labels.slice(0, 3).join(', ')}${labels.length > 3 ? '…' : ''})${dayBit}`;
+}
+
+/** Days/week filter from the Select activities sheet (null = any). */
+function selectedDaysPerWeek() {
+  const el = document.querySelector('#wo-days-filter input[name="wo-days"]:checked');
+  if (!el || !el.value) return null;
+  const n = Number(el.value);
+  return n === 2 || n === 3 || n === 4 ? n : null;
+}
+
+function setDaysPerWeekUI(days) {
+  const v = days == null ? '' : String(days);
+  const input = document.querySelector(`#wo-days-filter input[name="wo-days"][value="${v}"]`)
+    || document.querySelector('#wo-days-filter input[name="wo-days"][value=""]');
+  if (input) input.checked = true;
+}
+
+async function persistDaysPerWeek(days) {
+  try {
+    await api('/workouts/suggested-days', { method: 'PUT', body: JSON.stringify({ daysPerWeek: days }) });
+    if (settings) settings.suggestedDaysPerWeek = days;
+  } catch (err) { toast(err.message); }
 }
 
 const woActivitiesSheet = document.getElementById('wo-activities-sheet');
@@ -424,6 +448,8 @@ function selectedInterests() {
 async function loadSettings() {
   try {
     settings = await api('/settings');
+    setDaysPerWeekUI(settings.suggestedDaysPerWeek);
+    if (settings.activeRoutine === undefined) settings.activeRoutine = null;
     const unit = document.getElementById('unit-pref');
     const foodUnit = document.getElementById('food-weight-unit');
     const days = document.getElementById('cal-avg-days');
@@ -529,8 +555,29 @@ async function loadActivity() {
 }
 window.loadActivity = loadActivity;
 
+
+async function loadActiveRoutineCard() {
+  const card = document.getElementById('active-routine-card');
+  if (!card) return;
+  try {
+    const data = await api('/workouts/active-routine');
+    const active = data && data.active;
+    if (settings) settings.activeRoutine = active || null;
+    if (!active) { card.hidden = true; return; }
+    card.hidden = false;
+    document.getElementById('active-routine-line').textContent = active.name || 'Active routine';
+    const kindLabel = active.kind === 'program'
+      ? `${active.daysPerWeek || '—'}-day suggested program`
+      : 'Saved routine (1 session)';
+    document.getElementById('active-routine-meta').textContent = kindLabel + ' · pinned to Home. Switching active never deletes your other routines.';
+    const clearBtn = document.getElementById('active-routine-clear');
+    if (clearBtn) clearBtn.hidden = false;
+  } catch (e) { card.hidden = true; }
+}
+
 async function loadDashboard() {
   loadActivity();
+  loadActiveRoutineCard();
   try {
     const data = await api(`/dashboard?days=${currentPeriodDays}`);
     const statsEl = document.getElementById('overview-stats');
@@ -2341,7 +2388,11 @@ async function loadPlans() {
   woPlanDays = new Map();
   try {
     const activities = selectedProgramActivities();
-    const q = activities.length ? '?activities=' + activities.map(encodeURIComponent).join(',') : '';
+    const days = selectedDaysPerWeek();
+    const params = [];
+    if (activities.length) params.push('activities=' + activities.map(encodeURIComponent).join(','));
+    if (days) params.push('daysPerWeek=' + days);
+    const q = params.length ? '?' + params.join('&') : '';
     const [programs, routines, history] = await Promise.all([
       api('/workouts/programs' + q),
       api('/workouts/routines').catch(() => []),
@@ -2363,9 +2414,10 @@ async function loadPlans() {
         hint.textContent = 'Select one or more activities to see suggested programs.';
       } else {
         const labels = activities.map((a) => ACT.ARCHETYPES[a]?.label || a);
-        hint.textContent = labels.length === 1
+        const dayHint = days ? ` · ${days} days/week only` : '';
+        hint.textContent = (labels.length === 1
           ? `Plans for ${labels[0]}, best match first.`
-          : `Plans for ${labels.length} activities (combined), best match first.`;
+          : `Plans for ${labels.length} activities (combined), best match first.`) + dayHint;
       }
     }
     updateActivitiesSummary();
@@ -2374,7 +2426,12 @@ async function loadPlans() {
       pEl.innerHTML = '<div class="empty">No activities selected yet. Use Select activities to populate suggestions.</div>';
       return;
     }
-    if (!programs.length) { pEl.innerHTML = '<div class="empty">No programs for these activities.</div>'; return; }
+    if (!programs.length) {
+      pEl.innerHTML = days
+        ? `<div class="empty">No ${days}-day programs match these activities. Try Any days, or pick different activities.</div>`
+        : '<div class="empty">No programs for these activities.</div>';
+      return;
+    }
     pEl.innerHTML = `<div class="plan-grid">${programs.map((p) => planCard(p, true)).join('')}</div>`;
     if (woReopenPlan && woPrograms.has(woReopenPlan)) openPlanSheet(woReopenPlan);
     woReopenPlan = null;
@@ -2417,17 +2474,30 @@ function openPlanSheet(id) {
   const p = woPrograms.get(id);
   if (!p) return;
   const sheet = document.getElementById('wo-sheet');
+  const isActive = settings.activeRoutine && settings.activeRoutine.kind === 'program' && settings.activeRoutine.id === p.id;
   sheet.innerHTML = `<div class="sheet plan-sheet" role="dialog" aria-modal="true" aria-label="${esc(p.name)}">
     <div class="sheet-grip" aria-hidden="true"></div>
     <div class="sheet-head"><div><div class="summary-kicker">${p.planDays.length}-day plan${p.matchFor ? ' · for ' + esc(p.matchFor) : ''}</div><strong class="summary-title">${esc(p.name)}</strong></div><button type="button" class="icon-btn" data-sheet-close aria-label="Close">×</button></div>
     ${p.notes ? `<p class="hint">${esc(p.notes)}</p>` : ''}
     <div class="day-grid plan-sheet-days">${p.planDays.map((d) => dayCard(d)).join('')}</div>
     <p class="hint plan-sheet-foot">Tap a day to see the exercises, reorder or swap them, and start.</p>
+    <button type="button" class="btn ${isActive ? 'btn-secondary' : 'btn-primary'} btn-block" data-set-active-program="${esc(p.id)}" ${isActive ? 'disabled' : ''}>${isActive ? 'Active on Home' : 'Set as active routine'}</button>
   </div>`;
   sheet.hidden = false;
   document.body.classList.add('sheet-open');
-  sheet.onclick = (ev) => {
+  sheet.onclick = async (ev) => {
     if (ev.target === sheet || ev.target.closest('[data-sheet-close]')) return closeWoSheet();
+    const setBtn = ev.target.closest('[data-set-active-program]');
+    if (setBtn) {
+      try {
+        const r = await api('/workouts/active-routine', { method: 'PUT', body: JSON.stringify({ kind: 'program', id: setBtn.dataset.setActiveProgram }) });
+        settings.activeRoutine = r.active;
+        toast('Active routine saved to Home');
+        closeWoSheet();
+        loadActiveRoutineCard();
+      } catch (err) { toast(err.message); }
+      return;
+    }
     const c = ev.target.closest('[data-day]');
     if (c) { closeWoSheet(); woDayFromPlan = id; openDayView(c.dataset.day); }
   };
@@ -2501,6 +2571,7 @@ function renderDayView() {
         </div>`).join('')}
     </div>
     <p class="hint dd-hint">Drag ⠿ to reorder (saved${v.routineId ? ' to this routine' : ' for you'}).</p>
+    ${v.routineId ? `<button type="button" class="btn btn-secondary btn-block" data-dd="set-active-routine">Set as active routine</button>` : ''}
     <button type="button" class="btn btn-primary btn-block btn-lg dd-start" data-dd="start">Start Workout</button>`;
 }
 
@@ -2533,6 +2604,17 @@ document.getElementById('wo-day-view').addEventListener('click', (e) => {
   if (!b || !woDayView) return;
   if (b.dataset.dd === 'back') { const from = woDayFromPlan; closeDayView(); if (from) openPlanSheet(from); return; }
   if (b.dataset.dd === 'start') return startDay(woDayView);
+  if (b.dataset.dd === 'set-active-routine') {
+    (async () => {
+      try {
+        const r = await api('/workouts/active-routine', { method: 'PUT', body: JSON.stringify({ kind: 'routine', id: woDayView.routineId }) });
+        settings.activeRoutine = r.active;
+        toast('Active routine saved to Home');
+        loadActiveRoutineCard();
+      } catch (err) { toast(err.message); }
+    })();
+    return;
+  }
   if (b.dataset.ddSwap != null) {
     const i = Number(b.dataset.ddSwap);
     const d = woDayView.details[i];
@@ -2763,6 +2845,26 @@ async function restoreWorkoutDraft() {
 window.addEventListener('pagehide', () => flushDraft(true));
 document.addEventListener('visibilitychange', () => { if (document.hidden) flushDraft(true); });
 
+
+document.getElementById('active-routine-clear')?.addEventListener('click', async () => {
+  try {
+    await api('/workouts/active-routine', { method: 'PUT', body: JSON.stringify({ clear: true }) });
+    settings.activeRoutine = null;
+    toast('Active routine cleared');
+    loadActiveRoutineCard();
+  } catch (err) { toast(err.message); }
+});
+document.getElementById('active-routine-open')?.addEventListener('click', () => {
+  const b = document.querySelector('#main-nav button[data-panel="workouts"]');
+  if (b) b.click();
+  const active = settings && settings.activeRoutine;
+  if (active && active.kind === 'program') {
+    setTimeout(() => { if (woPrograms.has(active.id)) openPlanSheet(active.id); else loadPlans(); }, 200);
+  } else {
+    setTimeout(() => document.getElementById('wo-routines')?.scrollIntoView({ behavior: 'smooth' }), 200);
+  }
+});
+
 document.getElementById('btn-select-activities')?.addEventListener('click', openActivitiesSheet);
 document.getElementById('wo-activities-sheet-close')?.addEventListener('click', closeActivitiesSheet);
 document.getElementById('wo-activities-sheet-done')?.addEventListener('click', closeActivitiesSheet);
@@ -2776,8 +2878,15 @@ if (woActivitiesSheet) {
       closeActivitiesSheet();
     }
   });
-  woActivitiesSheet.addEventListener('change', (e) => {
+  woActivitiesSheet.addEventListener('change', async (e) => {
     if (e.target && e.target.classList.contains('wo-act-check')) {
+      updateActivitiesSummary();
+      loadPlans();
+      return;
+    }
+    if (e.target && e.target.name === 'wo-days') {
+      const days = selectedDaysPerWeek();
+      await persistDaysPerWeek(days);
       updateActivitiesSummary();
       loadPlans();
     }
