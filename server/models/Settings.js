@@ -26,6 +26,16 @@ const settingsSchema = new mongoose.Schema({
   flexCorrection: { type: Number, min: 0.7, max: 1.4, default: 1 },
   // Recurring practice weekdays (0=Sun..6=Sat); empty = none. Acts like planned training days for streaks.
   practiceDays: { type: [Number], default: undefined },
+  // Active workout plan shown on the Home screen (program catalog id or saved Routine id).
+  activeRoutine: {
+    kind: { type: String, enum: ['program', 'routine'] },
+    id: { type: String, maxlength: 80 },
+    name: { type: String, maxlength: 120 },
+    daysPerWeek: { type: Number, min: 1, max: 7 },
+    setAt: { type: Date }
+  },
+  // Suggested-programs filter: exact days/week (2–4 in the current catalog). null/undefined = any.
+  suggestedDaysPerWeek: { type: Number, min: 2, max: 4, default: null },
   favoriteFoodIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Food' }],
   updatedAt: { type: Date, default: Date.now }
 });
