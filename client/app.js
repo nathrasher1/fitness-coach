@@ -294,18 +294,31 @@ document.getElementById('interest-selected')?.addEventListener('click', (e) => {
   updateInterestSummary();
 });
 
-/** Activity dropdown on the Workouts page: the user's own activities first, then every activity type. */
+/** Selected activities on the Workouts page (multi-select). Starts empty → no suggestions. */
+function selectedProgramActivities() {
+  return [...document.querySelectorAll('#wo-program-activities .wo-act-check:checked')].map((c) => c.value);
+}
+
+/** Activity multi-select on the Workouts page: the user's own activities first, then every activity type. */
 function renderActivityOptions() {
-  const sel = document.getElementById('wo-program-focus');
-  if (!sel) return;
-  const prev = sel.value;
+  const box = document.getElementById('wo-program-activities');
+  if (!box) return;
+  const prev = new Set(selectedProgramActivities());
   const mine = [...new Set((settings.interests || []).filter((n) => ACT.archetypesFor(n).length).map((n) => (ACT.lookup(n) || { name: n }).name))];
   const types = Object.entries(ACT.ARCHETYPES);
-  sel.innerHTML = '<option value="">Recommended for my activities</option>' +
-    (mine.length ? `<optgroup label="Your activities">${mine.map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join('')}</optgroup>` : '') +
-    `<optgroup label="All activity types">${types.map(([k, a]) => `<option value="${k}">${esc(a.label)}</option>`).join('')}</optgroup>`;
-  const legacy = ACT.LEGACY_FOCUS[prev];
-  sel.value = [...sel.options].some((o) => o.value === prev) ? prev : legacy || '';
+  const tile = (value, label) => {
+    const on = prev.has(value) || (ACT.LEGACY_FOCUS[value] && prev.has(ACT.LEGACY_FOCUS[value]));
+    return `<label class="check-tile"><input type="checkbox" class="wo-act-check" value="${esc(value)}" ${on ? 'checked' : ''} /><span>${esc(label)}</span></label>`;
+  };
+  const parts = [];
+  if (mine.length) {
+    parts.push('<div class="wo-act-group"><div class="section-label">Your activities</div><div class="check-grid">' + mine.map((n) => tile(n, n)).join('') + '</div></div>');
+  }
+  parts.push('<div class="wo-act-group"><div class="section-label">Activity types</div><div class="check-grid">' + types.map(([k, a]) => tile(k, a.label)).join('') + '</div></div>');
+  if (!mine.length) {
+    parts.unshift('<p class="hint">Tip: turn on sports in Settings to pin your own activities here.</p>');
+  }
+  box.innerHTML = parts.join('');
 }
 
 const TRAINING_FOCUS = ['Strength', 'Power', 'Hypertrophy', 'Conditioning', 'Endurance'];
@@ -2286,9 +2299,10 @@ function dayCard(day) {
 async function loadPlans() {
   woPlanDays = new Map();
   try {
-    const activity = document.getElementById('wo-program-focus').value;
+    const activities = selectedProgramActivities();
+    const q = activities.length ? '?activities=' + activities.map(encodeURIComponent).join(',') : '';
     const [programs, routines, history] = await Promise.all([
-      api(`/workouts/programs${activity ? '?activity=' + encodeURIComponent(activity) : ''}`),
+      api('/workouts/programs' + q),
       api('/workouts/routines').catch(() => []),
       api('/workouts?limit=50').catch(() => [])
     ]);
@@ -2304,14 +2318,22 @@ async function loadPlans() {
     const pEl = document.getElementById('wo-programs');
     const hint = document.getElementById('wo-program-hint');
     if (hint) {
-      const label = activity ? (ACT.ARCHETYPES[activity]?.label || activity) : '';
-      hint.textContent = activity
-        ? `Plans built for ${label}, best match first.`
-        : (settings.interests || []).length ? 'Ranked by the activities you picked in Settings. Tap a plan to see its days.' : 'Pick activities in Settings to tailor these. Tap a plan to see its days.';
+      if (!activities.length) {
+        hint.textContent = 'Select one or more activities to see suggested programs.';
+      } else {
+        const labels = activities.map((a) => ACT.ARCHETYPES[a]?.label || a);
+        hint.textContent = labels.length === 1
+          ? `Plans for ${labels[0]}, best match first.`
+          : `Plans for ${labels.length} activities (combined), best match first.`;
+      }
     }
     woPrograms = new Map();
-    if (!programs.length) { pEl.innerHTML = '<div class="empty">No programs for this activity.</div>'; return; }
-    pEl.innerHTML = `<div class="plan-grid">${programs.map((p) => planCard(p, !!activity)).join('')}</div>`;
+    if (!activities.length) {
+      pEl.innerHTML = '<div class="empty">No activities selected yet. Choose above to populate suggestions.</div>';
+      return;
+    }
+    if (!programs.length) { pEl.innerHTML = '<div class="empty">No programs for these activities.</div>'; return; }
+    pEl.innerHTML = `<div class="plan-grid">${programs.map((p) => planCard(p, true)).join('')}</div>`;
     if (woReopenPlan && woPrograms.has(woReopenPlan)) openPlanSheet(woReopenPlan);
     woReopenPlan = null;
   } catch (err) {
@@ -2699,7 +2721,9 @@ async function restoreWorkoutDraft() {
 window.addEventListener('pagehide', () => flushDraft(true));
 document.addEventListener('visibilitychange', () => { if (document.hidden) flushDraft(true); });
 
-document.getElementById('wo-program-focus').addEventListener('change', loadPlans);
+document.getElementById('wo-program-activities')?.addEventListener('change', (e) => {
+  if (e.target && e.target.classList.contains('wo-act-check')) loadPlans();
+});
 
 document.getElementById('btn-load-routine').addEventListener('click', () => {
   loadPlans();

@@ -2346,3 +2346,8 @@ html.native .scan-card { margin-top: env(safe-area-inset-top, 0px); }
 .flex-label-row { display: flex; gap: 8px; }
 .flex-label-row input { flex: 1 1 auto; min-width: 0; }
 .flex-label-row select { flex: 0 0 auto; max-width: 42%; }
+
+/* Suggested programs: multi-select activities */
+.wo-activity-picks { display: flex; flex-direction: column; gap: 12px; }
+.wo-act-group .section-label { margin-bottom: 6px; }
+.wo-act-group .check-grid { margin: 0; }

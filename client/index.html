@@ -291,11 +291,9 @@
         <div class="card wo-plan-card">
           <h2>Suggested Programs</h2>
           <div class="form-row">
-            <label for="wo-program-focus">Activity</label>
-            <select id="wo-program-focus">
-              <option value="">Recommended for my activities</option>
-            </select>
-            <p class="hint" id="wo-program-hint">Plans are ranked by the sports and activities in Settings. Pick one to see plans built for it.</p>
+            <span class="section-label" id="wo-program-activities-label">Activities</span>
+            <div class="check-grid wo-activity-picks" id="wo-program-activities" role="group" aria-labelledby="wo-program-activities-label"></div>
+            <p class="hint" id="wo-program-hint">Select one or more activities to see suggested programs.</p>
           </div>
           <div id="wo-programs"></div>
         </div>

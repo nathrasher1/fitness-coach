@@ -7,6 +7,7 @@ const WorkoutDraft = require('../models/WorkoutDraft');
 const { requireAuth } = require('../middleware/auth');
 const P = require('../../client/lib/progression');
 const A = require('../../client/lib/activities');
+const { parseActivities, choosePrograms } = require('../services/programPicker');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -221,40 +222,6 @@ const PROGRAMS = [
   }
 ];
 
-const GENERAL_IDS = ['full_body_3day', 'upper_lower', 'mobility_core'];
-
-/**
- * Pick and order programs for one activity (dropdown) or, with no activity, for all the user's interests.
- * Returns [{ program, score, why }] where `why` names the activity or type that matched.
- */
-function choosePrograms(activity, interests) {
-  if (activity) {
-    const arches = A.archetypesFor(activity);
-    const weights = new Map(arches.map((a, i) => [a, i === 0 ? 2 : 1]));
-    const hit = A.lookup(activity);
-    const label = hit ? hit.name : (A.ARCHETYPES[activity] ? A.ARCHETYPES[activity].label.replace(/ \(.*\)$/, '') : activity);
-    const ranked = A.rankPrograms(PROGRAMS, weights).filter((r) => r.score > 0);
-    const out = ranked.map((r) => ({ program: r.p, score: r.score, why: label }));
-    // Always leave a general option at the end as a fallback.
-    const backup = PROGRAMS.find((p) => p.id === 'full_body_3day');
-    if (!out.some((r) => r.program.id === backup.id)) out.push({ program: backup, score: 0, why: null });
-    return out;
-  }
-  if (!interests.length) return PROGRAMS.map((p) => ({ program: p, score: 0, why: null }));
-  const weights = new Map();
-  const whyFor = new Map();
-  interests.forEach((name) => {
-    A.archetypesFor(name).forEach((a, i) => {
-      weights.set(a, (weights.get(a) || 0) + (i === 0 ? 2 : 1));
-      if (!whyFor.has(a)) whyFor.set(a, (A.lookup(name) || { name }).name);
-    });
-  });
-  const ranked = A.rankPrograms(PROGRAMS, weights);
-  const matched = ranked.filter((r) => r.score > 0).map((r) => ({ program: r.p, score: r.score, why: whyFor.get(r.arch) || null }));
-  const general = PROGRAMS.filter((p) => GENERAL_IDS.includes(p.id) && !matched.some((r) => r.program.id === p.id))
-    .map((p) => ({ program: p, score: 0, why: null }));
-  return [...matched, ...general];
-}
 
 const MUSCLE_FIELDS = 'name pattern primaryMuscles secondaryMuscles equipment category imageUrl';
 
@@ -289,14 +256,13 @@ function detailFor(name, doc, defaults) {
   };
 }
 
-// GET /api/workouts/programs – suggested splits by sport focus
+// GET /api/workouts/programs – suggested splits for selected activities (blank until the user picks).
 // Each day keeps `exercises` (names, unchanged) and gains `details` (muscles, targets) for plan cards.
+// Query: activities=a,b and/or repeated activity= / focus=. Empty selection → [].
 router.get('/programs', async (req, res) => {
   const settings = await Settings.findOne({ user: req.session.userId });
-  const interests = (settings?.interests || []).map((s) => String(s));
-  // `activity` is the dropdown value (an activity name or type key). `focus` is the old parameter and still works.
-  const activity = String(req.query.activity || req.query.focus || '').trim().slice(0, 80);
-  const picks = choosePrograms(activity, interests);
+  const activities = parseActivities(req.query);
+  const picks = choosePrograms(activities, PROGRAMS);
   const chosen = picks.map((r) => r.program);
   try {
     const focusName = (settings?.trainingFocus || [])[0];
