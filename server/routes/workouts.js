@@ -7,7 +7,8 @@ const WorkoutDraft = require('../models/WorkoutDraft');
 const { requireAuth } = require('../middleware/auth');
 const P = require('../../client/lib/progression');
 const A = require('../../client/lib/activities');
-const { parseActivities, parseDaysPerWeek, choosePrograms, CATALOG_DAY_OPTIONS } = require('../services/programPicker');
+const { parseActivities, parseDaysPerWeek, choosePrograms, CATALOG_DAY_OPTIONS, syncCatalogDayOptions } = require('../services/programPicker');
+const INSPIRED_PROGRAMS = require('../data/inspiredPrograms');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -47,7 +48,7 @@ router.get('/exercises/:id/swaps', async (req, res) => {
   }
 });
 
-const PROGRAMS = [
+const CORE_PROGRAMS = [
   {
     id: 'full_body_3day',
     name: 'Full Body 3×/week',
@@ -221,6 +222,9 @@ const PROGRAMS = [
     ]
   }
 ];
+
+const PROGRAMS = CORE_PROGRAMS.concat(INSPIRED_PROGRAMS);
+syncCatalogDayOptions(PROGRAMS);
 
 
 const MUSCLE_FIELDS = 'name pattern primaryMuscles secondaryMuscles equipment category imageUrl';

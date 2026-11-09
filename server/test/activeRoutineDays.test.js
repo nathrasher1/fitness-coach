@@ -10,20 +10,23 @@ const {
 } = require('../services/programPicker');
 const { PROGRAMS } = require('../routes/workouts');
 
-test('catalog day options are exactly 2, 3, 4', () => {
-  assert.deepEqual(CATALOG_DAY_OPTIONS, [2, 3, 4]);
-  const counts = new Set(PROGRAMS.map((p) => p.days.length));
-  assert.deepEqual([...counts].sort((a, b) => a - b), [2, 3, 4]);
+test('catalog day options match PROGRAMS day counts', () => {
+  const counts = [...new Set(PROGRAMS.map((p) => p.days.length))].sort((a, b) => a - b);
+  assert.deepEqual([...CATALOG_DAY_OPTIONS], counts);
+  assert.ok(counts.includes(2) && counts.includes(3) && counts.includes(4));
 });
 
-test('normalizeDaysPerWeek: any / invalid → null; 2–4 kept', () => {
+test('normalizeDaysPerWeek: any / invalid → null; catalog counts kept', () => {
   assert.equal(normalizeDaysPerWeek(null), null);
   assert.equal(normalizeDaysPerWeek('any'), null);
-  assert.equal(normalizeDaysPerWeek(5), null);
   assert.equal(normalizeDaysPerWeek(2), 2);
   assert.equal(parseDaysPerWeek({ daysPerWeek: '3' }), 3);
   assert.equal(parseDaysPerWeek({}, 4), 4);
   assert.equal(parseDaysPerWeek({ daysPerWeek: 'any' }, 3), null);
+  // 5 is valid only when the catalog includes a 5-day plan
+  if (CATALOG_DAY_OPTIONS.includes(5)) assert.equal(normalizeDaysPerWeek(5), 5);
+  else assert.equal(normalizeDaysPerWeek(5), null);
+  assert.equal(normalizeDaysPerWeek(99), null);
 });
 
 test('no activities still yields no programs even with a days filter', () => {

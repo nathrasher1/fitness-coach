@@ -7,8 +7,28 @@
 const A = require('../../client/lib/activities');
 
 const GENERAL_IDS = ['full_body_3day', 'upper_lower', 'mobility_core'];
-/** Day counts present in the shipped PROGRAMS catalog (keep UI in sync). */
+/** Day counts present in the shipped PROGRAMS catalog (mutated by syncCatalogDayOptions). */
 const CATALOG_DAY_OPTIONS = [2, 3, 4];
+
+/** Unique day lengths from a programs array (1–7). */
+function deriveCatalogDayOptions(programs) {
+  const set = new Set();
+  for (const p of programs || []) {
+    const n = p && Array.isArray(p.days) ? p.days.length : 0;
+    if (Number.isInteger(n) && n >= 1 && n <= 7) set.add(n);
+  }
+  return [...set].sort((a, b) => a - b);
+}
+
+/** Keep CATALOG_DAY_OPTIONS in lockstep with the live catalog (in-place mutate). */
+function syncCatalogDayOptions(programs) {
+  const derived = deriveCatalogDayOptions(programs);
+  if (derived.length) {
+    CATALOG_DAY_OPTIONS.length = 0;
+    CATALOG_DAY_OPTIONS.push(...derived);
+  }
+  return CATALOG_DAY_OPTIONS;
+}
 
 /** Parse ?activities=a,b and/or repeated ?activity= / ?focus= into a unique list. */
 function parseActivities(query = {}) {
@@ -120,5 +140,7 @@ module.exports = {
   choosePrograms,
   forOne,
   GENERAL_IDS,
-  CATALOG_DAY_OPTIONS
+  CATALOG_DAY_OPTIONS,
+  deriveCatalogDayOptions,
+  syncCatalogDayOptions
 };

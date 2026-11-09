@@ -315,19 +315,67 @@ function updateActivitiesSummary() {
     : `Selected: ${labels.length} activities (${labels.slice(0, 3).join(', ')}${labels.length > 3 ? '…' : ''})${dayBit}`;
 }
 
+/** Catalog day counts from /workouts/activities (fallback until loaded). */
+let woCatalogDayOptions = [2, 3, 4];
+
+function catalogDayOptions() {
+  return woCatalogDayOptions && woCatalogDayOptions.length ? woCatalogDayOptions : [2, 3, 4];
+}
+
+/** Rebuild Any + N-day radios so filters always match the live catalog. */
+function renderDaysFilter(options, preferred) {
+  const box = document.getElementById('wo-days-filter');
+  if (!box) return;
+  const opts = (options && options.length ? options : [2, 3, 4])
+    .map(Number)
+    .filter((n) => Number.isInteger(n) && n >= 1 && n <= 7);
+  woCatalogDayOptions = opts.length ? opts : [2, 3, 4];
+  const cur = preferred != null ? preferred : selectedDaysPerWeek();
+  const keep = cur != null && woCatalogDayOptions.includes(cur) ? cur : null;
+  const tiles = ['<label class="check-tile"><input type="radio" name="wo-days" value=""' + (keep == null ? ' checked' : '') + ' /><span>Any</span></label>']
+    .concat(woCatalogDayOptions.map((n) =>
+      `<label class="check-tile"><input type="radio" name="wo-days" value="${n}"${keep === n ? ' checked' : ''} /><span>${n} day${n === 1 ? '' : 's'}</span></label>`
+    ));
+  box.innerHTML = tiles.join('');
+  const hint = box.previousElementSibling;
+  if (hint && hint.classList.contains('hint')) {
+    hint.textContent = 'Exact match to the plan’s schedule. Catalog plans are '
+      + woCatalogDayOptions.join(', ').replace(/, ([^,]*)$/, ', or $1')
+      + ' days — we don’t invent other lengths.';
+  }
+}
+
 /** Days/week filter from the Select activities sheet (null = any). */
 function selectedDaysPerWeek() {
   const el = document.querySelector('#wo-days-filter input[name="wo-days"]:checked');
   if (!el || !el.value) return null;
   const n = Number(el.value);
-  return n === 2 || n === 3 || n === 4 ? n : null;
+  return catalogDayOptions().includes(n) ? n : null;
 }
 
 function setDaysPerWeekUI(days) {
   const v = days == null ? '' : String(days);
-  const input = document.querySelector(`#wo-days-filter input[name="wo-days"][value="${v}"]`)
+  let input = document.querySelector(`#wo-days-filter input[name="wo-days"][value="${v}"]`)
     || document.querySelector('#wo-days-filter input[name="wo-days"][value=""]');
+  if (!input && days != null) {
+    renderDaysFilter(catalogDayOptions().includes(Number(days))
+      ? catalogDayOptions()
+      : [...new Set([...catalogDayOptions(), Number(days)])].filter((n) => Number.isInteger(n)).sort((a, b) => a - b),
+      days);
+    input = document.querySelector(`#wo-days-filter input[name="wo-days"][value="${v}"]`)
+      || document.querySelector('#wo-days-filter input[name="wo-days"][value=""]');
+  }
   if (input) input.checked = true;
+}
+
+async function ensureCatalogDayOptions() {
+  try {
+    const r = await api('/workouts/activities');
+    const preferred = settings && settings.suggestedDaysPerWeek != null
+      ? settings.suggestedDaysPerWeek
+      : selectedDaysPerWeek();
+    renderDaysFilter(r.dayOptions || catalogDayOptions(), preferred);
+  } catch (_) { /* keep fallback radios */ }
 }
 
 async function persistDaysPerWeek(days) {
@@ -343,6 +391,7 @@ let woActivitiesOpener = null;
 function openActivitiesSheet() {
   if (!woActivitiesSheet) return;
   woActivitiesOpener = document.activeElement;
+  ensureCatalogDayOptions();
   renderActivityOptions();
   renderRecommendedLifts();
   woActivitiesSheet.hidden = false;
@@ -448,6 +497,7 @@ function selectedInterests() {
 async function loadSettings() {
   try {
     settings = await api('/settings');
+    await ensureCatalogDayOptions();
     setDaysPerWeekUI(settings.suggestedDaysPerWeek);
     if (settings.activeRoutine === undefined) settings.activeRoutine = null;
     const unit = document.getElementById('unit-pref');
@@ -2457,8 +2507,9 @@ function planCard(p, filtered) {
   const all = days.flatMap((d) => d.details);
   const mins = days.length ? Math.round(days.reduce((s, d) => s + dayMinutes(d), 0) / days.length) : 0;
   const last = days.map(lastDoneFor).filter(Boolean).sort().pop() || null;
-  const tag = p.matchFor ? `<span class="plan-tag">For ${esc(p.matchFor)}</span>`
-    : filtered ? '<span class="plan-tag plan-tag-muted">General backup</span>' : '';
+  const inspired = p.inspiration ? '<span class="plan-tag plan-tag-inspired">Inspired</span>' : '';
+  const tag = (p.matchFor ? `<span class="plan-tag">For ${esc(p.matchFor)}</span>`
+    : filtered ? '<span class="plan-tag plan-tag-muted">General backup</span>' : '') + inspired;
   return `<button type="button" class="plan-card" data-plan="${esc(p.id)}" aria-haspopup="dialog">
     <div class="plan-card-main">
       ${tag}
@@ -2526,6 +2577,69 @@ async function openActiveRoutineDetail() {
   }
 }
 
+
+/** Soften or drop adult max/failure wording before showing progression text to teens. */
+function teenSanitizeProgressionText(text) {
+  if (text == null || text === '') return '';
+  let t = String(text);
+  t = t
+    .replace(/\b1\s*-?\s*RM\b/gi, 'heavy single')
+    .replace(/training max(?:es)?/gi, 'working target')
+    .replace(/\bAMRAP\b/gi, 'optional extra reps')
+    .replace(/closer to failure/gi, 'a bit harder while still leaving reps in reserve')
+    .replace(/short of failure/gi, 'short of all-out')
+    .replace(/true failure/gi, 'all-out effort')
+    .replace(/to failure/gi, 'to all-out')
+    .replace(/\bfailure\b/gi, 'all-out effort')
+    .replace(/max[- ]?out(?:s|ing)?/gi, 'max attempt')
+    .replace(/max testing/gi, 'max attempts')
+    .replace(/max attempts?/gi, 'max attempts');
+  // Still unsafe after rewrite → hide the field rather than leak adult advice.
+  if (/\b(1\s*-?\s*rm|amrap|failure|max[- ]?out)\b/i.test(t)) return '';
+  return t;
+}
+
+/** Static progression coaching for a catalog plan (teen-safe across all fields). */
+function progressionPanelHtml(p) {
+  const prog = p && p.progression;
+  if (!prog) return '';
+  const teen = !!(typeof currentUser !== 'undefined' && currentUser && currentUser.ageGroup === 'teen');
+  const show = (text) => (teen ? teenSanitizeProgressionText(text) : (text || ''));
+  const row = (label, text) => text
+    ? `<div class="prog-row"><strong>${esc(label)}</strong><p>${esc(text)}</p></div>`
+    : '';
+  const effort = teen ? show(prog.effortTeen || prog.effort) : (prog.effort || '');
+  const bits = [
+    row('What the app automates', show(prog.autoBehavior)),
+    row('Effort', effort),
+    row('Sets & reps', show(prog.setsReps)),
+    row('When to progress', show(prog.whenToProgress)),
+    row('Increments', show(prog.increments)),
+    row('If you miss / fatigue', show(prog.ifMissed)),
+    row('Recovery', show(prog.recovery))
+  ].filter(Boolean);
+  if (!teen && prog.adultOnly) bits.push(row('Advanced note', prog.adultOnly));
+  bits.unshift(row(
+    'Read this first',
+    teen
+      ? 'Longer-term notes are advisory only. The only automated tip is the next load/reps from your last logged sets. Leave reps in the tank; skip max attempts.'
+      : 'Longer-term cycle/wave notes are advisory only and are not enforced. The only automated tip is next load/reps from your last logged sets (double progression). If advisory text conflicts with that tip, follow the tip for this session.'
+  ));
+  const insp = p.inspiration;
+  let sources = '';
+  if (insp && Array.isArray(insp.coaches)) {
+    const links = [];
+    insp.coaches.forEach((c) => {
+      (c.sources || []).forEach((u) => links.push(`<li><a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(c.name)}</a></li>`));
+    });
+    if (links.length) {
+      sources = `<div class="prog-row"><strong>Public sources</strong><ul class="prog-sources">${links.join('')}</ul><p class="hint">Inspired by publicly shared principles; not affiliated or endorsed.</p></div>`;
+    }
+  }
+  // Teens: show sources without coach principle blurbs (those can mention failure in adult research notes).
+  return `<details class="prog-panel"><summary>Progression guide</summary><div class="prog-body">${bits.join('')}${sources}</div></details>`;
+}
+
 function openPlanSheet(id) {
   const p = woPrograms.get(id);
   if (!p) return;
@@ -2535,6 +2649,7 @@ function openPlanSheet(id) {
     <div class="sheet-grip" aria-hidden="true"></div>
     <div class="sheet-head"><div><div class="summary-kicker">${p.planDays.length}-day plan${p.matchFor ? ' · for ' + esc(p.matchFor) : ''}</div><strong class="summary-title">${esc(p.name)}</strong></div><button type="button" class="icon-btn" data-sheet-close aria-label="Close">×</button></div>
     ${p.notes ? `<p class="hint">${esc(p.notes)}</p>` : ''}
+    ${progressionPanelHtml(p)}
     <div class="day-grid plan-sheet-days">${p.planDays.map((d) => dayCard(d)).join('')}</div>
     <p class="hint plan-sheet-foot">Tap a day to see the exercises, reorder or swap them, and start.</p>
     <button type="button" class="btn ${isActive ? 'btn-secondary' : 'btn-primary'} btn-block" data-set-active-program="${esc(p.id)}" ${isActive ? 'disabled' : ''}>${isActive ? 'Active on Home' : 'Set as active routine'}</button>
