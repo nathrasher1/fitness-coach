@@ -136,6 +136,7 @@
       <button data-panel="dashboard" class="active"><span class="nav-ico">▦</span>Dashboard</button>
       <button data-panel="calendar"><span class="nav-ico">▣</span>Diary</button>
       <button data-panel="food"><span class="nav-ico">●</span>Food</button>
+      <button data-panel="nutrition"><span class="nav-ico">◉</span>Nutrition</button>
       <button data-panel="recipes"><span class="nav-ico">☰</span>Recipes</button>
       <button data-panel="workouts"><span class="nav-ico">✓</span>Workouts</button>
       <button data-panel="weight"><span class="nav-ico">↗</span>Weight</button>
@@ -485,17 +486,12 @@
           <button class="btn btn-secondary btn-sm" id="btn-copy-yesterday">Copy yesterday</button>
         </div>
 
-        <div class="energy-card">
+        <div class="energy-card energy-card-compact">
           <div class="energy-main">
             <div id="energy-remaining" class="energy-number">—</div>
             <div class="energy-label">kcal remaining</div>
             <div id="food-day-totals" class="day-totals"></div>
-          </div>
-          <div id="macro-progress" class="macro-progress"></div>
-          <div id="micro-progress" class="micro-progress" hidden>
-            <h3 class="micro-heading">Micronutrients</h3>
-            <p class="hint" id="micro-source"></p>
-            <div id="micro-bars"></div>
+            <button type="button" class="link-btn" id="food-to-nutrition">Nutrition</button>
           </div>
         </div>
 
@@ -742,6 +738,39 @@
               <button class="btn btn-primary btn-block food-sheet-cta" id="btn-create-food">Save food</button>
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- NUTRITION -->
+      <section id="nutrition" class="panel">
+        <div class="diary-toolbar">
+          <button type="button" class="btn btn-secondary btn-sm" id="nutrition-prev" aria-label="Previous day">‹</button>
+          <input type="date" id="nutrition-date" />
+          <button type="button" class="btn btn-secondary btn-sm" id="nutrition-next" aria-label="Next day">›</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="nutrition-to-food">Food</button>
+        </div>
+
+        <div class="energy-card" id="nutrition-energy-card">
+          <div class="energy-main">
+            <div id="nutrition-energy-remaining" class="energy-number">—</div>
+            <div class="energy-label">kcal remaining</div>
+            <div id="nutrition-day-totals" class="day-totals"></div>
+          </div>
+          <div id="nutrition-macro-progress" class="macro-progress"></div>
+        </div>
+
+        <div class="card" id="nutrition-micros-card">
+          <h2 class="micro-heading">Micronutrients</h2>
+          <p class="hint" id="micro-source"></p>
+          <div id="micro-progress">
+            <div id="micro-bars"></div>
+          </div>
+        </div>
+
+        <div class="card" id="nutrition-fats-card">
+          <h2 class="micro-heading">Fats &amp; omega-3</h2>
+          <p class="hint" id="fat-source">FDA %DV for saturated fat (20 g) and cholesterol (300 mg). EPA, DHA, and ALA are shown in grams; ALA Adequate Intake is 1.6 g (men) / 1.1 g (women), NIH ODS — not an FDA Daily Value. Omega-3 is the sum of official ALA+EPA+DHA+DPA only. Missing values stay blank, not zero.</p>
+          <div id="fat-bars"></div>
         </div>
       </section>
 

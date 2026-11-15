@@ -86,16 +86,19 @@ test('day totals skip unknown micros and do not treat missing as zero', () => {
   assert.equal(pot.amount, null);
 });
 
-test('Food and FoodLog schemas add optional micronutrient fields; the Food page can render a DV view', () => {
+test('Food and FoodLog schemas add optional micronutrient fields; the Nutrition page can render a DV view', () => {
   for (const key of ['potassium', 'calcium', 'iron', 'magnesium', 'vitaminA', 'vitaminC', 'vitaminD', 'vitaminB12', 'saturatedFat', 'transFat', 'cholesterol', 'ala', 'epa', 'dha', 'omega3', 'omega6']) {
     assert.match(foodModel, new RegExp(key + ':'));
     assert.match(logModel, new RegExp(key + ':'));
   }
   assert.match(foodModel, /null\/undefined = unknown/);
+  assert.match(html, /id="nutrition"/);
   assert.match(html, /id="micro-progress"/);
+  assert.match(html, /id="fat-bars"/);
   assert.match(app, /function renderMicroProgress/);
   assert.match(app, /renderMicroProgress\(/);
   assert.match(app, /data\.totals\.micros/);
+  assert.match(app, /function loadNutrition/);
   assert.match(html, /for="goal-weight">Goal weight</);
   assert.match(html, /id="goal-weight"/);
   assert.doesNotMatch(html, />Amount \(lbs\)</);

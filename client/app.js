@@ -175,6 +175,9 @@ document.getElementById('main-nav').addEventListener('click', (e) => {
     loadFoodLog();
     loadQuickAdd();
   }
+  if (btn.dataset.panel === 'nutrition') {
+    loadNutrition();
+  }
   if (btn.dataset.panel === 'recipes') loadRecipes();
   if (btn.dataset.panel === 'weight') loadWeightHistory();
   if (btn.dataset.panel === 'goals') loadGoal();
@@ -1098,7 +1101,7 @@ function openFoodSheet(meal, tab = 'search') {
   clearFoodSelection();
   setFoodMeal(meal);
   setFoodTab(tab);
-  const date = document.getElementById('food-date').value || todayStr();
+  const date = logDate();
   document.getElementById('food-sheet-date').textContent = date === todayStr() ? 'Today' : formatDate(date);
   foodSheet.hidden = false;
   document.body.classList.add('sheet-open');
@@ -1252,7 +1255,7 @@ async function toggleFavorite(foodId) {
 
 document.getElementById('btn-log-food').addEventListener('click', async () => {
   if (!selectedFood) return;
-  const date = document.getElementById('food-date').value || todayStr();
+  const date = logDate();
   const meal = document.getElementById('food-meal').value;
   const amount = parseFloat(document.getElementById('food-servings').value) || 1;
   const unit = document.getElementById('food-amount-unit').value;
@@ -1406,7 +1409,7 @@ document.getElementById('btn-create-food').addEventListener('click', async () =>
 });
 
 document.getElementById('btn-manual-entry').addEventListener('click', async () => {
-  const date = document.getElementById('food-date').value || todayStr();
+  const date = logDate();
   const meal = document.getElementById('food-meal').value;
   const calories = document.getElementById('manual-calories').value;
   if (calories === '' || calories == null) return toast('Calories required');
@@ -1443,7 +1446,7 @@ let copyYesterdayBusy = false;
 
 async function copyFromYesterday({ meal } = {}) {
   if (copyYesterdayBusy) return;
-  const date = document.getElementById('food-date').value || todayStr();
+  const date = logDate();
   const mealLabel = meal ? (MEAL_LABELS[meal] || meal) : 'the whole day';
   const question = meal
     ? `Copy yesterday's ${mealLabel} onto ${date}?`
@@ -1484,45 +1487,93 @@ function amountLabel(log) {
 }
 
 
-function renderMicroProgress(micros) {
-  const wrap = document.getElementById('micro-progress');
-  const bars = document.getElementById('micro-bars');
-  const src = document.getElementById('micro-source');
-  if (!wrap || !bars) return;
-  const nutrients = micros && micros.nutrients;
-  const any = nutrients && nutrients.some((n) => !n.unknown);
-  if (!any) {
-    wrap.hidden = true;
-    bars.innerHTML = '';
-    return;
-  }
-  wrap.hidden = false;
-  if (src) {
-    const s = micros.source || {};
-    src.textContent = (s.name || 'FDA Daily Value') + ' — %DV is a labeling reference, not a personal RDA. Missing values are left blank, not assumed to be zero.';
-  }
-  bars.innerHTML = nutrients.map((n) => {
-    if (n.unknown) {
-      return `<div class="micro-row micro-unknown"><div class="micro-label">${n.label}</div><div class="micro-meta">No verified data for this day</div></div>`;
-    }
-    const amount = n.amount == null ? '—' : (Number.isInteger(n.amount) ? n.amount : Number(n.amount).toFixed(n.unit === 'mcg' || n.key === 'iron' || n.key === 'vitaminB12' ? 2 : 1));
-    const pct = n.percentDv == null ? null : Math.min(100, n.percentDv);
-    const pctLabel = n.percentDv == null ? 'no Daily Value (total sugars)' : `${n.percentDv}% DV`;
-    const width = pct == null ? 0 : pct;
-    const role = n.dvRole === 'limit' ? 'limit' : (n.dvRole === 'no_dv' ? 'plain' : 'enough');
-    const cover = n.coverage && micros.items ? ` · ${n.coverage}/${micros.items} foods` : '';
-    return `<div class="micro-row micro-${role}"><div class="micro-label">${n.label}</div><div class="micro-track" aria-hidden="true"><div class="micro-fill" style="width:${width}%"></div></div><div class="micro-meta">${amount} ${n.unit} · ${pctLabel}${cover}</div></div>`;
-  }).join('');
+const V1_MICRO_KEYS = ['fiber', 'sugar', 'sodium', 'potassium', 'calcium', 'iron', 'magnesium', 'vitaminA', 'vitaminC', 'vitaminD', 'vitaminB12'];
+const FAT_MICRO_KEYS = ['saturatedFat', 'transFat', 'cholesterol', 'monounsaturatedFat', 'polyunsaturatedFat', 'omega3', 'ala', 'epa', 'dha', 'omega6'];
+
+function logDate() {
+  const food = document.getElementById('food-date');
+  const nut = document.getElementById('nutrition-date');
+  return (food && food.value) || (nut && nut.value) || todayStr();
 }
 
-function renderMacroProgress(totals, targets) {
-  const el = document.getElementById('macro-progress');
-  const remEl = document.getElementById('energy-remaining');
+function setLogDate(date, { reload = true } = {}) {
+  const key = date || todayStr();
+  ['food-date', 'nutrition-date'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el && el.value !== key) el.value = key;
+  });
+  if (!reload) return;
+  const active = document.querySelector('.panel.active');
+  if (active && active.id === 'nutrition') loadNutrition();
+  else loadFoodLog();
+}
+
+function openPanel(name) {
+  const btn = document.querySelector(`#main-nav button[data-panel="${name}"]`);
+  if (btn) btn.click();
+}
+
+function shiftLogDate(days) {
+  const d = new Date(logDate() + 'T12:00:00');
+  d.setDate(d.getDate() + days);
+  setLogDate(dateKey(d));
+}
+
+function renderEnergySummary(totals, targets, remEl, totalsEl) {
   const remaining = targets ? Math.round(targets.calories - totals.calories) : null;
   if (remEl) {
     remEl.textContent = remaining == null ? '—' : remaining.toLocaleString();
     remEl.className = 'energy-number' + (remaining != null && remaining < 0 ? ' over' : '');
   }
+  if (totalsEl) {
+    const targetCal = targets && targets.calories;
+    totalsEl.innerHTML = `
+      <span>${Math.round(totals.calories)}${targetCal ? ' / ' + targetCal : ''} kcal eaten</span>
+      <span>P ${totals.protein.toFixed(0)}g</span>
+      <span>C ${totals.carbs.toFixed(0)}g</span>
+      <span>F ${totals.fat.toFixed(0)}g</span>
+    `;
+  }
+}
+
+function nutrientRowHtml(n, items) {
+  if (n.unknown) {
+    return `<div class="micro-row micro-unknown"><div class="micro-label">${n.label}</div><div class="micro-meta">No verified data for this day</div></div>`;
+  }
+  const amount = n.amount == null ? '—' : (Number.isInteger(n.amount) ? n.amount : Number(n.amount).toFixed(n.unit === 'mcg' || n.key === 'iron' || n.key === 'vitaminB12' ? 2 : 1));
+  const pct = n.percentDv == null ? null : Math.min(100, n.percentDv);
+  const pctLabel = n.percentDv == null ? (n.key === 'sugar' ? 'no Daily Value (total sugars)' : 'no Daily Value') : `${n.percentDv}% DV`;
+  const width = pct == null ? 0 : pct;
+  const role = n.dvRole === 'limit' ? 'limit' : (n.dvRole === 'no_dv' || n.dvRole === 'ai' ? 'plain' : 'enough');
+  const cover = n.coverage && items ? ` · ${n.coverage}/${items} foods` : '';
+  return `<div class="micro-row micro-${role}"><div class="micro-label">${n.label}</div><div class="micro-track" aria-hidden="true"><div class="micro-fill" style="width:${width}%"></div></div><div class="micro-meta">${amount} ${n.unit} · ${pctLabel}${cover}</div></div>`;
+}
+
+function renderNutrientGroup(nutrients, barsEl, emptyText, items) {
+  if (!barsEl) return;
+  const any = nutrients && nutrients.some((n) => !n.unknown);
+  if (!any) {
+    barsEl.innerHTML = `<p class="hint">${emptyText}</p>`;
+    return;
+  }
+  barsEl.innerHTML = nutrients.map((n) => nutrientRowHtml(n, items)).join('');
+}
+
+function renderMicroProgress(micros) {
+  const nutrients = (micros && micros.nutrients) || [];
+  const src = document.getElementById('micro-source');
+  if (src) {
+    const s = (micros && micros.source) || {};
+    src.textContent = (s.name || 'FDA Daily Value') + ' — %DV is a labeling reference, not a personal RDA. Missing values are left blank, not assumed to be zero.';
+  }
+  const items = micros && micros.items;
+  renderNutrientGroup(nutrients.filter((n) => V1_MICRO_KEYS.includes(n.key)), document.getElementById('micro-bars'), 'No verified micronutrient data for this day.', items);
+  renderNutrientGroup(nutrients.filter((n) => FAT_MICRO_KEYS.includes(n.key)), document.getElementById('fat-bars'), 'No verified fat or omega-3 data for this day.', items);
+}
+
+function renderMacroProgress(totals, targets, barsId = 'nutrition-macro-progress') {
+  const el = document.getElementById(barsId);
+  if (!el) return;
   if (!targets) {
     el.innerHTML = '<p class="hint">Set a goal and log a few days to see remaining targets.</p>';
     return;
@@ -1553,22 +1604,14 @@ function renderMacroProgress(totals, targets) {
 }
 
 async function loadFoodLog() {
-  const date = document.getElementById('food-date').value || todayStr();
+  const date = logDate();
+  setLogDate(date, { reload: false });
   try {
     const data = await api(`/food-logs?date=${date}`);
     const totalsEl = document.getElementById('food-day-totals');
     const listEl = document.getElementById('food-log-list');
 
-    renderMacroProgress(data.totals, data.targets);
-    renderMicroProgress((data.totals && data.totals.micros) || null);
-
-    const targetCal = data.targets?.calories;
-    totalsEl.innerHTML = `
-      <span>${Math.round(data.totals.calories)}${targetCal ? ' / ' + targetCal : ''} kcal eaten</span>
-      <span>P ${data.totals.protein.toFixed(0)}g</span>
-      <span>C ${data.totals.carbs.toFixed(0)}g</span>
-      <span>F ${data.totals.fat.toFixed(0)}g</span>
-    `;
+    renderEnergySummary(data.totals, data.targets, document.getElementById('energy-remaining'), totalsEl);
 
     const order = ['breakfast', 'lunch', 'dinner', 'snack', 'other'];
     const groups = {};
@@ -1721,17 +1764,34 @@ async function loadQuickAdd() {
   }
 }
 
-document.getElementById('food-date').addEventListener('change', loadFoodLog);
-
-function shiftFoodDate(days) {
-  const input = document.getElementById('food-date');
-  const d = new Date((input.value || todayStr()) + 'T12:00:00');
-  d.setDate(d.getDate() + days);
-  input.value = dateKey(d);
-  loadFoodLog();
+async function loadNutrition() {
+  const date = logDate();
+  setLogDate(date, { reload: false });
+  try {
+    const data = await api(`/food-logs?date=${date}`);
+    renderEnergySummary(
+      data.totals,
+      data.targets,
+      document.getElementById('nutrition-energy-remaining'),
+      document.getElementById('nutrition-day-totals')
+    );
+    renderMacroProgress(data.totals, data.targets, 'nutrition-macro-progress');
+    renderMicroProgress((data.totals && data.totals.micros) || null);
+  } catch (err) {
+    console.error(err);
+  }
 }
-document.getElementById('food-prev').addEventListener('click', () => shiftFoodDate(-1));
-document.getElementById('food-next').addEventListener('click', () => shiftFoodDate(1));
+
+document.getElementById('food-date').addEventListener('change', () => setLogDate(document.getElementById('food-date').value));
+document.getElementById('nutrition-date').addEventListener('change', () => setLogDate(document.getElementById('nutrition-date').value));
+document.getElementById('food-prev').addEventListener('click', () => shiftLogDate(-1));
+document.getElementById('food-next').addEventListener('click', () => shiftLogDate(1));
+document.getElementById('nutrition-prev').addEventListener('click', () => shiftLogDate(-1));
+document.getElementById('nutrition-next').addEventListener('click', () => shiftLogDate(1));
+const foodToNutrition = document.getElementById('food-to-nutrition');
+if (foodToNutrition) foodToNutrition.addEventListener('click', () => openPanel('nutrition'));
+const nutritionToFood = document.getElementById('nutrition-to-food');
+if (nutritionToFood) nutritionToFood.addEventListener('click', () => openPanel('food'));
 
 // ========== Goals ==========
 function displayWeightValue(lbs) {
@@ -4055,8 +4115,10 @@ function renderAll() {
   if (!document.getElementById('weight-date').value) {
     document.getElementById('weight-date').value = todayStr();
   }
-  if (!document.getElementById('food-date').value) {
-    document.getElementById('food-date').value = todayStr();
+  if (!document.getElementById('food-date').value && !document.getElementById('nutrition-date').value) {
+    setLogDate(todayStr(), { reload: false });
+  } else {
+    setLogDate(logDate(), { reload: false });
   }
   if (!document.getElementById('wo-date').value) {
     document.getElementById('wo-date').value = todayStr();
