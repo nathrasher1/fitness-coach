@@ -2369,3 +2369,10 @@ html.native .scan-card { margin-top: env(safe-area-inset-top, 0px); }
 .plan-tag-inspired {
   background: color-mix(in srgb, var(--accent, #3b82f6) 18%, transparent);
 }
+
+/* Machine filter in the exercise picker */
+.ex-filters { margin: 8px 0 0; }
+.ex-filters .chip[aria-pressed="true"],
+.ex-filters .chip.chip-on { background: var(--main-soft); border-color: var(--main); color: var(--main-text); }
+.meal-actions { flex-wrap: wrap; }
+.meal-actions .copy-yesterday-meal { color: var(--text-muted, inherit); }

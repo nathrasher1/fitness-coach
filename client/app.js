@@ -1439,22 +1439,42 @@ document.getElementById('btn-manual-entry').addEventListener('click', async () =
   }
 });
 
-document.getElementById('btn-copy-yesterday').addEventListener('click', async () => {
+let copyYesterdayBusy = false;
+
+async function copyFromYesterday({ meal } = {}) {
+  if (copyYesterdayBusy) return;
   const date = document.getElementById('food-date').value || todayStr();
-  if (!confirm(`Copy all foods from the previous day onto ${date}?`)) return;
+  const mealLabel = meal ? (MEAL_LABELS[meal] || meal) : 'the whole day';
+  const question = meal
+    ? `Copy yesterday's ${mealLabel} onto ${date}?`
+    : `Copy all foods from the previous day onto ${date}?`;
+  if (!confirm(question)) return;
+  copyYesterdayBusy = true;
   try {
+    const body = { date };
+    if (meal) body.meal = meal;
     const data = await api('/food-logs/copy-yesterday', {
       method: 'POST',
-      body: JSON.stringify({ date })
+      body: JSON.stringify(body)
     });
-    toast(`Copied ${data.copied} items from ${data.sourceDate}`);
+    if (data.empty) {
+      toast(data.message || (meal ? `Nothing logged for ${mealLabel.toLowerCase()} yesterday` : 'Nothing logged yesterday'));
+    } else if (data.alreadyCopied || data.copied === 0) {
+      toast(data.message || 'Already copied from yesterday');
+    } else {
+      toast(`Copied ${data.copied} item${data.copied === 1 ? '' : 's'} from ${data.sourceDate}`);
+    }
     loadFoodLog();
     loadQuickAdd();
     loadDashboard();
   } catch (err) {
     toast(err.message);
+  } finally {
+    copyYesterdayBusy = false;
   }
-});
+}
+
+document.getElementById('btn-copy-yesterday').addEventListener('click', () => copyFromYesterday());
 
 function amountLabel(log) {
   if (log.amountLabel) return log.amountLabel;
@@ -1574,6 +1594,7 @@ async function loadFoodLog() {
               ${items}
               <div class="meal-actions">
                 <button type="button" class="add-meal-btn" data-add-meal="${meal}">+ Add food</button>
+                <button type="button" class="add-meal-btn copy-yesterday-meal" data-copy-yesterday="${meal}">Copy from yesterday</button>
                 <button type="button" class="add-meal-btn flex-meal-btn" data-flex-add="${meal}">Log flex/holiday</button>
               </div>
             </div>
@@ -1592,6 +1613,9 @@ async function loadFoodLog() {
 
     listEl.querySelectorAll('[data-add-meal]').forEach((btn) => {
       btn.addEventListener('click', () => openFoodSheet(btn.dataset.addMeal));
+    });
+    listEl.querySelectorAll('[data-copy-yesterday]').forEach((btn) => {
+      btn.addEventListener('click', () => copyFromYesterday({ meal: btn.dataset.copyYesterday }));
     });
 
     listEl.querySelectorAll('[data-flex-add]').forEach((btn) => {
@@ -1761,19 +1785,44 @@ function renderRecommendedLifts() {
 }
 let swapTargetIdx = null;
 
-document.getElementById('wo-ex-search').addEventListener('input', (e) => {
-  clearTimeout(searchTimeout);
-  const q = e.target.value.trim();
-  if (q.length < 2) {
+function woMachineFilterOn() {
+  const btn = document.getElementById('wo-ex-filter-machine');
+  return !!(btn && btn.getAttribute('aria-pressed') === 'true');
+}
+
+function runExerciseSearch() {
+  const q = (document.getElementById('wo-ex-search').value || '').trim();
+  const machineOn = woMachineFilterOn();
+  if (!machineOn && q.length < 2) {
     document.getElementById('wo-ex-results').classList.remove('open');
     return;
   }
-  searchTimeout = setTimeout(() => searchExercises(q), 250);
+  searchExercises(q, { machine: machineOn });
+}
+
+document.getElementById('wo-ex-search').addEventListener('input', () => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(runExerciseSearch, 250);
 });
 
-async function searchExercises(q) {
+const woExFilterMachine = document.getElementById('wo-ex-filter-machine');
+if (woExFilterMachine) {
+  woExFilterMachine.addEventListener('click', () => {
+    const on = woExFilterMachine.getAttribute('aria-pressed') !== 'true';
+    woExFilterMachine.setAttribute('aria-pressed', on ? 'true' : 'false');
+    woExFilterMachine.classList.toggle('chip-on', on);
+    runExerciseSearch();
+  });
+}
+
+async function searchExercises(q, opts) {
   try {
-    const exercises = await api(`/workouts/exercises?q=${encodeURIComponent(q)}`);
+    const machine = (opts && opts.machine) || woMachineFilterOn() || /^(machines?|cables?)$/i.test(q);
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (machine) params.set('equipment', 'machine,cable');
+    if (machine) params.set('limit', '200');
+    const exercises = await api(`/workouts/exercises?${params.toString()}`);
     const el = document.getElementById('wo-ex-results');
     if (!exercises.length) {
       el.innerHTML = '<div class="search-item">No exercises found</div>';

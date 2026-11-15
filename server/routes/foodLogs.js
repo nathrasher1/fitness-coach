@@ -9,6 +9,7 @@ const Servings = require('../../client/lib/servings');
 const { computeCalorieRecommendation } = require('../services/recommendations');
 
 const { localToday, daysAgoKey, shiftKey, isDateKey } = require('../services/dates');
+const CopyYesterday = require('../services/copyYesterday');
 const router = express.Router();
 router.use(requireAuth);
 
@@ -188,55 +189,61 @@ router.post('/', async (req, res) => {
   }
 });
 
-// POST /api/food-logs/copy-yesterday
+// POST /api/food-logs/copy-yesterday  { date, meal? }
+// Copies yesterday's items for one meal (or the whole day) onto the target date.
+// Empty source is 200 with copied:0 (not 404). Already-copied items are skipped (no duplicates).
 router.post('/copy-yesterday', async (req, res) => {
   try {
     const targetDate = isDateKey(req.body.date) ? req.body.date : localToday(req);
     const sourceDate = shiftKey(targetDate, -1);
+    const meal = req.body.meal || undefined;
+    if (meal && !CopyYesterday.isMeal(meal)) {
+      return res.status(400).json({ error: 'Invalid meal' });
+    }
 
     const sourceLogs = await FoodLog.find({
       user: req.session.userId,
       date: sourceDate
     });
-
-    if (!sourceLogs.length) {
-      return res.status(404).json({ error: `No food logged on ${sourceDate}` });
-    }
-
-    // Avoid duplicating if user already has entries
-    const existing = await FoodLog.countDocuments({
+    const existing = await FoodLog.find({
       user: req.session.userId,
       date: targetDate
     });
-    if (existing > 0) {
-      return res.status(409).json({
-        error: 'Target date already has food entries. Clear them first or pick an empty day.'
+
+    const result = CopyYesterday.copyResult({
+      sourceLogs,
+      existingTargetLogs: existing,
+      meal,
+      sourceDate,
+      targetDate
+    });
+
+    if (result.empty || result.alreadyCopied) {
+      return res.status(200).json({
+        copied: 0,
+        empty: !!result.empty,
+        alreadyCopied: !!result.alreadyCopied,
+        sourceDate,
+        targetDate,
+        meal: result.meal,
+        message: result.message,
+        logs: []
       });
     }
 
     const created = [];
-    for (const src of sourceLogs) {
-      const log = await FoodLog.create({
-        user: req.session.userId,
-        date: targetDate,
-        meal: src.meal,
-        food: src.food,
-        foodName: src.foodName,
-        servings: src.servings,
-        calories: src.calories,
-        protein: src.protein,
-        carbs: src.carbs,
-        fat: src.fat,
-        fiber: src.fiber,
-        note: src.note
-      });
+    for (const src of result.docs) {
+      const log = await FoodLog.create(CopyYesterday.toCreateFields(req.session.userId, targetDate, src));
       created.push(log);
     }
 
     res.status(201).json({
       copied: created.length,
+      empty: false,
+      alreadyCopied: false,
       sourceDate,
       targetDate,
+      meal: result.meal,
       logs: created
     });
   } catch (err) {
