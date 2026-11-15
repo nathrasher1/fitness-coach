@@ -92,6 +92,10 @@ async function start() {
     require('./services/foodCatalog').ensureBuiltInFoods()
       .then((r) => console.log(`Built-in foods: ${r.added} added (${r.total} in catalog)`))
       .catch((e) => console.error('Built-in food sync failed:', e.message));
+    // Insert-only: adds new system exercises (e.g. the machine catalog) without editing existing ones.
+    require('./services/exerciseCatalog').ensureBuiltInExercises()
+      .then((r) => console.log(`Built-in exercises: ${r.added} added (${r.total} in catalog)`))
+      .catch((e) => console.error('Built-in exercise sync failed:', e.message));
 
     app.listen(PORT, () => {
       console.log(`Fitness Coach running at http://localhost:${PORT}`);

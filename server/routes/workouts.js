@@ -9,6 +9,7 @@ const P = require('../../client/lib/progression');
 const A = require('../../client/lib/activities');
 const { parseActivities, parseDaysPerWeek, choosePrograms, CATALOG_DAY_OPTIONS, syncCatalogDayOptions } = require('../services/programPicker');
 const INSPIRED_PROGRAMS = require('../data/inspiredPrograms');
+const { exerciseSearchFilter, exerciseSearchLimit } = require('../services/exerciseCatalog');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -16,16 +17,18 @@ router.use(requireAuth);
 // GET /api/workouts/exercises?q=&pattern=&equipment=
 router.get('/exercises', async (req, res) => {
   try {
-    const filter = {
-      $or: [{ isSystem: true }, { user: req.session.userId }]
-    };
-    if (req.query.q) {
-      filter.name = { $regex: req.query.q, $options: 'i' };
-    }
-    if (req.query.pattern) filter.pattern = req.query.pattern;
-    if (req.query.equipment) filter.equipment = req.query.equipment;
-
-    const exercises = await Exercise.find(filter).sort({ name: 1 }).limit(80);
+    const filter = exerciseSearchFilter({
+      q: req.query.q,
+      pattern: req.query.pattern,
+      equipment: req.query.equipment,
+      userId: req.session.userId
+    });
+    const limit = exerciseSearchLimit({
+      q: req.query.q,
+      equipment: req.query.equipment,
+      limit: req.query.limit
+    });
+    const exercises = await Exercise.find(filter).sort({ name: 1 }).limit(limit);
     res.json(exercises);
   } catch (err) {
     res.status(500).json({ error: 'Failed to search exercises' });

@@ -119,22 +119,36 @@ const exercises = [
   { name: 'Goblet Squat', pattern: 'squat', equipment: ['kettlebell', 'dumbbell'], primaryMuscles: ['quads', 'glutes'], category: 'compound', difficulty: 'beginner' }
 ];
 
+const machineExercises = require('./machine-exercises');
+const seedExercises = [];
+const _seen = new Set();
+for (const e of [...exercises, ...machineExercises]) {
+  const k = String(e.name || '').trim().toLowerCase();
+  if (!k || _seen.has(k)) continue;
+  _seen.add(k);
+  seedExercises.push(e);
+}
+
+module.exports = { exercises, machineExercises, seedExercises };
+
 async function seed() {
   await mongoose.connect(MONGODB_URI);
   console.log('Connected to MongoDB');
   let added = 0;
-  for (const e of exercises) {
+  for (const e of seedExercises) {
     const exists = await Exercise.findOne({ name: e.name, isSystem: true });
     if (!exists) {
       await Exercise.create({ ...e, isSystem: true, user: null });
       added++;
     }
   }
-  console.log(`Seeded ${added} new exercises (${exercises.length} in list).`);
+  console.log(`Seeded ${added} new exercises (${seedExercises.length} in list).`);
   await mongoose.disconnect();
 }
 
-seed().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (require.main === module) {
+  seed().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
