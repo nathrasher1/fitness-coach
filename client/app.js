@@ -831,7 +831,7 @@ async function loadWeightHistory() {
               <div class="weight-month">
                 <button type="button" class="weight-month-toggle" aria-expanded="false">
                   <span>${monthName}</span>
-                  <span class="hint">${entries.length} entry${entries.length === 1 ? '' : 'ies'}</span>
+                  <span class="hint">${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}</span>
                   <span class="meal-chevron">▸</span>
                 </button>
                 <div class="weight-month-body" style="display:none">
