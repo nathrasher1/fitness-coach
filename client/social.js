@@ -399,10 +399,6 @@
       });
     } catch { /* ignore */ }
   }
-  document.getElementById('wo-history').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-thread-own]');
-    if (b) openThread({ owner: 'me', workout: b.dataset.threadOwn, title: b.dataset.title });
-  });
 
   // ---------- Settings: Profile & privacy ----------
   const VIS = ['avatar', 'bio', 'interests', 'workoutsThisMonth', 'streak', 'memberSince'];
