@@ -3590,7 +3590,7 @@ lightbox.addEventListener('click', (e) => {
   if (e.target === lightbox || e.target.closest('.photo-lightbox-close')) closeLightbox();
 });
 
-async function showDayDetail(date) {
+async function showDayDetail(date, { openSection } = {}) {
   const detail = document.getElementById('calendar-day-detail');
   const title = document.getElementById('calendar-day-title');
   const content = document.getElementById('calendar-day-content');
@@ -3633,7 +3633,11 @@ async function showDayDetail(date) {
     html += `<div class="day-section">
       <button class="day-section-toggle" data-sec="wo">Workouts <span>▸</span></button>
       <div class="day-section-body" id="day-wo">
-        ${workouts.length ? workouts.map(w => `<div><strong>${w.name}</strong> — ${w.exercises.length} exercises</div>`).join('') : '<div class="empty">No workouts</div>'}
+        ${workouts.length ? workouts.map(w => `
+          <div class="day-wo-item">
+            <div><strong>${esc(w.name)}</strong> — ${w.exercises.length} exercise${w.exercises.length === 1 ? '' : 's'}</div>
+            <button type="button" class="btn btn-danger btn-sm" data-delete-workout="${esc(w._id)}" aria-label="Delete workout">Delete</button>
+          </div>`).join('') : '<div class="empty">No workouts</div>'}
       </div>
     </div>`;
 
@@ -3670,6 +3674,31 @@ async function showDayDetail(date) {
         btn.querySelector('span').textContent = open ? '▸' : '▾';
       });
     });
+
+    content.querySelectorAll('[data-delete-workout]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Delete this workout?')) return;
+        try {
+          await api(`/workouts/${btn.dataset.deleteWorkout}`, { method: 'DELETE' });
+          toast('Deleted');
+          await showDayDetail(date, { openSection: 'wo' });
+          loadDashboard();
+          loadCalendar();
+        } catch (err) {
+          toast(err.message);
+        }
+      });
+    });
+
+    if (openSection) {
+      const btn = content.querySelector(`.day-section-toggle[data-sec="${openSection}"]`);
+      const body = btn && btn.nextElementSibling;
+      if (btn && body && !body.classList.contains('open')) {
+        body.classList.add('open');
+        const chev = btn.querySelector('span');
+        if (chev) chev.textContent = '▾';
+      }
+    }
   } catch (err) {
     content.innerHTML = '<div class="empty">Failed to load day.</div>';
     console.error(err);

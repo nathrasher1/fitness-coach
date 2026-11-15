@@ -1237,6 +1237,15 @@ tr:last-child td { border-bottom: none; }
   display: none;
 }
 .day-section-body.open { display: block; }
+.day-wo-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+}
+.day-wo-item + .day-wo-item { border-top: 1px solid var(--border); }
+
 
 /* ---------- Mobile polish ---------- */
 @media (max-width: 768px) {
