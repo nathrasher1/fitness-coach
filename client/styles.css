@@ -2387,3 +2387,17 @@ html.native .scan-card { margin-top: env(safe-area-inset-top, 0px); }
 .micro-row.micro-limit .micro-fill { background: #b45309; }
 .micro-row.micro-unknown .micro-meta { font-style: italic; }
 .micro-meta { font-size: 0.75rem; color: var(--text-muted); }
+
+/* Compact Food log summary — detailed bars live on Nutrition */
+.energy-card-compact {
+  grid-template-columns: 1fr;
+  padding: 12px 16px;
+}
+.energy-card-compact .energy-number { font-size: 1.8rem; }
+.energy-card-compact .link-btn { margin-top: 6px; }
+#nutrition-micros-card .micro-progress,
+#nutrition-fats-card .micro-progress {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}

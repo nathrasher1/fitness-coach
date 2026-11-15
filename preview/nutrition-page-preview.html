@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SAMPLE PREVIEW — Nutrition</title>
+<style>
+  :root { --bg:#eef7f6; --surface:#fff; --border:#cbe3df; --text:#12343b; --text-muted:#4b676c; --main:#0e7c86; --nav:#0b3d45; --nav-text:#cbe9e6; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #111; font-family: system-ui, -apple-system, sans-serif; color: var(--text); }
+  .phone { width: 390px; height: 844px; margin: 0 auto; background: var(--bg); overflow: hidden; display: flex; flex-direction: column; }
+  .banner { background: #7a3b00; color: #fff; font-size: 10px; font-weight: 600; padding: 5px 10px; line-height: 1.25; }
+  .status { height: 28px; padding: 6px 22px 0; display: flex; justify-content: space-between; font-weight: 700; font-size: 13px; background: var(--nav); color: #fff; }
+  header { background: var(--nav); color: var(--nav-text); display: flex; align-items: center; gap: 8px; padding: 4px 10px 6px; }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #c9a227, #7a5a12); border: 2px solid #e9d6b0; }
+  .brand-title { color: #fff; font-weight: 800; font-size: 14px; }
+  .brand-user { font-size: 11px; }
+  .tabs { display: flex; gap: 4px; background: var(--nav); padding: 0 8px 6px; }
+  .tab { flex: 1; text-align: center; font-size: 10px; color: var(--nav-text); padding: 5px 0; border-radius: 10px; }
+  .tab.on { background: #135860; color: #fff; font-weight: 700; }
+  main { flex: 1; overflow: hidden; padding: 8px 12px 4px; }
+  .toolbar { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .btn { border: 1px solid var(--border); background: #fff; border-radius: 10px; padding: 4px 10px; font-size: 12px; }
+  .date { flex: 1; text-align: center; font-weight: 700; font-size: 13px; background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 6px 0; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 10px 12px 8px; margin-bottom: 8px; }
+  .kcal-row { display: grid; grid-template-columns: 110px 1fr; gap: 10px; align-items: center; }
+  .kcal { font-size: 26px; font-weight: 800; }
+  .label { color: var(--text-muted); font-size: 11px; }
+  .totals { display: flex; gap: 8px; font-size: 11px; color: var(--text-muted); margin-top: 2px; flex-wrap: wrap; }
+  .bar { margin: 4px 0; }
+  .bar-l { display: flex; justify-content: space-between; font-size: 11px; font-weight: 650; }
+  .track { height: 6px; background: #e1f0ee; border-radius: 99px; overflow: hidden; margin-top: 2px; }
+  .fill { height: 100%; background: var(--main); border-radius: 99px; }
+  .limit .fill { background: #b45309; }
+  h3 { margin: 0 0 2px; font-size: 14px; }
+  .hint { color: var(--text-muted); font-size: 10px; line-height: 1.3; margin: 0 0 6px; }
+  .micro-l { font-size: 11px; font-weight: 650; display: flex; justify-content: space-between; }
+  .micro-l span:last-child { font-weight: 500; color: var(--text-muted); }
+  nav.bottom { background: var(--nav); color: var(--nav-text); display: flex; justify-content: space-around; padding: 8px 0 14px; font-size: 10px; }
+  nav.bottom .on { color: #fff; font-weight: 700; }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="banner">SAMPLE PREVIEW — not the live app. Same date as Food. Totals, %DV, and fats live here. Not deployed.</div>
+    <div class="status"><span>9:41</span><span>●●● LTE</span></div>
+    <header>
+      <div class="avatar"></div>
+      <div><div class="brand-title">Fitness Coach</div><div class="brand-user">Preview</div></div>
+    </header>
+    <div class="tabs">
+      <div class="tab">Home</div><div class="tab">Workout</div><div class="tab">Food</div>
+      <div class="tab on">Nutrition</div><div class="tab">More</div>
+    </div>
+    <main>
+      <div class="toolbar">
+        <button class="btn">‹</button>
+        <div class="date">Sun, Nov 15</div>
+        <button class="btn">›</button>
+        <button class="btn">Food</button>
+      </div>
+      <div class="card">
+        <div class="kcal-row">
+          <div>
+            <div class="kcal">1,786</div>
+            <div class="label">kcal remaining</div>
+            <div class="totals"><span>214 / 2,000 kcal</span></div>
+          </div>
+          <div>
+            <div class="bar"><div class="bar-l"><span>Protein</span><span>19 / 140g</span></div><div class="track"><div class="fill" style="width:14%"></div></div></div>
+            <div class="bar"><div class="bar-l"><span>Net Carbs</span><span>40 / 180g</span></div><div class="track"><div class="fill" style="width:22%"></div></div></div>
+            <div class="bar"><div class="bar-l"><span>Fat</span><span>3 / 60g</span></div><div class="track"><div class="fill" style="width:5%"></div></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Micronutrients</h3>
+        <p class="hint">FDA Daily Value — %DV is a labeling reference, not a personal RDA. Missing values are left blank, not assumed to be zero. Sample: banana, spinach, 1% milk. USDA FDC, retrieved 2026-11-15.</p>
+        <div class="bar"><div class="micro-l"><span>Potassium</span><span>806 mg · 17% DV · 3/3</span></div><div class="track"><div class="fill" style="width:17%"></div></div></div>
+        <div class="bar"><div class="micro-l"><span>Calcium</span><span>318 mg · 24% DV · 3/3</span></div><div class="track"><div class="fill" style="width:24%"></div></div></div>
+        <div class="bar"><div class="micro-l"><span>Vitamin C</span><span>17 mg · 19% DV · 3/3</span></div><div class="track"><div class="fill" style="width:19%"></div></div></div>
+        <div class="bar"><div class="micro-l"><span>Vitamin B-12</span><span>1.15 mcg · 48% DV · 3/3</span></div><div class="track"><div class="fill" style="width:48%"></div></div></div>
+      </div>
+      <div class="card">
+        <h3>Fats &amp; omega-3</h3>
+        <p class="hint">FDA %DV for sat fat (20 g) and cholesterol (300 mg). ALA AI is 1.6/1.1 g (NIH ODS), not an FDA DV.</p>
+        <div class="bar limit"><div class="micro-l"><span>Saturated fat</span><span>1.7 g · 8% DV · 3/3</span></div><div class="track"><div class="fill" style="width:8%"></div></div></div>
+        <div class="bar limit"><div class="micro-l"><span>Cholesterol</span><span>12.2 mg · 4% DV · 3/3</span></div><div class="track"><div class="fill" style="width:4%"></div></div></div>
+        <div class="bar"><div class="micro-l"><span>Omega-3 (ALA+EPA+DHA+DPA)</span><span>0.01 g · no DV · 3/3</span></div></div>
+        <div class="bar"><div class="micro-l"><span>ALA</span><span>0.01 g · AI 1.6/1.1 g · 1/3</span></div></div>
+      </div>
+    </main>
+    <nav class="bottom"><div>Home</div><div>Workout</div><div>Food</div><div class="on">Nutrition</div><div>More</div></nav>
+  </div>
+</body>
+</html>
