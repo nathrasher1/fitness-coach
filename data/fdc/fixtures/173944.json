@@ -123,6 +123,70 @@
         "unitName": "\u00b5g"
       },
       "amount": 0.0
+    },
+    {
+      "nutrient": {
+        "id": 1258,
+        "name": "Fatty acids, total saturated",
+        "unitName": "g"
+      },
+      "amount": 0.112
+    },
+    {
+      "nutrient": {
+        "id": 1272,
+        "name": "PUFA 22:6 n-3 (DHA)",
+        "unitName": "g"
+      },
+      "amount": 0.0
+    },
+    {
+      "nutrient": {
+        "id": 1278,
+        "name": "PUFA 20:5 n-3 (EPA)",
+        "unitName": "g"
+      },
+      "amount": 0.0
+    },
+    {
+      "nutrient": {
+        "id": 1280,
+        "name": "PUFA 22:5 n-3 (DPA)",
+        "unitName": "g"
+      },
+      "amount": 0.0
+    },
+    {
+      "nutrient": {
+        "id": 1292,
+        "name": "Fatty acids, total monounsaturated",
+        "unitName": "g"
+      },
+      "amount": 0.032
+    },
+    {
+      "nutrient": {
+        "id": 1293,
+        "name": "Fatty acids, total polyunsaturated",
+        "unitName": "g"
+      },
+      "amount": 0.073
+    },
+    {
+      "nutrient": {
+        "id": 1257,
+        "name": "Fatty acids, total trans",
+        "unitName": "g"
+      },
+      "amount": 0.0
+    },
+    {
+      "nutrient": {
+        "id": 1253,
+        "name": "Cholesterol",
+        "unitName": "mg"
+      },
+      "amount": 0.0
     }
   ],
   "foodPortions": [

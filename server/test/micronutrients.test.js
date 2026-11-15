@@ -27,6 +27,14 @@ test('FDA Daily Values used by the UI match the official FDA table (retrieved 20
   assert.equal(byKey.vitaminD.dv, 20);
   assert.equal(byKey.vitaminB12.dv, 2.4);
   assert.equal(byKey.sugar.dv, null);
+  assert.equal(byKey.saturatedFat.dv, 20);
+  assert.equal(byKey.cholesterol.dv, 300);
+  assert.equal(byKey.transFat.dv, null);
+  assert.equal(byKey.epa.dv, null);
+  assert.equal(byKey.dha.dv, null);
+  assert.equal(byKey.ala.dv, null);
+  assert.equal(Micros.ALA_AI_G.men, 1.6);
+  assert.equal(Micros.ALA_AI_G.women, 1.1);
 });
 
 test('importing an official FDC fixture scales per-100g amounts to an official portion and does not invent nutrients', () => {
@@ -39,6 +47,13 @@ test('importing an official FDC fixture scales per-100g amounts to an official p
   assert.equal(banana.potassium, +(358 * 1.18).toFixed(3));
   assert.equal(banana.calories, Math.round(89 * 1.18));
   assert.equal(banana.vitaminB12, 0); // official measured zero, not missing
+  assert.equal(banana.saturatedFat, +(0.112 * 1.18).toFixed(3));
+  assert.equal(banana.transFat, 0);
+  assert.equal(banana.cholesterol, 0);
+  assert.equal(banana.epa, 0);
+  assert.equal(banana.dha, 0);
+  assert.ok(banana.omega3 != null);
+  assert.ok(!Object.prototype.hasOwnProperty.call(toFood({ fdcId: 1, description: 'x', foodNutrients: [{ nutrient: { id: 1008 }, amount: 10 }] }, { servingGrams: 100 }), 'saturatedFat'));
 
   const incomplete = { fdcId: 1, description: 'Test food', dataType: 'SR Legacy', foodNutrients: [
     { nutrient: { id: 1008, name: 'Energy', unitName: 'kcal' }, amount: 50 }
@@ -72,7 +87,7 @@ test('day totals skip unknown micros and do not treat missing as zero', () => {
 });
 
 test('Food and FoodLog schemas add optional micronutrient fields; the Food page can render a DV view', () => {
-  for (const key of ['potassium', 'calcium', 'iron', 'magnesium', 'vitaminA', 'vitaminC', 'vitaminD', 'vitaminB12']) {
+  for (const key of ['potassium', 'calcium', 'iron', 'magnesium', 'vitaminA', 'vitaminC', 'vitaminD', 'vitaminB12', 'saturatedFat', 'transFat', 'cholesterol', 'ala', 'epa', 'dha', 'omega3', 'omega6']) {
     assert.match(foodModel, new RegExp(key + ':'));
     assert.match(logModel, new RegExp(key + ':'));
   }
@@ -81,10 +96,14 @@ test('Food and FoodLog schemas add optional micronutrient fields; the Food page 
   assert.match(app, /function renderMicroProgress/);
   assert.match(app, /renderMicroProgress\(/);
   assert.match(app, /data\.totals\.micros/);
+  assert.match(html, /for="goal-weight">Goal weight</);
+  assert.match(html, /id="goal-weight"/);
+  assert.doesNotMatch(html, />Amount \(lbs\)</);
+  assert.match(app, /goalWeightLbs/);
 });
 
 test('FDC nutrient map covers the tracked micros and the three fixtures are official SR Legacy records', () => {
-  const needed = ['fiber', 'sugar', 'sodium', 'potassium', 'calcium', 'iron', 'magnesium', 'vitaminA', 'vitaminC', 'vitaminD', 'vitaminB12'];
+  const needed = ['fiber', 'sugar', 'sodium', 'potassium', 'calcium', 'iron', 'magnesium', 'vitaminA', 'vitaminC', 'vitaminD', 'vitaminB12', 'saturatedFat', 'transFat', 'cholesterol', 'ala', 'epa', 'dha'];
   const keys = Object.values(FDC_NUTRIENTS).map((n) => n.key);
   for (const k of needed) assert.ok(keys.includes(k), k);
   assert.equal(bananaRaw.dataType, 'SR Legacy');

@@ -58,7 +58,17 @@ function toCreateFields(userId, targetDate, src) {
     vitaminA: src.vitaminA,
     vitaminC: src.vitaminC,
     vitaminD: src.vitaminD,
-    vitaminB12: src.vitaminB12
+    vitaminB12: src.vitaminB12,
+    saturatedFat: src.saturatedFat,
+    transFat: src.transFat,
+    cholesterol: src.cholesterol,
+    monounsaturatedFat: src.monounsaturatedFat,
+    polyunsaturatedFat: src.polyunsaturatedFat,
+    ala: src.ala,
+    epa: src.epa,
+    dha: src.dha,
+    omega3: src.omega3,
+    omega6: src.omega6
   };
 }
 

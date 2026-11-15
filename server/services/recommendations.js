@@ -165,7 +165,14 @@ async function computeCalorieRecommendation(userId, today) {
     } else {
       const amount = goal.amountLbs || 0;
       const start = goal.startWeight || (fromLogs ? fromLogs.first.weight : currentWeight);
-      const targetWeight = goal.type === 'lose' ? start - amount : start + amount;
+      const GW = require('./goalWeight');
+      const targetWeight = GW.computedGoalWeightLbs({
+        type: goal.type,
+        amountLbs: amount,
+        startWeight: start,
+        targetWeightLbs: goal.targetWeightLbs,
+        currentWeightLbs: currentWeight
+      });
       const remainingLbs = goal.type === 'lose' ? Math.max(0, currentWeight - targetWeight) : Math.max(0, targetWeight - currentWeight);
       const daysLeft = goal.targetDate ? Math.max(1, daysBetween(todayKey, goal.targetDate)) : null;
       const weeksLeft = daysLeft ? daysLeft / 7 : Math.max(1, goal.weeks || 12);

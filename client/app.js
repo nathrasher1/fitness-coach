@@ -1734,24 +1734,43 @@ document.getElementById('food-prev').addEventListener('click', () => shiftFoodDa
 document.getElementById('food-next').addEventListener('click', () => shiftFoodDate(1));
 
 // ========== Goals ==========
+function displayWeightValue(lbs) {
+  if (lbs == null || !Number.isFinite(Number(lbs))) return '';
+  return settings.unit === 'kg' ? (Number(lbs) / 2.20462).toFixed(1) : Number(lbs).toFixed(1);
+}
+
 async function loadGoal() {
   try {
     const goal = await api('/goals');
     const el = document.getElementById('current-goal-display');
-    if (!goal || goal.type === 'maintain' && !goal.amountLbs) {
+    const unit = settings.unit === 'kg' ? 'kg' : 'lbs';
+    const goalW = goal && goal.goalWeightLbs;
+    if (!goal || (goal.type === 'maintain' && !goal.amountLbs && goalW == null)) {
       el.innerHTML = '<div class="empty" style="padding:12px 0">No active goal set.</div>';
     } else {
       const typeLabel = goal.type === 'lose' ? 'Lose' : goal.type === 'gain' ? 'Gain' : 'Maintain';
       const by = goal.targetDate ? ' by ' + goal.targetDate : ` in ${goal.weeks} weeks`;
+      const weightLine = goalW != null
+        ? `Goal weight ${displayWeightValue(goalW)} ${unit}`
+        : '';
+      const amountLine = goal.type === 'maintain' || !goal.amountLbs
+        ? typeLabel
+        : `${typeLabel} ${goal.amountLbs} lbs`;
       el.innerHTML = `
         <div class="goal-summary">
-          <div class="target">${typeLabel} ${goal.type === 'maintain' ? '' : goal.amountLbs + ' lbs'}${by}</div>
-          <div style="margin-top:4px;font-size:0.9rem;color:var(--text-muted)">Calories update from remaining weight and days left.</div>
+          <div class="target">${weightLine ? weightLine + (goal.type === 'maintain' ? '' : ' · ') : ''}${weightLine && goal.type !== 'maintain' ? amountLine : (weightLine || amountLine)}${by}</div>
+          <div style="margin-top:4px;font-size:0.9rem;color:var(--text-muted)">Calories update from remaining weight and days left. Existing goals keep their saved amounts; the goal weight is calculated from starting weight when it was not stored separately.</div>
         </div>
       `;
     }
     document.getElementById('goal-type').value = goal.type || 'maintain';
-    document.getElementById('goal-amount').value = goal.amountLbs || '';
+    const gwEl = document.getElementById('goal-weight');
+    if (gwEl) {
+      const display = goal.goalWeightLbs != null ? goal.goalWeightLbs : null;
+      gwEl.value = display != null ? displayWeightValue(display) : '';
+    }
+    const amtEl = document.getElementById('goal-amount');
+    if (amtEl) amtEl.value = goal.amountLbs || '';
     document.getElementById('goal-date').value = goal.targetDate || '';
     if (goal.startWeight) {
       document.getElementById('goal-start-weight').value =
@@ -1764,16 +1783,17 @@ async function loadGoal() {
 
 document.getElementById('btn-save-goal').addEventListener('click', async () => {
   const type = document.getElementById('goal-type').value;
-  const amount = parseFloat(document.getElementById('goal-amount').value) || 0;
   const targetDate = document.getElementById('goal-date').value;
   let startWeight = parseFloat(document.getElementById('goal-start-weight').value);
   if (!isNaN(startWeight)) startWeight = fromInputWeight(startWeight);
   else startWeight = undefined;
+  const rawGoal = parseFloat(document.getElementById('goal-weight').value);
+  const goalWeightLbs = !isNaN(rawGoal) ? fromInputWeight(rawGoal) : undefined;
 
   try {
     await api('/goals', {
       method: 'PUT',
-      body: JSON.stringify({ type, amountLbs: amount, targetDate, startWeight })
+      body: JSON.stringify({ type, goalWeightLbs, targetDate, startWeight })
     });
     toast('Goal saved');
     loadGoal();
