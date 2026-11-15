@@ -184,7 +184,6 @@ document.getElementById('main-nav').addEventListener('click', (e) => {
   if (btn.dataset.panel === 'calendar') loadCalendar();
   if (btn.dataset.panel === 'workouts') {
     loadPlans();
-    loadWorkoutHistory();
     renderWorkoutExercises();
     renderRecommendedLifts();
     if (!document.getElementById('wo-date').value) {
@@ -2523,7 +2522,6 @@ document.getElementById('btn-save-workout').addEventListener('click', async () =
     document.getElementById('btn-save-workout').disabled = true;
     stopWorkoutTimer();
     stopRest(false);
-    loadWorkoutHistory();
     loadPlans();
   } catch (err) {
     toast(err.message);
@@ -3246,52 +3244,6 @@ document.getElementById('btn-load-routine').addEventListener('click', () => {
   loadPlans();
   document.getElementById('wo-routines').scrollIntoView({ behavior: 'smooth' });
 });
-
-async function loadWorkoutHistory() {
-  try {
-    const [own, imported] = await Promise.all([api('/workouts?limit=15'), api('/health/workouts?limit=15').catch(() => [])]);
-    const logs = [...own, ...imported].sort((a, b) => (a.date === b.date ? 0 : a.date < b.date ? 1 : -1)).slice(0, 20);
-    const el = document.getElementById('wo-history');
-    if (!logs.length) {
-      el.innerHTML = '<div class="empty">No workouts logged yet.</div>';
-      return;
-    }
-    el.innerHTML = logs
-      .map(
-        (w) => w.imported ? `
-      <div class="wo-history-item imported">
-        <div class="flex-between">
-          <strong>${esc(w.name)}<span class="imported-badge">Imported${w.app ? ' · ' + esc(w.app) : ''}</span></strong>
-          <span class="hint">${formatDate(w.date)}</span>
-        </div>
-        <div class="hint">${[w.durationMin ? Math.round(w.durationMin) + ' min' : '', w.activeKcal ? Math.round(w.activeKcal) + ' active kcal' : '', w.distanceM ? (w.distanceM / 1609.344).toFixed(2) + ' mi' : ''].filter(Boolean).join(' · ') || 'Imported workout'}</div>
-      </div>` : `
-      <div class="wo-history-item">
-        <div class="flex-between">
-          <strong>${esc(w.name)}</strong>
-          <span class="hint">${formatDate(w.date)}</span>
-        </div>
-        <div class="hint">${w.exercises.length} exercise${w.exercises.length === 1 ? '' : 's'} · ${w.exercises.reduce((n, e) => n + P.workingSets(e.sets).length, 0)} working sets · ${Math.round(woDisp(w.exercises.reduce((v, e) => v + P.volume(e.sets), 0))).toLocaleString()} ${woUnitLabel()} volume${w.durationMin ? ` · ${w.durationMin} min` : ''}</div>
-        <div class="wo-history-actions">
-          <button class="btn btn-danger btn-sm" data-id="${esc(w._id)}">Delete</button>
-          <button type="button" class="btn btn-ghost-outline btn-sm wo-comments" data-thread-own="${esc(w._id)}" data-title="${esc(w.name)}" hidden>💬 0</button>
-        </div>
-      </div>`
-      )
-      .join('');
-    el.querySelectorAll('.btn-danger').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        if (!confirm('Delete this workout?')) return;
-        await api(`/workouts/${btn.dataset.id}`, { method: 'DELETE' });
-        toast('Deleted');
-        loadWorkoutHistory();
-      });
-    });
-    if (window.Social) window.Social.decorateOwnWorkouts();
-  } catch (err) {
-    console.error(err);
-  }
-}
 
 // ========== Body Metrics ==========
 document.getElementById('length-unit').addEventListener('change', async () => {

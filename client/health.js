@@ -98,7 +98,6 @@
       save({ ...state(), lastSync: Date.now(), lastResult: `${r.days} day${r.days === 1 ? '' : 's'}, ${r.workouts} workout${r.workouts === 1 ? '' : 's'}` });
       if (manual) toast('Health data synced');
       if (window.loadActivity) window.loadActivity();
-      if (typeof loadWorkoutHistory === 'function') loadWorkoutHistory();
     } catch (e) {
       if (manual) setStatus('Sync failed: ' + (e.message || 'please try again'));
     } finally { syncing = false; if (manual) refreshCard(); }
@@ -128,7 +127,7 @@
     });
     $('btn-health-remove').addEventListener('click', async () => {
       if (!confirm('Remove all imported steps, calories and workouts from Fitness Coach?')) return;
-      try { const r = await api('/health/data', { method: 'DELETE' }); toast(`Removed ${r.removed.days} days and ${r.removed.workouts} workouts`); if (window.loadActivity) window.loadActivity(); if (typeof loadWorkoutHistory === 'function') loadWorkoutHistory(); }
+      try { const r = await api('/health/data', { method: 'DELETE' }); toast(`Removed ${r.removed.days} days and ${r.removed.workouts} workouts`); if (window.loadActivity) window.loadActivity(); }
       catch (e) { toast(e.message); }
     });
     setTimeout(() => sync(false), 2500);
