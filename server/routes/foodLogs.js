@@ -10,21 +10,24 @@ const { computeCalorieRecommendation } = require('../services/recommendations');
 
 const { localToday, daysAgoKey, shiftKey, isDateKey } = require('../services/dates');
 const CopyYesterday = require('../services/copyYesterday');
+const Micros = require('../services/micronutrients');
 const router = express.Router();
 router.use(requireAuth);
 
 function dayTotals(logs) {
-  return logs.reduce(
-    (acc, l) => {
-      acc.calories += l.calories;
-      acc.protein += l.protein;
-      acc.carbs += l.carbs;
-      acc.fat += l.fat;
-      acc.fiber += l.fiber;
-      return acc;
+  const acc = logs.reduce(
+    (sum, l) => {
+      sum.calories += l.calories;
+      sum.protein += l.protein;
+      sum.carbs += l.carbs;
+      sum.fat += l.fat;
+      sum.fiber += l.fiber;
+      return sum;
     },
     { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
   );
+  acc.micros = Micros.viewModel(logs);
+  return acc;
 }
 
 // Older entries were saved without a readable amount label. Describe them from the linked
@@ -178,6 +181,7 @@ router.post('/', async (req, res) => {
       carbs: +(food.carbs * qty).toFixed(1),
       fat: +(food.fat * qty).toFixed(1),
       fiber: +(food.fiber * qty).toFixed(1),
+      ...Micros.scaleMicros(food, qty),
       note: note || '',
       isManual: false
     });
@@ -269,7 +273,8 @@ router.patch('/:id', async (req, res) => {
       protein: log.protein / log.servings,
       carbs: log.carbs / log.servings,
       fat: log.fat / log.servings,
-      fiber: log.fiber / log.servings
+      fiber: log.fiber / log.servings,
+      ...Micros.scaleMicros(log, 1 / log.servings)
     };
 
     log.servings = servings;
@@ -278,6 +283,10 @@ router.patch('/:id', async (req, res) => {
     log.carbs = +(perServing.carbs * servings).toFixed(1);
     log.fat = +(perServing.fat * servings).toFixed(1);
     log.fiber = +(perServing.fiber * servings).toFixed(1);
+    const scaled = Micros.scaleMicros(perServing, servings);
+    for (const key of Micros.MICRO_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(scaled, key)) log[key] = scaled[key];
+    }
     if (req.body.meal) log.meal = req.body.meal;
     if (req.body.note != null) log.note = req.body.note;
 

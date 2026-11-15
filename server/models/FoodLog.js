@@ -16,6 +16,17 @@ const foodLogSchema = new mongoose.Schema({
   carbs: { type: Number, default: 0 },
   fat: { type: Number, default: 0 },
   fiber: { type: Number, default: 0 },
+  // Optional snapshots of Food micros at log time (unknown stays unset, not 0).
+  sugar: { type: Number, default: undefined },
+  sodium: { type: Number, default: undefined },
+  potassium: { type: Number, default: undefined },
+  calcium: { type: Number, default: undefined },
+  iron: { type: Number, default: undefined },
+  magnesium: { type: Number, default: undefined },
+  vitaminA: { type: Number, default: undefined },
+  vitaminC: { type: Number, default: undefined },
+  vitaminD: { type: Number, default: undefined },
+  vitaminB12: { type: Number, default: undefined },
   note: { type: String, default: '' },
   isManual: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }

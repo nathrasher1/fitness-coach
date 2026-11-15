@@ -1,0 +1,178 @@
+{
+  "_comment": "Slim copy of a USDA FoodData Central SR Legacy record. Nutrient amounts are per 100 g. Public domain. Retrieved 2026-11-15 via https://api.nal.usda.gov/fdc/v1/food/{id}.",
+  "fdcId": 173944,
+  "description": "Bananas, raw",
+  "dataType": "SR Legacy",
+  "foodNutrients": [
+    {
+      "nutrient": {
+        "id": 1008,
+        "name": "Energy",
+        "unitName": "kcal"
+      },
+      "amount": 89.0
+    },
+    {
+      "nutrient": {
+        "id": 1003,
+        "name": "Protein",
+        "unitName": "g"
+      },
+      "amount": 1.09
+    },
+    {
+      "nutrient": {
+        "id": 1004,
+        "name": "Total lipid (fat)",
+        "unitName": "g"
+      },
+      "amount": 0.33
+    },
+    {
+      "nutrient": {
+        "id": 1005,
+        "name": "Carbohydrate, by difference",
+        "unitName": "g"
+      },
+      "amount": 22.84
+    },
+    {
+      "nutrient": {
+        "id": 1079,
+        "name": "Fiber, total dietary",
+        "unitName": "g"
+      },
+      "amount": 2.6
+    },
+    {
+      "nutrient": {
+        "id": 2000,
+        "name": "Total Sugars",
+        "unitName": "g"
+      },
+      "amount": 12.23
+    },
+    {
+      "nutrient": {
+        "id": 1087,
+        "name": "Calcium, Ca",
+        "unitName": "mg"
+      },
+      "amount": 5.0
+    },
+    {
+      "nutrient": {
+        "id": 1089,
+        "name": "Iron, Fe",
+        "unitName": "mg"
+      },
+      "amount": 0.26
+    },
+    {
+      "nutrient": {
+        "id": 1090,
+        "name": "Magnesium, Mg",
+        "unitName": "mg"
+      },
+      "amount": 27.0
+    },
+    {
+      "nutrient": {
+        "id": 1092,
+        "name": "Potassium, K",
+        "unitName": "mg"
+      },
+      "amount": 358.0
+    },
+    {
+      "nutrient": {
+        "id": 1093,
+        "name": "Sodium, Na",
+        "unitName": "mg"
+      },
+      "amount": 1.0
+    },
+    {
+      "nutrient": {
+        "id": 1162,
+        "name": "Vitamin C, total ascorbic acid",
+        "unitName": "mg"
+      },
+      "amount": 8.7
+    },
+    {
+      "nutrient": {
+        "id": 1178,
+        "name": "Vitamin B-12",
+        "unitName": "\u00b5g"
+      },
+      "amount": 0.0
+    },
+    {
+      "nutrient": {
+        "id": 1106,
+        "name": "Vitamin A, RAE",
+        "unitName": "\u00b5g"
+      },
+      "amount": 3.0
+    },
+    {
+      "nutrient": {
+        "id": 1114,
+        "name": "Vitamin D (D2 + D3)",
+        "unitName": "\u00b5g"
+      },
+      "amount": 0.0
+    }
+  ],
+  "foodPortions": [
+    {
+      "amount": 1.0,
+      "modifier": "NLEA serving",
+      "gramWeight": 126.0,
+      "sequenceNumber": 8
+    },
+    {
+      "amount": 1.0,
+      "modifier": "extra large (9\" or longer)",
+      "gramWeight": 152.0,
+      "sequenceNumber": 7
+    },
+    {
+      "amount": 1.0,
+      "modifier": "large (8\" to 8-7/8\" long)",
+      "gramWeight": 136.0,
+      "sequenceNumber": 6
+    },
+    {
+      "amount": 1.0,
+      "modifier": "cup, sliced",
+      "gramWeight": 150.0,
+      "sequenceNumber": 2
+    },
+    {
+      "amount": 1.0,
+      "modifier": "small (6\" to 6-7/8\" long)",
+      "gramWeight": 101.0,
+      "sequenceNumber": 4
+    },
+    {
+      "amount": 1.0,
+      "modifier": "extra small (less than 6\" long)",
+      "gramWeight": 81.0,
+      "sequenceNumber": 3
+    },
+    {
+      "amount": 1.0,
+      "modifier": "medium (7\" to 7-7/8\" long)",
+      "gramWeight": 118.0,
+      "sequenceNumber": 5
+    },
+    {
+      "amount": 1.0,
+      "modifier": "cup, mashed",
+      "gramWeight": 225.0,
+      "sequenceNumber": 1
+    }
+  ]
+}

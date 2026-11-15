@@ -47,7 +47,18 @@ function toCreateFields(userId, targetDate, src) {
     fat: src.fat,
     fiber: src.fiber,
     note: src.note || '',
-    isManual: !!src.isManual
+    isManual: !!src.isManual,
+    fiber: src.fiber,
+    sugar: src.sugar,
+    sodium: src.sodium,
+    potassium: src.potassium,
+    calcium: src.calcium,
+    iron: src.iron,
+    magnesium: src.magnesium,
+    vitaminA: src.vitaminA,
+    vitaminC: src.vitaminC,
+    vitaminD: src.vitaminD,
+    vitaminB12: src.vitaminB12
   };
 }
 

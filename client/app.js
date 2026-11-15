@@ -1483,6 +1483,38 @@ function amountLabel(log) {
   return `${log.servings} serving${log.servings === 1 ? '' : 's'}`;
 }
 
+
+function renderMicroProgress(micros) {
+  const wrap = document.getElementById('micro-progress');
+  const bars = document.getElementById('micro-bars');
+  const src = document.getElementById('micro-source');
+  if (!wrap || !bars) return;
+  const nutrients = micros && micros.nutrients;
+  const any = nutrients && nutrients.some((n) => !n.unknown);
+  if (!any) {
+    wrap.hidden = true;
+    bars.innerHTML = '';
+    return;
+  }
+  wrap.hidden = false;
+  if (src) {
+    const s = micros.source || {};
+    src.textContent = (s.name || 'FDA Daily Value') + ' — %DV is a labeling reference, not a personal RDA. Missing values are left blank, not assumed to be zero.';
+  }
+  bars.innerHTML = nutrients.map((n) => {
+    if (n.unknown) {
+      return `<div class="micro-row micro-unknown"><div class="micro-label">${n.label}</div><div class="micro-meta">No verified data for this day</div></div>`;
+    }
+    const amount = n.amount == null ? '—' : (Number.isInteger(n.amount) ? n.amount : Number(n.amount).toFixed(n.unit === 'mcg' || n.key === 'iron' || n.key === 'vitaminB12' ? 2 : 1));
+    const pct = n.percentDv == null ? null : Math.min(100, n.percentDv);
+    const pctLabel = n.percentDv == null ? 'no Daily Value (total sugars)' : `${n.percentDv}% DV`;
+    const width = pct == null ? 0 : pct;
+    const role = n.dvRole === 'limit' ? 'limit' : (n.dvRole === 'no_dv' ? 'plain' : 'enough');
+    const cover = n.coverage && micros.items ? ` · ${n.coverage}/${micros.items} foods` : '';
+    return `<div class="micro-row micro-${role}"><div class="micro-label">${n.label}</div><div class="micro-track" aria-hidden="true"><div class="micro-fill" style="width:${width}%"></div></div><div class="micro-meta">${amount} ${n.unit} · ${pctLabel}${cover}</div></div>`;
+  }).join('');
+}
+
 function renderMacroProgress(totals, targets) {
   const el = document.getElementById('macro-progress');
   const remEl = document.getElementById('energy-remaining');
@@ -1528,6 +1560,7 @@ async function loadFoodLog() {
     const listEl = document.getElementById('food-log-list');
 
     renderMacroProgress(data.totals, data.targets);
+    renderMicroProgress((data.totals && data.totals.micros) || null);
 
     const targetCal = data.targets?.calories;
     totalsEl.innerHTML = `

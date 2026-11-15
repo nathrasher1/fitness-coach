@@ -2376,3 +2376,14 @@ html.native .scan-card { margin-top: env(safe-area-inset-top, 0px); }
 .ex-filters .chip.chip-on { background: var(--main-soft); border-color: var(--main); color: var(--main-text); }
 .meal-actions { flex-wrap: wrap; }
 .meal-actions .copy-yesterday-meal { color: var(--text-muted, inherit); }
+
+/* Micronutrient day view (optional; hidden when no verified values) */
+.micro-progress { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.micro-heading { margin: 0 0 4px; font-size: 0.95rem; }
+.micro-row { margin: 8px 0; }
+.micro-label { font-size: 0.82rem; font-weight: 650; }
+.micro-track { height: 8px; background: var(--surface2, #e1f0ee); border-radius: 99px; overflow: hidden; margin: 4px 0; }
+.micro-fill { height: 100%; background: var(--main); border-radius: 99px; }
+.micro-row.micro-limit .micro-fill { background: #b45309; }
+.micro-row.micro-unknown .micro-meta { font-style: italic; }
+.micro-meta { font-size: 0.75rem; color: var(--text-muted); }
