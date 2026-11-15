@@ -1763,7 +1763,6 @@ async function loadGoal() {
         </div>
       `;
     }
-    document.getElementById('goal-type').value = goal.type || 'maintain';
     const gwEl = document.getElementById('goal-weight');
     if (gwEl) {
       const display = goal.goalWeightLbs != null ? goal.goalWeightLbs : null;
@@ -1782,7 +1781,6 @@ async function loadGoal() {
 }
 
 document.getElementById('btn-save-goal').addEventListener('click', async () => {
-  const type = document.getElementById('goal-type').value;
   const targetDate = document.getElementById('goal-date').value;
   let startWeight = parseFloat(document.getElementById('goal-start-weight').value);
   if (!isNaN(startWeight)) startWeight = fromInputWeight(startWeight);
@@ -1793,7 +1791,7 @@ document.getElementById('btn-save-goal').addEventListener('click', async () => {
   try {
     await api('/goals', {
       method: 'PUT',
-      body: JSON.stringify({ type, goalWeightLbs, targetDate, startWeight })
+      body: JSON.stringify({ goalWeightLbs, targetDate, startWeight })
     });
     toast('Goal saved');
     loadGoal();

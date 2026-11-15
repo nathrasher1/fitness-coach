@@ -52,10 +52,6 @@
           <div class="target">Goal weight 180.0 lbs · Lose 10 lbs by 2027-03-01</div>
           <p class="hint">Existing goals keep their saved amounts. Goal weight is calculated from starting weight when it was not stored separately.</p>
         </div>
-        <div class="form-row">
-          <label>Goal type</label>
-          <select><option selected>Lose weight</option><option>Gain weight</option><option>Maintain weight</option></select>
-        </div>
         <div class="grid-2">
           <div class="form-row">
             <label>Goal weight</label>
@@ -66,7 +62,7 @@
             <input type="date" value="2027-03-01" readonly />
           </div>
         </div>
-        <p class="hint" style="margin-top:-6px;margin-bottom:12px">Enter the weight you want to reach. The amount to lose or gain is calculated from your starting or current weight.</p>
+        <p class="hint" style="margin-top:-6px;margin-bottom:12px">Enter the weight you want to reach. Lose, gain, or maintain is inferred from your current or starting weight (within about 0.5 lb counts as maintain).</p>
         <div class="form-row">
           <label>Starting weight (optional)</label>
           <input type="number" value="190.0" readonly />

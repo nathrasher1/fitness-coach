@@ -802,20 +802,12 @@
           <h2>Your Goal</h2>
           <div id="current-goal-display"></div>
 
-          <div class="form-row">
-            <label for="goal-type">Goal type</label>
-            <select id="goal-type">
-              <option value="lose">Lose weight</option>
-              <option value="gain">Gain weight</option>
-              <option value="maintain">Maintain weight</option>
-            </select>
-          </div>
           <div class="grid-2">
             <div class="form-row">
               <label for="goal-weight">Goal weight</label>
               <input type="number" id="goal-weight" step="0.1" min="0" placeholder="e.g. 165" />
               <input type="hidden" id="goal-amount" />
-              <p class="hint" id="goal-weight-hint">Enter the weight you want to reach. The amount to lose or gain is calculated from your starting or current weight.</p>
+              <p class="hint" id="goal-weight-hint">Enter the weight you want to reach. Lose, gain, or maintain is inferred from your current or starting weight (within about 0.5 lb counts as maintain).</p>
             </div>
             <div class="form-row">
               <label for="goal-date">Reach by</label>

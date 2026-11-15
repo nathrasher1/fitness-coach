@@ -43,21 +43,29 @@ router.put('/', async (req, res) => {
   try {
     const { type, amountLbs, weeks, targetDate, startWeight, proteinG, carbsG, fatG, goalWeightLbs, targetWeightLbs } = req.body;
     const currentWeightLbs = await latestWeightLbs(req.session.userId);
-    const kind = type || 'maintain';
     const start = startWeight != null && startWeight !== '' ? Number(startWeight) : undefined;
     const wanted = goalWeightLbs != null ? goalWeightLbs : targetWeightLbs;
 
+    let kind = type || 'maintain';
     let nextAmount = amountLbs != null ? Number(amountLbs) : 0;
     let nextTarget = wanted != null && wanted !== '' ? Number(wanted) : undefined;
 
     if (wanted != null && wanted !== '') {
       const check = GW.validateGoalWeight({
-        type: kind,
         goalWeightLbs: wanted,
         startWeight: start,
         currentWeightLbs
       });
       if (!check.ok) return res.status(400).json({ error: check.error });
+      const inferred = GW.inferGoalType({
+        goalWeightLbs: wanted,
+        startWeight: start,
+        currentWeightLbs
+      });
+      if (!inferred) {
+        return res.status(400).json({ error: 'Add a starting weight or a weigh-in so we can derive the amount to lose or gain.' });
+      }
+      kind = inferred;
       const derived = GW.amountLbsFromGoalWeight({
         type: kind,
         goalWeightLbs: wanted,
