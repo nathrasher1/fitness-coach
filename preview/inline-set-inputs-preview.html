@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Sample preview — Inline set inputs (not logged-in app)</title>
+<style>
+  :root {
+    --bg: #eef7f6;
+    --surface: #ffffff;
+    --surface2: #e1f0ee;
+    --border: #cbe3df;
+    --text: #12343b;
+    --text-muted: #4b676c;
+    --main: #0e7c86;
+    --main-hover: #0a636b;
+    --main-soft: #d3efec;
+    --main-text: #0a636b;
+    --on-main: #ffffff;
+    --accent: #e9d6b0;
+    --accent-strong: #d6b77c;
+    --accent-soft: #f7efdf;
+    --accent-text: #82622a;
+    --nav: #0b3d45;
+    --nav-text: #cbe9e6;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #111; }
+  body { font-family: system-ui, -apple-system, sans-serif; color: var(--text); }
+  .phone {
+    width: 390px;
+    height: 844px;
+    margin: 0 auto;
+    background: var(--bg);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .banner {
+    background: #7a3b00;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 10px;
+    line-height: 1.3;
+  }
+  .status {
+    height: 44px;
+    padding: 12px 22px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 700;
+    font-size: 15px;
+    background: var(--nav);
+    color: #fff;
+  }
+  .status-icons { display: flex; gap: 6px; align-items: center; font-size: 13px; }
+  header {
+    background: var(--nav);
+    color: var(--nav-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px 10px;
+  }
+  .icon-btn {
+    border: none; background: transparent; color: inherit;
+    font-size: 20px; min-width: 36px; min-height: 36px; cursor: pointer;
+  }
+  .avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, #c9a227, #7a5a12);
+    border: 2px solid #e9d6b0;
+    flex: 0 0 auto;
+  }
+  .brand { flex: 1; min-width: 0; }
+  .brand-title { color: #fff; font-weight: 800; font-size: 15px; line-height: 1.1; }
+  .brand-user { font-size: 12px; color: var(--nav-text); }
+  .logout {
+    border: none; background: transparent; color: #fff;
+    font-weight: 700; font-size: 15px; padding: 6px 8px; cursor: pointer;
+  }
+  main { flex: 1; padding: 12px 12px 0; overflow: hidden; }
+  .wx-card {
+    background: var(--surface);
+    border-radius: 18px 18px 0 0;
+    padding: 14px 12px 8px;
+    min-height: 100%;
+    box-shadow: 0 8px 24px rgba(11, 61, 69, 0.08);
+  }
+  .wx-name { font-weight: 800; font-size: 1.05rem; }
+  .wx-meta { color: var(--text-muted); font-size: 0.82rem; margin: 2px 0 10px; }
+  .wx-grid { margin-top: 6px; }
+  .wx-row {
+    display: grid;
+    grid-template-columns: 56px 1fr 1fr 60px;
+    gap: 8px;
+    align-items: center;
+    padding: 4px 0;
+  }
+  .wx-hdr {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    font-weight: 700;
+    text-align: center;
+    padding-bottom: 2px;
+  }
+  .set-type, .set-val, .set-done {
+    min-height: 52px;
+    border-radius: 12px;
+    font: inherit;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .set-type {
+    font-weight: 800;
+    font-size: 1.05rem;
+    border: 2px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    cursor: pointer;
+  }
+  .set-val {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 0 6px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 1.25rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  .set-val::selection { background: #accef7; color: #000; }
+  .set-val::-moz-selection { background: #accef7; color: #000; }
+  .set-val:focus {
+    outline: none;
+    border: 2px solid var(--main);
+    background: var(--main-soft);
+  }
+  .set-done {
+    border: 2px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 1.4rem;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .set-done.on { background: var(--main); border-color: var(--main); color: var(--on-main); }
+  .wx-foot { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .ghost {
+    border: none; background: transparent; color: var(--main-text);
+    font-weight: 700; min-height: 44px; padding: 0 8px; cursor: pointer; font: inherit;
+  }
+  .removed {
+    margin-top: 10px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent-strong);
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+  .kb {
+    background: #d1d3d9;
+    padding: 6px 6px 10px;
+    flex: 0 0 auto;
+  }
+  .kb-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 8px 8px;
+  }
+  .kb-nav button {
+    border: none; background: transparent; color: #1c1c1e;
+    font-size: 18px; font-weight: 800; padding: 4px 8px; cursor: pointer;
+  }
+  .kb-go {
+    border: none; background: transparent; color: var(--main);
+    font-size: 22px; font-weight: 800; cursor: pointer; padding: 4px 8px;
+  }
+  .keys {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px 6px;
+  }
+  .keys button {
+    min-height: 46px;
+    border: none;
+    border-radius: 6px;
+    background: #fff;
+    box-shadow: 0 1px 0 rgba(0,0,0,.25);
+    font-size: 22px;
+    font-weight: 400;
+    color: #000;
+    cursor: pointer;
+  }
+  .keys button:active { background: #c8c8cd; }
+  .keys .sub { display: block; font-size: 8px; letter-spacing: 0.12em; color: #555; margin-top: -2px; }
+  .keys .wide { grid-column: 2; }
+  .keys .back {
+    background: #aeb3bb;
+    font-weight: 700;
+  }
+</style>
+</head>
+<body>
+  <div class="phone" id="phone">
+    <div class="banner">SAMPLE PREVIEW — static mock of inline LBS/REPS editing. Not a logged-in Fitness Coach session. The stepper panel, “Same as last set”, and Done are gone. Tap a cell: the value highlights and a numeric keypad appears. New sets still copy the previous set’s weight and reps.</div>
+    <div class="status"><span>10:58</span><span class="status-icons">▮▮▮▮&nbsp; LTE &nbsp;████ 18</span></div>
+    <header>
+      <button type="button" class="icon-btn" aria-label="Menu">☰</button>
+      <div class="avatar" aria-hidden="true"></div>
+      <div class="brand">
+        <div class="brand-title">Fitness Coach</div>
+        <div class="brand-user">Niklaus</div>
+      </div>
+      <button type="button" class="icon-btn" aria-label="Messages">💬</button>
+      <button type="button" class="logout">Log out</button>
+    </header>
+    <main>
+      <div class="wx-card">
+        <div class="wx-name">Chest Press Machine</div>
+        <div class="wx-meta">Est. 1RM <strong>16.4 lb</strong></div>
+        <div class="wx-grid">
+          <div class="wx-row wx-hdr"><span>Set</span><span>Lbs</span><span>Reps</span><span>✓</span></div>
+          <div class="wx-row" id="row-0">
+            <button type="button" class="set-type">1</button>
+            <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="set-val" id="w0" value="15" enterkeyhint="next" autocomplete="off" aria-label="Set 1 weight in pounds" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" class="set-val" id="r0" value="3" enterkeyhint="next" autocomplete="off" aria-label="Set 1 reps" />
+            <button type="button" class="set-done" aria-label="Log set">✓</button>
+          </div>
+          <div class="wx-row">
+            <button type="button" class="set-type">2</button>
+            <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="set-val" id="w1" value="0" enterkeyhint="next" autocomplete="off" aria-label="Set 2 weight in pounds" />
+            <input type="text" inputmode="numeric" pattern="[0-9]*" class="set-val" id="r1" value="3" enterkeyhint="done" autocomplete="off" aria-label="Set 2 reps" />
+            <button type="button" class="set-done" aria-label="Log set">✓</button>
+          </div>
+        </div>
+        <div class="wx-foot">
+          <button type="button" class="ghost" id="add-set">+ Add set</button>
+          <button type="button" class="ghost">− Remove set</button>
+        </div>
+        <p class="removed">Removed: the LBS/REPS −/+ stepper panel, “Same as last set”, and Done. Type the new number directly — the current value is already selected, so you don’t have to backspace.</p>
+      </div>
+    </main>
+    <div class="kb" id="kb" hidden>
+      <div class="kb-bar">
+        <div class="kb-nav">
+          <button type="button" id="kb-prev" aria-label="Previous field">⌃</button>
+          <button type="button" id="kb-next" aria-label="Next field">⌄</button>
+        </div>
+        <button type="button" class="kb-go" id="kb-go" aria-label="Done">✓</button>
+      </div>
+      <div class="keys">
+        <button type="button" data-k="1">1<span class="sub">ABC</span></button>
+        <button type="button" data-k="2">2<span class="sub">DEF</span></button>
+        <button type="button" data-k="3">3<span class="sub">GHI</span></button>
+        <button type="button" data-k="4">4<span class="sub">JKL</span></button>
+        <button type="button" data-k="5">5<span class="sub">MNO</span></button>
+        <button type="button" data-k="6">6<span class="sub">PQR</span></button>
+        <button type="button" data-k="7">7<span class="sub">STU</span></button>
+        <button type="button" data-k="8">8<span class="sub">VWX</span></button>
+        <button type="button" data-k="9">9<span class="sub">YZ</span></button>
+        <button type="button" class="wide" data-k="0">0</button>
+        <button type="button" class="back" data-k="back" aria-label="Delete">⌫</button>
+      </div>
+    </div>
+  </div>
+<script>
+  const fields = [...document.querySelectorAll('.set-val')];
+  const kb = document.getElementById('kb');
+  let active = null;
+  let justFocused = false;
+
+  function selectAll(el) {
+    const run = () => {
+      if (document.activeElement !== el) return;
+      const len = String(el.value || '').length;
+      try {
+        if (typeof el.setSelectionRange === 'function') el.setSelectionRange(0, len);
+        else el.select();
+      } catch { try { el.select(); } catch {} }
+    };
+    requestAnimationFrame(() => setTimeout(run, 0));
+  }
+
+  fields.forEach((el) => {
+    el.addEventListener('focus', () => {
+      active = el;
+      justFocused = true;
+      kb.hidden = false;
+      selectAll(el);
+      setTimeout(() => { justFocused = false; }, 300);
+    });
+    el.addEventListener('mouseup', (e) => {
+      if (justFocused) { e.preventDefault(); selectAll(el); }
+    });
+  });
+
+  document.getElementById('kb-prev').addEventListener('click', () => {
+    const i = fields.indexOf(document.activeElement);
+    fields[Math.max(0, i <= 0 ? 0 : i - 1)].focus();
+  });
+  document.getElementById('kb-next').addEventListener('click', () => {
+    const i = fields.indexOf(document.activeElement);
+    fields[Math.min(fields.length - 1, i < 0 ? 0 : i + 1)].focus();
+  });
+  document.getElementById('kb-go').addEventListener('click', () => {
+    document.activeElement?.blur();
+    kb.hidden = true;
+    active = null;
+  });
+  kb.querySelectorAll('[data-k]').forEach((btn) => {
+    btn.addEventListener('mousedown', (e) => e.preventDefault());
+    btn.addEventListener('click', () => {
+      const el = document.activeElement;
+      if (!el || !el.classList.contains('set-val')) return;
+      const k = btn.dataset.k;
+      if (k === 'back') el.value = String(el.value).slice(0, -1);
+      else if (justFocused || (el.selectionStart === 0 && el.selectionEnd === String(el.value).length)) {
+        el.value = k;
+        justFocused = false;
+      } else el.value += k;
+    });
+  });
+
+  document.querySelectorAll('.set-done').forEach((b) => {
+    b.addEventListener('click', () => b.classList.toggle('on'));
+  });
+  document.getElementById('add-set').addEventListener('click', () => {
+    const grid = document.querySelector('.wx-grid');
+    const rows = [...grid.querySelectorAll('.wx-row:not(.wx-hdr)')];
+    const last = rows[rows.length - 1];
+    const n = rows.length + 1;
+    const w = last.querySelectorAll('.set-val')[0].value;
+    const r = last.querySelectorAll('.set-val')[1].value;
+    const row = document.createElement('div');
+    row.className = 'wx-row';
+    row.innerHTML = `<button type="button" class="set-type">${n}</button>
+      <input type="text" inputmode="decimal" class="set-val" value="${w}" enterkeyhint="next" autocomplete="off" />
+      <input type="text" inputmode="numeric" class="set-val" value="${r}" enterkeyhint="done" autocomplete="off" />
+      <button type="button" class="set-done">✓</button>`;
+    grid.appendChild(row);
+  });
+
+  // Start with LBS of set 1 focused and selected, keypad open — the requested preview state.
+  const first = document.getElementById('w0');
+  first.focus();
+  selectAll(first);
+</script>
+</body>
+</html>
