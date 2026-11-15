@@ -1,0 +1,154 @@
+{
+  "_comment": "Slim copy of a USDA FoodData Central SR Legacy record. Nutrient amounts are per 100 g. Public domain. Retrieved 2026-11-15 via https://api.nal.usda.gov/fdc/v1/food/{id}.",
+  "fdcId": 168462,
+  "description": "Spinach, raw",
+  "dataType": "SR Legacy",
+  "foodNutrients": [
+    {
+      "nutrient": {
+        "id": 1008,
+        "name": "Energy",
+        "unitName": "kcal"
+      },
+      "amount": 23.0
+    },
+    {
+      "nutrient": {
+        "id": 1003,
+        "name": "Protein",
+        "unitName": "g"
+      },
+      "amount": 2.86
+    },
+    {
+      "nutrient": {
+        "id": 1004,
+        "name": "Total lipid (fat)",
+        "unitName": "g"
+      },
+      "amount": 0.39
+    },
+    {
+      "nutrient": {
+        "id": 1005,
+        "name": "Carbohydrate, by difference",
+        "unitName": "g"
+      },
+      "amount": 3.63
+    },
+    {
+      "nutrient": {
+        "id": 1079,
+        "name": "Fiber, total dietary",
+        "unitName": "g"
+      },
+      "amount": 2.2
+    },
+    {
+      "nutrient": {
+        "id": 2000,
+        "name": "Total Sugars",
+        "unitName": "g"
+      },
+      "amount": 0.42
+    },
+    {
+      "nutrient": {
+        "id": 1087,
+        "name": "Calcium, Ca",
+        "unitName": "mg"
+      },
+      "amount": 99.0
+    },
+    {
+      "nutrient": {
+        "id": 1089,
+        "name": "Iron, Fe",
+        "unitName": "mg"
+      },
+      "amount": 2.71
+    },
+    {
+      "nutrient": {
+        "id": 1090,
+        "name": "Magnesium, Mg",
+        "unitName": "mg"
+      },
+      "amount": 79.0
+    },
+    {
+      "nutrient": {
+        "id": 1092,
+        "name": "Potassium, K",
+        "unitName": "mg"
+      },
+      "amount": 558.0
+    },
+    {
+      "nutrient": {
+        "id": 1093,
+        "name": "Sodium, Na",
+        "unitName": "mg"
+      },
+      "amount": 79.0
+    },
+    {
+      "nutrient": {
+        "id": 1162,
+        "name": "Vitamin C, total ascorbic acid",
+        "unitName": "mg"
+      },
+      "amount": 28.1
+    },
+    {
+      "nutrient": {
+        "id": 1178,
+        "name": "Vitamin B-12",
+        "unitName": "\u00b5g"
+      },
+      "amount": 0.0
+    },
+    {
+      "nutrient": {
+        "id": 1106,
+        "name": "Vitamin A, RAE",
+        "unitName": "\u00b5g"
+      },
+      "amount": 469.0
+    },
+    {
+      "nutrient": {
+        "id": 1114,
+        "name": "Vitamin D (D2 + D3)",
+        "unitName": "\u00b5g"
+      },
+      "amount": 0.0
+    }
+  ],
+  "foodPortions": [
+    {
+      "amount": 1.0,
+      "modifier": "bunch",
+      "gramWeight": 340.0,
+      "sequenceNumber": 2
+    },
+    {
+      "amount": 1.0,
+      "modifier": "leaf",
+      "gramWeight": 10.0,
+      "sequenceNumber": 3
+    },
+    {
+      "amount": 1.0,
+      "modifier": "cup",
+      "gramWeight": 30.0,
+      "sequenceNumber": 1
+    },
+    {
+      "amount": 1.0,
+      "modifier": "package (10 oz)",
+      "gramWeight": 284.0,
+      "sequenceNumber": 4
+    }
+  ]
+}

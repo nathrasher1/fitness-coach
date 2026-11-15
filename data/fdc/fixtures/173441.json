@@ -1,0 +1,142 @@
+{
+  "_comment": "Slim copy of a USDA FoodData Central SR Legacy record. Nutrient amounts are per 100 g. Public domain. Retrieved 2026-11-15 via https://api.nal.usda.gov/fdc/v1/food/{id}.",
+  "fdcId": 173441,
+  "description": "Milk, fluid, 1% fat, without added vitamin A and vitamin D",
+  "dataType": "SR Legacy",
+  "foodNutrients": [
+    {
+      "nutrient": {
+        "id": 1008,
+        "name": "Energy",
+        "unitName": "kcal"
+      },
+      "amount": 42.0
+    },
+    {
+      "nutrient": {
+        "id": 1003,
+        "name": "Protein",
+        "unitName": "g"
+      },
+      "amount": 3.37
+    },
+    {
+      "nutrient": {
+        "id": 1004,
+        "name": "Total lipid (fat)",
+        "unitName": "g"
+      },
+      "amount": 0.97
+    },
+    {
+      "nutrient": {
+        "id": 1005,
+        "name": "Carbohydrate, by difference",
+        "unitName": "g"
+      },
+      "amount": 4.99
+    },
+    {
+      "nutrient": {
+        "id": 1079,
+        "name": "Fiber, total dietary",
+        "unitName": "g"
+      },
+      "amount": 0.0
+    },
+    {
+      "nutrient": {
+        "id": 2000,
+        "name": "Total Sugars",
+        "unitName": "g"
+      },
+      "amount": 5.2
+    },
+    {
+      "nutrient": {
+        "id": 1087,
+        "name": "Calcium, Ca",
+        "unitName": "mg"
+      },
+      "amount": 125.0
+    },
+    {
+      "nutrient": {
+        "id": 1089,
+        "name": "Iron, Fe",
+        "unitName": "mg"
+      },
+      "amount": 0.03
+    },
+    {
+      "nutrient": {
+        "id": 1090,
+        "name": "Magnesium, Mg",
+        "unitName": "mg"
+      },
+      "amount": 11.0
+    },
+    {
+      "nutrient": {
+        "id": 1092,
+        "name": "Potassium, K",
+        "unitName": "mg"
+      },
+      "amount": 150.0
+    },
+    {
+      "nutrient": {
+        "id": 1093,
+        "name": "Sodium, Na",
+        "unitName": "mg"
+      },
+      "amount": 44.0
+    },
+    {
+      "nutrient": {
+        "id": 1162,
+        "name": "Vitamin C, total ascorbic acid",
+        "unitName": "mg"
+      },
+      "amount": 0.0
+    },
+    {
+      "nutrient": {
+        "id": 1178,
+        "name": "Vitamin B-12",
+        "unitName": "\u00b5g"
+      },
+      "amount": 0.47
+    },
+    {
+      "nutrient": {
+        "id": 1106,
+        "name": "Vitamin A, RAE",
+        "unitName": "\u00b5g"
+      },
+      "amount": 14.0
+    },
+    {
+      "nutrient": {
+        "id": 1114,
+        "name": "Vitamin D (D2 + D3)",
+        "unitName": "\u00b5g"
+      },
+      "amount": 0.0
+    }
+  ],
+  "foodPortions": [
+    {
+      "amount": 1.0,
+      "modifier": "quart",
+      "gramWeight": 976.0,
+      "sequenceNumber": 2
+    },
+    {
+      "amount": 1.0,
+      "modifier": "cup",
+      "gramWeight": 244.0,
+      "sequenceNumber": 1
+    }
+  ]
+}

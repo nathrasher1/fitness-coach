@@ -22,6 +22,17 @@ const foodSchema = new mongoose.Schema({
   // Optional extras
   sugar: { type: Number, default: 0 },
   sodium: { type: Number, default: 0 }, // mg
+  // Optional micronutrients (per serving). null/undefined = unknown, not zero.
+  // Additive fields only — no migration. Do not backfill production without approval.
+  potassium: { type: Number, default: undefined }, // mg
+  calcium: { type: Number, default: undefined }, // mg
+  iron: { type: Number, default: undefined }, // mg
+  magnesium: { type: Number, default: undefined }, // mg
+  vitaminA: { type: Number, default: undefined }, // mcg RAE
+  vitaminC: { type: Number, default: undefined }, // mg
+  vitaminD: { type: Number, default: undefined }, // mcg
+  vitaminB12: { type: Number, default: undefined }, // mcg
+  sourceFdcId: { type: Number, default: undefined },
   isRecipe: { type: Boolean, default: false },
   isPublic: { type: Boolean, default: false },
   barcode: { type: String, default: '', index: true },
