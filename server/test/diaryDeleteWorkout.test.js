@@ -10,10 +10,11 @@ const routes = fs.readFileSync(path.join(__dirname, '../routes/workouts.js'), 'u
 test('Diary day detail can delete a logged workout with confirmation and then refreshes', () => {
   assert.match(app, /async function showDayDetail/);
   assert.match(app, /data-delete-workout=/);
+  assert.match(app, /function deleteDiaryLoggedWorkout/);
   assert.match(app, /Delete this workout\?/);
   assert.match(app, /method: 'DELETE'/);
-  assert.match(app, /\/workouts\/\$\{btn\.dataset\.deleteWorkout\}/);
-  assert.match(app, /showDayDetail\(date, \{ openSection: 'wo' \}\)/);
+  assert.match(app, /\/workouts\/\$\{id\}/);
+  assert.match(app, /showDayDetail\(daySessions\.date, \{ openSection: 'wo' \}\)/);
   assert.match(app, /loadDashboard\(\)/);
   assert.match(app, /loadCalendar\(\)/);
   assert.match(css, /\.day-wo-item/);
