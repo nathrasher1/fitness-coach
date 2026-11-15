@@ -154,7 +154,7 @@ document.getElementById('btn-logout').addEventListener('click', async () => {
   flushDraft();
   await api('/auth/logout', { method: 'POST' });
   draftReady = false; draftCheckedFor = null; draftHasSaved = false;
-  currentWorkoutExercises = []; woPlanDay = ''; woEditing = null;
+  currentWorkoutExercises = []; woPlanDay = '';
   stopWorkoutTimer(); stopRest(false); renderWorkoutExercises();
   currentUser = null;
   ['notif-count', 'people-badge'].forEach((id) => { document.getElementById(id).hidden = true; });
@@ -1808,7 +1808,6 @@ const P = window.Progression;
 let currentWorkoutExercises = [];
 let woPlanDay = '';
 let woHistoryCache = [];
-let woEditing = null; // { ex, set }
 let woUid = 0;
 // autosave state (see 'Autosave of the in-progress workout')
 let draftReady = false;        // false until we've checked for a draft to restore (prevents wiping it on boot)
@@ -1824,7 +1823,6 @@ function woUnit() { return settings.unit === 'kg' ? 'kg' : 'lbs'; }
 function woUnitLabel() { return settings.unit === 'kg' ? 'kg' : 'lb'; }
 function woDisp(lbs) { return P.displayLoad(Number(lbs) || 0, woUnit()); }
 function woToLbs(v) { return woUnit() === 'kg' ? Number(v) * P.LB_PER_KG : Number(v); }
-function woStep() { return woUnit() === 'kg' ? 2.5 : 5; }
 function woFocus() { return (settings.trainingFocus || [])[0] || 'hypertrophy'; }
 function restKey(ex) { return String(ex.exerciseId || ex.exerciseName || '').toLowerCase().replace(/[.$]/g, '_'); }
 function fmtClock(sec) {
@@ -2118,36 +2116,18 @@ function renderWorkoutExercises() {
       : sugg && sugg.action === 'start' ? `First time logging this. ${sugg.note || ''}` : '';
     const restOpts = REST_OPTIONS.concat(REST_OPTIONS.includes(ex.restSec) ? [] : [ex.restSec]).sort((a, b) => a - b)
       .map((s) => `<option value="${s}" ${s === ex.restSec ? 'selected' : ''}>${s ? fmtClock(s) : 'Off'}</option>`).join('');
+    const lastEx = idx === currentWorkoutExercises.length - 1;
     const rows = ex.sets.map((s, si) => {
       const lab = labels[si];
-      const editing = woEditing && woEditing.ex === idx && woEditing.set === si;
-      const row = `
-        <div class="wx-row ${s.logged ? 'logged' : ''} ${editing ? 'editing' : ''} t-${lab.type}">
+      const lastField = lastEx && si === ex.sets.length - 1;
+      const unitName = u === 'kg' ? 'kilograms' : 'pounds';
+      return `
+        <div class="wx-row ${s.logged ? 'logged' : ''} t-${lab.type}">
           <button type="button" class="set-type" data-type="${idx}:${si}" aria-label="Set type: ${lab.type}. Tap to change">${lab.label}</button>
-          <button type="button" class="set-val" data-edit="${idx}:${si}">${woDisp(s.weight)}</button>
-          <button type="button" class="set-val" data-edit="${idx}:${si}">${s.reps}</button>
+          <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="set-val" data-input="${idx}:${si}:w" value="${woDisp(s.weight)}" enterkeyhint="next" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Set ${si + 1} weight in ${unitName}" />
+          <input type="text" inputmode="numeric" pattern="[0-9]*" class="set-val" data-input="${idx}:${si}:r" value="${s.reps}" enterkeyhint="${lastField ? 'done' : 'next'}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Set ${si + 1} reps" />
           <button type="button" class="set-done ${s.logged ? 'on' : ''}" data-done="${idx}:${si}" aria-label="${s.logged ? 'Undo set' : 'Log set'}">✓</button>
           ${s.pr ? '<span class="pr-badge" title="New estimated 1RM">PR</span>' : ''}
-        </div>`;
-      if (!editing) return row;
-      return row + `
-        <div class="wx-editor">
-          <div class="stepper">
-            <span class="stepper-label">${u === 'kg' ? 'Kg' : 'Lbs'}</span>
-            <button type="button" class="step-btn" data-step="${idx}:${si}:w:-1" aria-label="Less weight">−</button>
-            <input type="number" inputmode="decimal" class="step-input" data-input="${idx}:${si}:w" value="${woDisp(s.weight)}" step="${woStep()}" min="0" />
-            <button type="button" class="step-btn" data-step="${idx}:${si}:w:1" aria-label="More weight">+</button>
-          </div>
-          <div class="stepper">
-            <span class="stepper-label">Reps</span>
-            <button type="button" class="step-btn" data-step="${idx}:${si}:r:-1" aria-label="Fewer reps">−</button>
-            <input type="number" inputmode="numeric" class="step-input" data-input="${idx}:${si}:r" value="${s.reps}" step="1" min="0" />
-            <button type="button" class="step-btn" data-step="${idx}:${si}:r:1" aria-label="More reps">+</button>
-          </div>
-          <div class="wx-editor-actions">
-            <button type="button" class="btn btn-secondary" data-same="${idx}:${si}" ${si === 0 ? 'disabled' : ''}>Same as last set</button>
-            <button type="button" class="btn btn-primary" data-close-edit="1">Done</button>
-          </div>
         </div>`;
     }).join('');
     return `
@@ -2182,6 +2162,44 @@ function renderWorkoutExercises() {
 
 function woSetFrom(attr) { const [i, s] = attr.split(':').map(Number); return { i, s, ex: currentWorkoutExercises[i], set: currentWorkoutExercises[i]?.sets[s] }; }
 
+function applySetInput(el, { normalize } = {}) {
+  if (!el?.dataset?.input) return;
+  const [i, s, f] = el.dataset.input.split(':');
+  const ex = currentWorkoutExercises[i];
+  const set = ex?.sets?.[s];
+  if (!set) return;
+  const raw = String(el.value || '').trim().replace(',', '.');
+  const v = raw === '' || raw === '.' || raw === '-' ? NaN : parseFloat(raw);
+  if (f === 'w') set.weight = v >= 0 ? woToLbs(v) : 0;
+  else set.reps = v >= 0 ? Math.round(v) : 0;
+  ex.touched = true;
+  if (normalize) el.value = f === 'w' ? String(woDisp(set.weight)) : String(set.reps);
+  scheduleDraftSave();
+}
+
+// type=text + inputmode so iOS Safari can select-all (type=number cannot setSelectionRange).
+function selectAllSetVal(el) {
+  if (!el || !el.classList.contains('set-val')) return;
+  const run = () => {
+    if (document.activeElement !== el) return;
+    const len = String(el.value || '').length;
+    try {
+      if (typeof el.setSelectionRange === 'function') el.setSelectionRange(0, len);
+      else el.select();
+    } catch {
+      try { el.select(); } catch {}
+    }
+  };
+  requestAnimationFrame(() => setTimeout(run, 0));
+}
+
+function focusNextSetVal(from) {
+  const fields = [...document.querySelectorAll('#wo-exercise-list input.set-val')];
+  const i = fields.indexOf(from);
+  if (i >= 0 && i < fields.length - 1) fields[i + 1].focus();
+  else from.blur();
+}
+
 document.getElementById('wo-exercise-list').addEventListener('click', async (e) => {
   const t = e.target.closest('button');
   if (!t) return;
@@ -2190,29 +2208,12 @@ document.getElementById('wo-exercise-list').addEventListener('click', async (e) 
     const { ex, set } = woSetFrom(d.type);
     set.type = P.nextSetType(P.setType(set));
     ex.touched = true;
-  } else if (d.edit) {
-    const { i, s } = woSetFrom(d.edit);
-    woEditing = woEditing && woEditing.ex === i && woEditing.set === s ? null : { ex: i, set: s };
   } else if (d.done) {
     const { ex, set } = woSetFrom(d.done);
     unlockAudio();
     set.logged = !set.logged;
     ex.touched = true;
-    woEditing = null;
     if (set.logged) startRest(ex.restSec, ex.exerciseName);
-  } else if (d.step) {
-    const [i, s, f, dir] = d.step.split(':');
-    const set = currentWorkoutExercises[i].sets[s];
-    if (f === 'w') set.weight = Math.max(0, woToLbs(woDisp(set.weight) + Number(dir) * woStep()));
-    else set.reps = Math.max(0, (Number(set.reps) || 0) + Number(dir));
-    currentWorkoutExercises[i].touched = true;
-  } else if (d.same) {
-    const { ex, s, set } = woSetFrom(d.same);
-    const prev = ex.sets[s - 1];
-    if (prev) { set.weight = prev.weight; set.reps = prev.reps; set.type = P.setType(prev) === 'warmup' ? 'warmup' : 'working'; }
-    ex.touched = true;
-  } else if (d.closeEdit) {
-    woEditing = null;
   } else if (d.addSet) {
     const ex = currentWorkoutExercises[d.addSet];
     const last = ex.sets[ex.sets.length - 1] || { weight: 0, reps: ex.repMin || 8, type: 'working' };
@@ -2224,10 +2225,9 @@ document.getElementById('wo-exercise-list').addEventListener('click', async (e) 
     for (let k = ex.sets.length - 1; k >= 0; k -= 1) if (!ex.sets[k].logged) { idx = k; break; }
     if (idx < 0) idx = ex.sets.length - 1;
     if (idx >= 0) ex.sets.splice(idx, 1);
-    woEditing = null; ex.touched = true;
+    ex.touched = true;
   } else if (d.remove) {
     currentWorkoutExercises.splice(Number(d.remove), 1);
-    woEditing = null;
     document.getElementById('btn-save-workout').disabled = !currentWorkoutExercises.length;
   } else if (d.swap) {
     const idx = Number(d.swap);
@@ -2243,16 +2243,46 @@ document.getElementById('wo-exercise-list').addEventListener('click', async (e) 
   renderWorkoutExercises();
 });
 
+document.getElementById('wo-exercise-list').addEventListener('input', (e) => {
+  if (e.target.dataset.input) applySetInput(e.target);
+});
+
+document.getElementById('wo-exercise-list').addEventListener('focusin', (e) => {
+  const el = e.target;
+  if (!el.dataset.input) return;
+  el.dataset.justFocused = '1';
+  selectAllSetVal(el);
+  setTimeout(() => { delete el.dataset.justFocused; }, 300);
+});
+
+document.getElementById('wo-exercise-list').addEventListener('blur', (e) => {
+  if (e.target.dataset.input) applySetInput(e.target, { normalize: true });
+}, true);
+
+document.getElementById('wo-exercise-list').addEventListener('mouseup', (e) => {
+  const el = e.target;
+  if (el.dataset.input && el.dataset.justFocused) {
+    e.preventDefault();
+    selectAllSetVal(el);
+  }
+});
+
+document.getElementById('wo-exercise-list').addEventListener('touchend', (e) => {
+  const el = e.target;
+  if (el.dataset.input && el.dataset.justFocused) selectAllSetVal(el);
+});
+
+document.getElementById('wo-exercise-list').addEventListener('keydown', (e) => {
+  if (!e.target.dataset.input || e.key !== 'Enter') return;
+  e.preventDefault();
+  applySetInput(e.target, { normalize: true });
+  focusNextSetVal(e.target);
+});
+
 document.getElementById('wo-exercise-list').addEventListener('change', async (e) => {
   const t = e.target;
   if (t.dataset.input) {
-    const [i, s, f] = t.dataset.input.split(':');
-    const set = currentWorkoutExercises[i].sets[s];
-    const v = parseFloat(t.value);
-    if (f === 'w') set.weight = v >= 0 ? woToLbs(v) : 0;
-    else set.reps = v >= 0 ? Math.round(v) : 0;
-    currentWorkoutExercises[i].touched = true;
-    renderWorkoutExercises();
+    applySetInput(t, { normalize: true });
   } else if (t.dataset.restSel) {
     const ex = currentWorkoutExercises[t.dataset.restSel];
     ex.restSec = Number(t.value);
@@ -2295,7 +2325,6 @@ async function openSwapSheet(ex, onPick) {
 document.getElementById('btn-quick-workout').addEventListener('click', () => {
   currentWorkoutExercises = [];
   woPlanDay = '';
-  woEditing = null;
   document.getElementById('wo-name').value = 'Quick Workout';
   document.getElementById('wo-date').value = todayStr();
   renderWorkoutExercises();
@@ -2329,7 +2358,6 @@ document.getElementById('btn-save-workout').addEventListener('click', async () =
     showWorkoutSummary({ name, durationMin, exercises: done });
     currentWorkoutExercises = [];
     woPlanDay = '';
-    woEditing = null;
     document.getElementById('wo-name').value = '';
     renderWorkoutExercises();
     document.getElementById('btn-save-workout').disabled = true;
@@ -2852,7 +2880,6 @@ document.getElementById('wo-day-view').addEventListener('click', (e) => {
 function startDay(day) {
   if (currentWorkoutExercises.some((e) => e.sets.some((s) => s.logged)) && !confirm('Replace the current session?')) return;
   currentWorkoutExercises = [];
-  woEditing = null;
   woPlanDay = day.planDay;
   document.getElementById('wo-name').value = day.sessionName || day.name;
   document.getElementById('wo-date').value = todayStr();
@@ -2932,7 +2959,6 @@ function clearWorkoutDraft() {
 function resetWorkoutSession() {
   currentWorkoutExercises = [];
   woPlanDay = '';
-  woEditing = null;
   document.getElementById('wo-name').value = '';
   document.getElementById('btn-save-workout').disabled = true;
   stopWorkoutTimer();
@@ -2947,7 +2973,6 @@ function applyDraft(d) {
     sets: (e.sets || []).map((s) => ({ type: P.setType(s), weight: Number(s.weight) || 0, reps: Number(s.reps) || 0, logged: !!s.logged }))
   }));
   woPlanDay = d.planDay || '';
-  woEditing = null;
   document.getElementById('wo-name').value = d.name || 'Workout';
   document.getElementById('wo-date').value = d.date || todayStr();
   document.getElementById('btn-save-workout').disabled = !currentWorkoutExercises.length;

@@ -1641,6 +1641,7 @@ tr:last-child td { border-bottom: none; }
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
+input.set-val { cursor: text; }
 .set-type {
   font-weight: 800;
   font-size: 1.05rem;
@@ -1651,14 +1652,26 @@ tr:last-child td { border-bottom: none; }
 .t-warmup .set-type { background: var(--accent-soft); color: var(--accent-text); border-color: var(--accent-strong); }
 .t-failure .set-type { background: var(--fail-soft); color: var(--fail-text); border-color: var(--fail-border); }
 .set-val {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0 6px;
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--text);
-  font-size: 1.25rem;
+  font-size: 1.25rem; /* >=16px so iOS does not zoom on focus */
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  text-align: center;
+  appearance: none;
+  -webkit-appearance: none;
 }
-.wx-row.editing .set-val { border: 2px solid var(--main); background: var(--main-soft); }
+.set-val:focus {
+  outline: none;
+  border: 2px solid var(--main);
+  background: var(--main-soft);
+}
 .set-done {
   border: 2px solid var(--border);
   background: var(--surface);
@@ -1669,6 +1682,11 @@ tr:last-child td { border-bottom: none; }
 .set-done.on { background: var(--main); border-color: var(--main); color: var(--on-main); }
 .wx-row.logged .set-val { background: var(--main-soft); border-color: transparent; }
 .wx-row.logged.t-warmup .set-val { background: var(--accent-soft); }
+.wx-row.logged .set-val:focus,
+.wx-row.logged.t-warmup .set-val:focus {
+  border: 2px solid var(--main);
+  background: var(--main-soft);
+}
 .wx-row .pr-badge { position: absolute; right: 44px; top: 0; }
 .pr-badge {
   display: inline-block;
@@ -1681,39 +1699,6 @@ tr:last-child td { border-bottom: none; }
   color: var(--on-accent);
   border: 1px solid var(--accent-strong);
 }
-.wx-editor {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 10px;
-  margin: 2px 0 8px;
-  display: grid;
-  gap: 8px;
-}
-.stepper { display: grid; grid-template-columns: 48px 56px 1fr 56px; gap: 8px; align-items: center; }
-.stepper-label { font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
-.step-btn {
-  min-height: 52px;
-  border-radius: 12px;
-  border: none;
-  background: var(--main);
-  color: var(--on-main);
-  font-size: 1.6rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-.step-input {
-  min-height: 52px;
-  text-align: center;
-  font-size: 1.3rem;
-  font-weight: 700;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-}
-.wx-editor-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.wx-editor-actions .btn { min-height: 48px; }
 .wx-foot { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .wx-foot .btn { min-height: 44px; color: var(--main-text); font-weight: 700; }
 .rest-pick { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
