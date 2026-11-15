@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SAMPLE PREVIEW — Diary workout detail</title>
+<style>
+  :root { --bg:#eef7f6; --surface:#fff; --surface2:#f3faf9; --border:#cbe3df; --text:#12343b; --text-muted:#4b676c; --main:#0e7c86; --main-soft:#d7eef0; --main-text:#0b3d45; --nav:#0b3d45; --nav-text:#cbe9e6; --accent:#c9a227; --accent-soft:#f6edd3; --on-accent:#3d2e00; --accent-strong:#a7861b; --danger:#b42318; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 390px; height: 844px; background: var(--bg); font-family: system-ui, -apple-system, sans-serif; color: var(--text); overflow: hidden; }
+  .phone { width: 390px; height: 844px; display: flex; flex-direction: column; position: relative; }
+  .banner { background: #7a3b00; color: #fff; font-size: 10px; font-weight: 600; padding: 5px 10px; line-height: 1.25; }
+  .status { height: 28px; padding: 6px 22px 0; display: flex; justify-content: space-between; font-weight: 700; font-size: 13px; background: var(--nav); color: #fff; }
+  header { background: var(--nav); color: var(--nav-text); display: flex; align-items: center; gap: 8px; padding: 4px 10px 6px; }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #c9a227, #7a5a12); border: 2px solid #e9d6b0; }
+  .brand-title { color: #fff; font-weight: 800; font-size: 14px; }
+  .brand-user { font-size: 11px; }
+  .tabs { display: flex; gap: 4px; background: var(--nav); padding: 0 8px 6px; }
+  .tab { flex: 1; text-align: center; font-size: 10px; color: var(--nav-text); padding: 5px 0; border-radius: 10px; }
+  .tab.on { background: #135860; color: #fff; font-weight: 700; }
+  main { flex: 1; overflow: hidden; padding: 10px 12px 0; }
+  .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .month { font-weight: 800; font-size: 15px; }
+  .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; font-size: 11px; margin-bottom: 10px; }
+  .cal .hd { color: var(--text-muted); font-weight: 600; font-size: 10px; padding: 2px 0; }
+  .cal .d { padding: 6px 0 8px; border-radius: 8px; position: relative; }
+  .cal .pick { background: var(--main); color: #fff; font-weight: 700; }
+  .cal .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%); }
+  .cal .pick .dot { background: #fff; }
+  h2 { margin: 0 0 8px; font-size: 16px; }
+  .sec { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); margin-bottom: 8px; }
+  .sec-h { background: var(--surface2); padding: 10px 12px; font-weight: 700; display: flex; justify-content: space-between; font-size: 14px; }
+  .sec-b { padding: 4px 12px 8px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border); }
+  .row:first-child { border-top: 0; }
+  .row strong { display: block; font-size: 14px; }
+  .hint { color: var(--text-muted); font-size: 11px; font-weight: 500; }
+  .del { background: var(--danger); color: #fff; border: 0; border-radius: 10px; padding: 8px 10px; font-weight: 700; font-size: 12px; }
+  nav.bottom { background: var(--nav); color: var(--nav-text); display: flex; justify-content: space-around; padding: 8px 0 14px; font-size: 10px; }
+  nav.bottom .on { color: #fff; font-weight: 700; }
+  .scrim { position: absolute; inset: 0; background: rgba(8, 15, 25, 0.55); display: flex; align-items: flex-end; }
+  .sheet { width: 100%; height: 628px; background: var(--surface); border-radius: 20px 20px 0 0; border-top: 4px solid var(--accent); padding: 6px 16px 14px; overflow: hidden; }
+  .grip { width: 40px; height: 4px; border-radius: 99px; background: #c5d5d3; margin: 4px auto 8px; }
+  .sheet-head { display: flex; justify-content: space-between; align-items: flex-start; }
+  .kicker { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #8a6a10; font-weight: 800; }
+  .title { font-size: 20px; font-weight: 800; display: block; }
+  .x { width: 32px; height: 32px; border: 0; background: none; font-size: 22px; color: var(--text-muted); }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 8px 0 4px; }
+  .stats div { background: var(--main-soft); border-radius: 12px; padding: 8px 4px; text-align: center; }
+  .stats span { display: block; font-weight: 800; font-size: 15px; color: var(--main-text); }
+  .stats small { font-size: 10px; color: var(--text-muted); }
+  .h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin: 8px 0 3px; font-weight: 700; }
+  .notes { margin: 0 0 4px; font-size: 13px; }
+  .ex { padding: 4px 0 6px; border-bottom: 1px solid var(--border); }
+  .ex-h { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .set { display: grid; grid-template-columns: 28px 1fr auto auto; gap: 8px; align-items: center; padding: 3px 0; font-variant-numeric: tabular-nums; font-size: 13px; }
+  .lab { font-weight: 800; color: var(--text-muted); }
+  .ok { font-weight: 800; color: var(--main-text); }
+  .pr { display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: 0.05em; padding: 2px 6px; border-radius: 999px; background: var(--accent); color: var(--on-accent); border: 1px solid var(--accent-strong); }
+  .ex-tot { margin-top: 2px; }
+  .pr-row { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 12px; background: var(--accent-soft); margin-top: 4px; font-size: 13px; }
+  .pr-row small { display: block; color: var(--text-muted); font-size: 11px; }
+  .del-block { width: 100%; margin-top: 10px; background: var(--danger); color: #fff; border: 0; border-radius: 12px; padding: 11px; font-weight: 800; font-size: 15px; }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="banner">SAMPLE PREVIEW — not the live app. Tap a Diary workout to see the full session. Not deployed.</div>
+    <div class="status"><span>2:41</span><span>●●● LTE</span></div>
+    <header>
+      <div class="avatar"></div>
+      <div><div class="brand-title">Fitness Coach</div><div class="brand-user">Preview</div></div>
+    </header>
+    <div class="tabs">
+      <div class="tab">Home</div><div class="tab">Workout</div><div class="tab">Food</div>
+      <div class="tab">Nutrition</div><div class="tab on">Diary</div>
+    </div>
+    <main>
+      <div class="toolbar"><span class="month">November 2026</span><span>‹ ›</span></div>
+      <div class="cal">
+        <div class="hd">S</div><div class="hd">M</div><div class="hd">T</div><div class="hd">W</div><div class="hd">T</div><div class="hd">F</div><div class="hd">S</div>
+        <div class="d">1</div><div class="d">2</div><div class="d">3</div><div class="d">4</div><div class="d">5</div><div class="d">6</div><div class="d">7</div>
+        <div class="d">8</div><div class="d">9</div><div class="d">10</div><div class="d">11</div><div class="d">12</div><div class="d">13</div>
+        <div class="d pick">14<span class="dot"></span></div>
+      </div>
+      <h2>Sat, Nov 14, 2026</h2>
+      <div class="sec">
+        <div class="sec-h">Workouts <span>▾</span></div>
+        <div class="sec-b">
+          <div class="row">
+            <div><strong>Upper A</strong><span class="hint">2 exercises · 62 min</span></div>
+            <button class="del">Delete</button>
+          </div>
+          <div class="row"><div><strong>Soccer</strong><span class="hint">Sport / practice · 75 min</span></div></div>
+          <div class="row"><div><strong>Outdoor run</strong><span class="hint">Health Connect · 32 min</span></div></div>
+        </div>
+      </div>
+    </main>
+    <nav class="bottom"><span>Home</span><span>Workout</span><span>Food</span><span>Nutrition</span><span class="on">Diary</span></nav>
+    <div class="scrim">
+      <div class="sheet">
+        <div class="grip"></div>
+        <div class="sheet-head">
+          <div>
+            <div class="kicker">Logged workout</div>
+            <strong class="title">Upper A</strong>
+            <div class="hint">Day A · Nov 14, 2026 · 6:12 PM</div>
+          </div>
+          <button class="x" aria-label="Close">×</button>
+        </div>
+        <div class="stats">
+          <div><span>62 min</span><small>Duration</small></div>
+          <div><span>6</span><small>Sets</small></div>
+          <div><span>48</span><small>Reps</small></div>
+          <div><span>6,100</span><small>Volume (lb)</small></div>
+        </div>
+        <div class="h3">Notes</div>
+        <p class="notes">Felt strong on bench.</p>
+        <div class="h3">Exercises</div>
+        <div class="ex">
+          <div class="ex-h"><strong>Bench Press</strong> <span class="pr">PR</span></div>
+          <div class="hint">barbell · Rest 2:00</div>
+          <div class="set"><span class="lab">W</span><span>95 lb × 8</span><span class="ok">✓</span><span></span></div>
+          <div class="set"><span class="lab">1</span><span>185 lb × 8</span><span class="ok">✓</span><span class="pr">PR</span></div>
+          <div class="set"><span class="lab">2</span><span>185 lb × 7</span><span class="ok">✓</span><span></span></div>
+          <div class="set"><span class="lab">F</span><span>185 lb × 5</span><span class="ok">✓</span><span></span></div>
+          <div class="hint" style="margin:-2px 0 0 28px">spotter helped</div>
+          <div class="hint ex-tot">Best 185 lb × 8 · est. 1RM 234 lb · Volume 3,700 lb</div>
+        </div>
+        <div class="ex">
+          <div class="ex-h"><strong>Cable Row</strong></div>
+          <div class="set"><span class="lab">1</span><span>120 lb × 10</span><span class="ok">✓</span><span></span></div>
+          <div class="set"><span class="lab">2</span><span>120 lb × 10</span><span class="ok">✓</span><span></span></div>
+          <div class="hint ex-tot">Best 120 lb × 10 · est. 1RM 160 lb · Volume 2,400 lb</div>
+        </div>
+        <div class="h3">New records</div>
+        <div class="pr-row"><span class="pr">PR</span><div><strong>Bench Press</strong><small>185×8 → est. 1RM 234 lb (was 209)</small></div></div>
+        <button class="del-block">Delete</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

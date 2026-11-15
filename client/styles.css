@@ -1245,6 +1245,47 @@ tr:last-child td { border-bottom: none; }
   padding: 4px 0;
 }
 .day-wo-item + .day-wo-item { border-top: 1px solid var(--border); }
+.day-wo-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  margin: 0;
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.day-wo-open .hint { font-weight: 500; }
+.diary-wo-detail .btn-block { margin-top: 16px; }
+.diary-ex { padding: 8px 0 10px; border-bottom: 1px solid var(--border); }
+.diary-ex:last-of-type { border-bottom: 0; }
+.diary-ex-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.diary-set-row {
+  display: grid;
+  grid-template-columns: 28px 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+  font-variant-numeric: tabular-nums;
+}
+.diary-set-row .diary-set-extra {
+  grid-column: 2 / -1;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding-bottom: 2px;
+}
+.diary-set-label { font-weight: 800; color: var(--text-muted); }
+.diary-set-row.t-warmup .diary-set-label { color: var(--accent-text, var(--text-muted)); }
+.diary-set-row.t-failure .diary-set-label { color: var(--fail-text, var(--text)); }
+.diary-set-done { font-weight: 800; color: var(--main-text, var(--main)); }
+.diary-ex-totals { margin-top: 4px; }
+.diary-notes { margin: 0 0 8px; white-space: pre-wrap; }
 
 
 /* ---------- Mobile polish ---------- */

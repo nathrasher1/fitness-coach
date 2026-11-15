@@ -1125,6 +1125,7 @@ document.addEventListener('keydown', (e) => {
   if (!document.getElementById('photo-lightbox').hidden) return closeLightbox();
   if (scanModal.style.display === 'flex') return;
   if (!foodSheet.hidden) closeFoodSheet();
+  else if (!document.getElementById('diary-wo-sheet').hidden) closeDiaryWoSheet();
   else if (!document.getElementById('wo-sheet').hidden) closeWoSheet();
 });
 
@@ -3584,11 +3585,217 @@ function openLightbox(src, caption) {
 function closeLightbox() {
   lightbox.hidden = true;
   document.getElementById('photo-lightbox-img').removeAttribute('src');
-  if (document.getElementById('food-sheet').hidden && document.getElementById('wo-sheet').hidden) document.body.classList.remove('sheet-open');
+  if (document.getElementById('food-sheet').hidden && document.getElementById('wo-sheet').hidden && document.getElementById('diary-wo-sheet').hidden) document.body.classList.remove('sheet-open');
 }
 lightbox.addEventListener('click', (e) => {
   if (e.target === lightbox || e.target.closest('.photo-lightbox-close')) closeLightbox();
 });
+
+
+let daySessions = { date: '', logs: [], sports: [], health: [], history: [] };
+
+function fmtDurationMin(n) {
+  if (n == null || n === '' || !Number.isFinite(Number(n))) return '';
+  const v = Number(n);
+  const shown = Math.abs(v - Math.round(v)) < 0.05 ? String(Math.round(v)) : String(Math.round(v * 10) / 10);
+  return shown + ' min';
+}
+function formatClockTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+function diaryMetaLine(parts) {
+  return (parts || []).filter(Boolean).join(' · ');
+}
+function closeDiaryWoSheet() {
+  const sheet = document.getElementById('diary-wo-sheet');
+  if (!sheet) return;
+  sheet.hidden = true;
+  sheet.innerHTML = '';
+  const food = document.getElementById('food-sheet');
+  const wo = document.getElementById('wo-sheet');
+  const lb = document.getElementById('photo-lightbox');
+  if ((food && !food.hidden) || (wo && !wo.hidden) || (lb && !lb.hidden)) return;
+  document.body.classList.remove('sheet-open');
+}
+function openDiaryWoSheet(html) {
+  const sheet = document.getElementById('diary-wo-sheet');
+  sheet.innerHTML = html;
+  sheet.hidden = false;
+  document.body.classList.add('sheet-open');
+  sheet.onclick = (ev) => {
+    if (ev.target === sheet || ev.target.closest('[data-sheet-close]')) closeDiaryWoSheet();
+  };
+  sheet.querySelectorAll('[data-delete-workout]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteDiaryLoggedWorkout(btn.dataset.deleteWorkout);
+    });
+  });
+}
+async function deleteDiaryLoggedWorkout(id) {
+  if (!id) return;
+  if (!confirm('Delete this workout?')) return;
+  try {
+    await api(`/workouts/${id}`, { method: 'DELETE' });
+    toast('Deleted');
+    closeDiaryWoSheet();
+    await showDayDetail(daySessions.date, { openSection: 'wo' });
+    loadDashboard();
+    loadCalendar();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+function diaryLogRow(w) {
+  const n = (w.exercises || []).length;
+  const dur = fmtDurationMin(w.durationMin);
+  return `<div class="day-wo-item">
+    <button type="button" class="day-wo-open" data-open-workout="${esc(w._id)}" aria-label="View ${esc(w.name)} details">
+      <strong>${esc(w.name)}</strong>
+      <span class="hint">${n} exercise${n === 1 ? '' : 's'}${dur ? ' · ' + dur : ''}</span>
+    </button>
+    <button type="button" class="btn btn-danger btn-sm" data-delete-workout="${esc(w._id)}" aria-label="Delete workout">Delete</button>
+  </div>`;
+}
+function diarySportRow(s) {
+  const dur = fmtDurationMin(s.durationMin);
+  return `<div class="day-wo-item">
+    <button type="button" class="day-wo-open" data-open-sport="${esc(s.id)}" aria-label="View ${esc(s.sport)} details">
+      <strong>${esc(s.sport)}</strong>
+      <span class="hint">Sport / practice${dur ? ' · ' + dur : ''}</span>
+    </button>
+  </div>`;
+}
+function diaryHealthRow(w) {
+  const dur = fmtDurationMin(w.durationMin);
+  const title = w.name || DiarySession.prettyActivityType(w.type) || 'Workout';
+  const src = DiarySession.prettySource(w.source) || 'Imported';
+  return `<div class="day-wo-item">
+    <button type="button" class="day-wo-open" data-open-health="${esc(w._id)}" aria-label="View ${esc(title)} details">
+      <strong>${esc(title)}</strong>
+      <span class="hint">${esc(src)}${dur ? ' · ' + dur : ''}</span>
+    </button>
+  </div>`;
+}
+function renderDiaryLoggedSheet(workout) {
+  const sum = DiarySession.summarizeLoggedWorkout(workout, daySessions.history);
+  const u = woUnitLabel();
+  const when = diaryMetaLine([
+    sum.routine && sum.routine !== sum.name ? sum.routine : '',
+    sum.date ? formatDate(sum.date) : '',
+    formatClockTime(sum.createdAt)
+  ]);
+  const dur = fmtDurationMin(sum.durationMin);
+  const stats = `<div class="summary-stats">
+      <div><span>${dur || '—'}</span><small>Duration</small></div>
+      <div><span>${sum.totalSets}</span><small>Sets</small></div>
+      <div><span>${sum.totalReps}</span><small>Reps</small></div>
+      <div><span>${Math.round(woDisp(sum.totalVolume)).toLocaleString()}</span><small>Volume (${u})</small></div>
+    </div>`;
+  const exHtml = sum.exercises.map((ex) => {
+    const best = ex.bestSet
+      ? `Best ${woDisp(ex.bestSet.weight)} ${u} × ${ex.bestSet.reps}${ex.bestE1rm ? ` · est. 1RM ${woDisp(Math.round(ex.bestE1rm))} ${u}` : ''}`
+      : '';
+    const vol = `Volume ${Math.round(woDisp(ex.volume)).toLocaleString()} ${u}`;
+    const sets = ex.sets.map((s) => {
+      const extra = [
+        s.rpe != null ? `RPE ${s.rpe}` : '',
+        s.durationSec ? fmtClock(s.durationSec) : '',
+        s.distanceM != null ? DiarySession.formatDistanceMi(s.distanceM) : '',
+        s.note || ''
+      ].filter(Boolean).join(' · ');
+      return `<div class="diary-set-row t-${s.type}">
+        <span class="diary-set-label">${esc(s.label)}</span>
+        <span class="diary-set-load">${woDisp(s.weight)} ${u} × ${Number(s.reps) || 0}</span>
+        <span class="diary-set-done" title="Completed">✓</span>
+        ${s.pr ? '<span class="pr-badge" title="New estimated 1RM">PR</span>' : ''}
+        ${extra ? `<span class="diary-set-extra">${esc(extra)}</span>` : ''}
+      </div>`;
+    }).join('');
+    const metaBits = [ex.equipment, Number(ex.restSec) > 0 ? `Rest ${fmtClock(ex.restSec)}` : ''].filter(Boolean);
+    return `<div class="diary-ex">
+      <div class="diary-ex-head"><strong>${esc(ex.name)}</strong>${ex.hasPR ? '<span class="pr-badge">PR</span>' : ''}</div>
+      ${metaBits.length ? `<div class="hint">${esc(metaBits.join(' · '))}</div>` : ''}
+      ${sets}
+      <div class="hint diary-ex-totals">${esc([best, vol].filter(Boolean).join(' · '))}</div>
+    </div>`;
+  }).join('');
+  const prs = sum.prs.length ? `<h3 class="summary-h">New records</h3>${sum.prs.map((p) => {
+    const s = p.sets[p.sets.length - 1];
+    return `<div class="summary-pr"><span class="pr-badge">PR</span><div><strong>${esc(p.name)}</strong><small>${woDisp(s.weight)}×${s.reps} → est. 1RM ${woDisp(Math.round(s.e1rm))} ${u} (was ${woDisp(Math.round(p.prev))})</small></div></div>`;
+  }).join('')}` : '';
+  const notes = sum.notes ? `<h3 class="summary-h">Notes</h3><p class="diary-notes">${esc(sum.notes)}</p>` : '';
+  return `<div class="sheet summary-sheet diary-wo-detail" role="dialog" aria-modal="true" aria-labelledby="diary-wo-title">
+    <div class="sheet-grip" aria-hidden="true"></div>
+    <div class="sheet-head">
+      <div>
+        <div class="summary-kicker">Logged workout</div>
+        <strong class="summary-title" id="diary-wo-title">${esc(sum.name)}</strong>
+        ${when ? `<div class="hint">${esc(when)}</div>` : ''}
+      </div>
+      <button type="button" class="icon-btn" data-sheet-close aria-label="Close">×</button>
+    </div>
+    ${stats}
+    ${notes}
+    <h3 class="summary-h">Exercises</h3>
+    ${exHtml || '<div class="empty">No exercises</div>'}
+    ${prs}
+    <button type="button" class="btn btn-danger btn-block" data-delete-workout="${esc(sum.id)}" aria-label="Delete workout">Delete</button>
+  </div>`;
+}
+function renderDiarySportSheet(session) {
+  const sum = DiarySession.summarizeSportSession(session);
+  const dur = fmtDurationMin(sum.durationMin);
+  const when = sum.date ? formatDate(sum.date) : '';
+  const notes = sum.notes ? `<h3 class="summary-h">Notes</h3><p class="diary-notes">${esc(sum.notes)}</p>` : '';
+  const drills = sum.drills ? `<h3 class="summary-h">Drills</h3><p class="diary-notes">${esc(sum.drills)}</p>` : '';
+  return `<div class="sheet summary-sheet diary-wo-detail" role="dialog" aria-modal="true" aria-labelledby="diary-wo-title">
+    <div class="sheet-grip" aria-hidden="true"></div>
+    <div class="sheet-head">
+      <div>
+        <div class="summary-kicker">Sport / practice</div>
+        <strong class="summary-title" id="diary-wo-title">${esc(sum.name)}</strong>
+        ${when ? `<div class="hint">${esc(when)}</div>` : ''}
+      </div>
+      <button type="button" class="icon-btn" data-sheet-close aria-label="Close">×</button>
+    </div>
+    <div class="summary-stats">
+      <div><span>${dur || '—'}</span><small>Duration</small></div>
+      <div><span>${sum.effort != null ? sum.effort : '—'}</span><small>Effort</small></div>
+      <div><span>${sum.trainingLoad != null ? sum.trainingLoad : '—'}</span><small>Load</small></div>
+      <div><span>${sum.activeKcal != null ? '~' + Math.round(sum.activeKcal) : '—'}</span><small>Active kcal</small></div>
+    </div>
+    ${drills}
+    ${notes}
+  </div>`;
+}
+function renderDiaryHealthSheet(workout) {
+  const sum = DiarySession.summarizeHealthWorkout(workout);
+  const dur = fmtDurationMin(sum.durationMin);
+  const when = diaryMetaLine([sum.date ? formatDate(sum.date) : '', formatClockTime(sum.start)]);
+  const sourceLine = diaryMetaLine([sum.source, sum.app, sum.type]);
+  return `<div class="sheet summary-sheet diary-wo-detail" role="dialog" aria-modal="true" aria-labelledby="diary-wo-title">
+    <div class="sheet-grip" aria-hidden="true"></div>
+    <div class="sheet-head">
+      <div>
+        <div class="summary-kicker">Imported workout</div>
+        <strong class="summary-title" id="diary-wo-title">${esc(sum.name)}</strong>
+        ${when ? `<div class="hint">${esc(when)}</div>` : ''}
+      </div>
+      <button type="button" class="icon-btn" data-sheet-close aria-label="Close">×</button>
+    </div>
+    <div class="summary-stats">
+      <div><span>${dur || '—'}</span><small>Duration</small></div>
+      <div><span>${sum.activeKcal != null ? Math.round(sum.activeKcal) : '—'}</span><small>Active kcal</small></div>
+      <div><span>${sum.distanceLabel || '—'}</span><small>Distance</small></div>
+      <div><span>${esc(sum.type || '—')}</span><small>Type</small></div>
+    </div>
+    ${sourceLine ? `<p class="hint">${esc(sourceLine)}</p>` : ''}
+  </div>`;
+}
 
 async function showDayDetail(date, { openSection } = {}) {
   const detail = document.getElementById('calendar-day-detail');
@@ -3599,15 +3806,21 @@ async function showDayDetail(date, { openSection } = {}) {
   content.innerHTML = '<div class="empty">Loading…</div>';
 
   try {
-    const [weights, foodRes, workouts, metrics, photos] = await Promise.all([
+    const [weights, foodRes, allWorkouts, metrics, photos, sportRes, healthList] = await Promise.all([
       api(`/weights?days=365`).then(all => all.filter(w => w.date === date)),
       api(`/food-logs?date=${date}`),
-      api('/workouts?limit=100').then(all => all.filter(w => w.date === date)),
+      api('/workouts?limit=100'),
       api('/body-metrics?limit=100').then(all => all.filter(m => m.date === date)),
-      api(`/profile/photos?date=${date}`).catch(() => [])
+      api(`/profile/photos?date=${date}`).catch(() => []),
+      api(`/sport-sessions?from=${date}&to=${date}`).catch(() => ({ sessions: [] })),
+      api('/health/workouts?limit=100').then((all) => (all || []).filter((w) => w.date === date)).catch(() => [])
     ]);
     dayPhotos = photos;
     const foods = foodRes.logs || [];
+    const workouts = (allWorkouts || []).filter((w) => w.date === date);
+    const sports = (sportRes && sportRes.sessions) || [];
+    const healthWorkouts = healthList || [];
+    daySessions = { date, logs: workouts, sports, health: healthWorkouts, history: allWorkouts || [] };
 
     let html = '';
 
@@ -3633,11 +3846,9 @@ async function showDayDetail(date, { openSection } = {}) {
     html += `<div class="day-section">
       <button class="day-section-toggle" data-sec="wo">Workouts <span>▸</span></button>
       <div class="day-section-body" id="day-wo">
-        ${workouts.length ? workouts.map(w => `
-          <div class="day-wo-item">
-            <div><strong>${esc(w.name)}</strong> — ${w.exercises.length} exercise${w.exercises.length === 1 ? '' : 's'}</div>
-            <button type="button" class="btn btn-danger btn-sm" data-delete-workout="${esc(w._id)}" aria-label="Delete workout">Delete</button>
-          </div>`).join('') : '<div class="empty">No workouts</div>'}
+        ${workouts.length || sports.length || healthWorkouts.length
+          ? workouts.map(diaryLogRow).join('') + sports.map(diarySportRow).join('') + healthWorkouts.map(diaryHealthRow).join('')
+          : '<div class="empty">No workouts</div>'}
       </div>
     </div>`;
 
@@ -3676,17 +3887,27 @@ async function showDayDetail(date, { openSection } = {}) {
     });
 
     content.querySelectorAll('[data-delete-workout]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        if (!confirm('Delete this workout?')) return;
-        try {
-          await api(`/workouts/${btn.dataset.deleteWorkout}`, { method: 'DELETE' });
-          toast('Deleted');
-          await showDayDetail(date, { openSection: 'wo' });
-          loadDashboard();
-          loadCalendar();
-        } catch (err) {
-          toast(err.message);
-        }
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteDiaryLoggedWorkout(btn.dataset.deleteWorkout);
+      });
+    });
+    content.querySelectorAll('[data-open-workout]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const w = daySessions.logs.find((x) => String(x._id) === String(btn.dataset.openWorkout));
+        if (w) openDiaryWoSheet(renderDiaryLoggedSheet(w));
+      });
+    });
+    content.querySelectorAll('[data-open-sport]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const s = daySessions.sports.find((x) => String(x.id) === String(btn.dataset.openSport));
+        if (s) openDiaryWoSheet(renderDiarySportSheet(s));
+      });
+    });
+    content.querySelectorAll('[data-open-health]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const w = daySessions.health.find((x) => String(x._id) === String(btn.dataset.openHealth));
+        if (w) openDiaryWoSheet(renderDiaryHealthSheet(w));
       });
     });
 
