@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SAMPLE PREVIEW — Fat micronutrients</title>
+<style>
+  :root { --bg:#eef7f6; --surface:#fff; --border:#cbe3df; --text:#12343b; --text-muted:#4b676c; --main:#0e7c86; --nav:#0b3d45; --nav-text:#cbe9e6; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #111; font-family: system-ui, -apple-system, sans-serif; color: var(--text); }
+  .phone { width: 390px; height: 844px; margin: 0 auto; background: var(--bg); overflow: hidden; display: flex; flex-direction: column; }
+  .banner { background: #7a3b00; color: #fff; font-size: 10px; font-weight: 600; padding: 5px 10px; line-height: 1.25; }
+  .status { height: 28px; padding: 6px 22px 0; display: flex; justify-content: space-between; font-weight: 700; font-size: 13px; background: var(--nav); color: #fff; }
+  header { background: var(--nav); color: var(--nav-text); display: flex; align-items: center; gap: 8px; padding: 4px 10px 6px; }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #c9a227, #7a5a12); border: 2px solid #e9d6b0; }
+  .brand-title { color: #fff; font-weight: 800; font-size: 14px; }
+  .brand-user { font-size: 11px; }
+  .tabs { display: flex; gap: 4px; background: var(--nav); padding: 0 8px 6px; }
+  .tab { flex: 1; text-align: center; font-size: 11px; color: var(--nav-text); padding: 5px 0; border-radius: 10px; }
+  .tab.on { background: #135860; color: #fff; font-weight: 700; }
+  main { flex: 1; overflow: hidden; padding: 6px 12px 4px; }
+  .toolbar { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .btn { border: 1px solid var(--border); background: #fff; border-radius: 10px; padding: 4px 10px; font-size: 13px; }
+  .date { flex: 1; text-align: center; font-weight: 700; font-size: 13px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 8px 12px 6px; }
+  .kcal-row { display: flex; align-items: baseline; gap: 8px; }
+  .kcal { font-size: 22px; font-weight: 800; }
+  .muted { color: var(--text-muted); font-size: 11px; line-height: 1.3; margin: 0 0 4px; }
+  .day-totals { display: flex; gap: 10px; font-size: 12px; margin: 2px 0 4px; color: var(--text-muted); }
+  .micro-heading { margin: 4px 0 2px; font-size: 13px; }
+  .micro-row { margin: 3px 0; }
+  .micro-label { font-size: 11px; font-weight: 650; display: flex; justify-content: space-between; gap: 8px; }
+  .micro-label span:last-child { font-weight: 500; color: var(--text-muted); }
+  .micro-track { height: 6px; background: #e1f0ee; border-radius: 99px; overflow: hidden; margin: 2px 0 0; }
+  .micro-fill { height: 100%; background: var(--main); border-radius: 99px; }
+  .limit .micro-fill { background: #b45309; }
+  .plain .micro-track { display: none; }
+  nav.bottom { background: var(--nav); color: var(--nav-text); display: flex; justify-content: space-around; padding: 8px 0 14px; font-size: 11px; }
+  nav.bottom .on { color: #fff; font-weight: 700; }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="banner">SAMPLE PREVIEW — not the live app. Official USDA FDC sample day fats + micros. Not deployed.</div>
+    <div class="status"><span>9:41</span><span>●●● LTE</span></div>
+    <header>
+      <div class="avatar"></div>
+      <div><div class="brand-title">Fitness Coach</div><div class="brand-user">Preview</div></div>
+    </header>
+    <div class="tabs">
+      <div class="tab">Home</div><div class="tab">Workout</div><div class="tab">Body</div>
+      <div class="tab on">Food</div><div class="tab">More</div>
+    </div>
+    <main>
+      <div class="toolbar"><button class="btn">‹</button><div class="date">Sun, Nov 15</div><button class="btn">›</button></div>
+      <div class="card">
+        <div class="kcal-row"><div class="kcal">214</div><div class="muted">kcal eaten (sample day)</div></div>
+        <div class="day-totals"><span>P 10g</span><span>C 40g</span><span>F 3g</span></div>
+        <h3 class="micro-heading">Fats &amp; cholesterol</h3>
+        <p class="muted">FDA %DV for sat fat (20 g) and cholesterol (300 mg). EPA/DHA and ALA shown in grams; ALA AI is 1.6 g (men) / 1.1 g (women), NIH ODS — not an FDA DV. Omega-3 is the sum of official ALA+EPA+DHA+DPA only. Sample: 1 medium banana (118 g), 1 cup spinach (30 g), 1 cup 1% milk (244 g). USDA FDC SR Legacy, retrieved 2026-11-15.</p>
+        <div class="micro-row limit"><div class="micro-label"><span>Saturated fat</span><span>1.7 g · 8% DV · 3/3</span></div><div class="micro-track"><div class="micro-fill" style="width:8.5%"></div></div></div>
+        <div class="micro-row limit"><div class="micro-label"><span>Trans fat</span><span>0 g · no DV (official zero) · 3/3</span></div><div class="micro-track"><div class="micro-fill" style="width:0%"></div></div></div>
+        <div class="micro-row limit"><div class="micro-label"><span>Cholesterol</span><span>12.2 mg · 4% DV · 3/3</span></div><div class="micro-track"><div class="micro-fill" style="width:4.1%"></div></div></div>
+        <div class="micro-row plain"><div class="micro-label"><span>Monounsaturated</span><span>0.72 g · no DV · 3/3</span></div></div>
+        <div class="micro-row plain"><div class="micro-label"><span>Polyunsaturated</span><span>0.22 g · no DV · 3/3</span></div></div>
+        <div class="micro-row plain"><div class="micro-label"><span>Omega-3 (ALA+EPA+DHA+DPA)</span><span>0.01 g · no DV · 3/3</span></div></div>
+        <div class="micro-row plain"><div class="micro-label"><span>ALA</span><span>0.01 g · AI 1.6/1.1 g · 1/3</span></div></div>
+        <div class="micro-row plain"><div class="micro-label"><span>EPA</span><span>0 g · no DV (official zero) · 3/3</span></div></div>
+        <div class="micro-row plain"><div class="micro-label"><span>DHA</span><span>0 g · no DV (official zero) · 3/3</span></div></div>
+      </div>
+    </main>
+    <nav class="bottom"><div>Home</div><div>Workout</div><div>Body</div><div class="on">Food</div><div>More</div></nav>
+  </div>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SAMPLE PREVIEW — Goal weight</title>
+<style>
+  :root { --bg:#eef7f6; --surface:#fff; --border:#cbe3df; --text:#12343b; --text-muted:#4b676c; --main:#0e7c86; --nav:#0b3d45; --nav-text:#cbe9e6; --accent:#0e7c86; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #111; font-family: system-ui, -apple-system, sans-serif; color: var(--text); }
+  .phone { width: 390px; height: 844px; margin: 0 auto; background: var(--bg); overflow: hidden; display: flex; flex-direction: column; }
+  .banner { background: #7a3b00; color: #fff; font-size: 10px; font-weight: 600; padding: 5px 10px; line-height: 1.25; }
+  .status { height: 28px; padding: 6px 22px 0; display: flex; justify-content: space-between; font-weight: 700; font-size: 13px; background: var(--nav); color: #fff; }
+  header { background: var(--nav); color: var(--nav-text); display: flex; align-items: center; gap: 8px; padding: 4px 10px 6px; }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #c9a227, #7a5a12); border: 2px solid #e9d6b0; }
+  .brand-title { color: #fff; font-weight: 800; font-size: 14px; }
+  .brand-user { font-size: 11px; }
+  .tabs { display: flex; gap: 4px; background: var(--nav); padding: 0 8px 6px; }
+  .tab { flex: 1; text-align: center; font-size: 11px; color: var(--nav-text); padding: 5px 0; border-radius: 10px; }
+  .tab.on { background: #135860; color: #fff; font-weight: 700; }
+  main { flex: 1; overflow: hidden; padding: 12px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 14px; }
+  h2 { margin: 0 0 10px; font-size: 20px; }
+  .summary { background: #f3fafa; border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; }
+  .summary .target { font-weight: 700; font-size: 15px; }
+  .hint { color: var(--text-muted); font-size: 12px; margin: 4px 0 0; line-height: 1.35; }
+  label { display: block; font-size: 13px; font-weight: 650; margin: 0 0 4px; }
+  input, select { width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 15px; background: #fff; }
+  .form-row { margin-bottom: 12px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn { width: 100%; border: 0; background: var(--main); color: #fff; font-weight: 700; border-radius: 12px; padding: 12px; font-size: 15px; margin-top: 4px; }
+  nav.bottom { background: var(--nav); color: var(--nav-text); display: flex; justify-content: space-around; padding: 8px 0 14px; font-size: 11px; }
+  nav.bottom .on { color: #fff; font-weight: 700; }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="banner">SAMPLE PREVIEW — not the live app, not a logged-in session. Goal weight input. Not deployed.</div>
+    <div class="status"><span>9:41</span><span>●●● LTE</span></div>
+    <header>
+      <div class="avatar"></div>
+      <div><div class="brand-title">Fitness Coach</div><div class="brand-user">Preview</div></div>
+    </header>
+    <div class="tabs">
+      <div class="tab">Home</div><div class="tab">Workout</div><div class="tab">Body</div>
+      <div class="tab">Food</div><div class="tab on">More</div>
+    </div>
+    <main>
+      <div class="card">
+        <h2>Your Goal</h2>
+        <div class="summary">
+          <div class="target">Goal weight 180.0 lbs · Lose 10 lbs by 2027-03-01</div>
+          <p class="hint">Existing goals keep their saved amounts. Goal weight is calculated from starting weight when it was not stored separately.</p>
+        </div>
+        <div class="grid-2">
+          <div class="form-row">
+            <label>Goal weight</label>
+            <input type="number" value="180.0" readonly />
+          </div>
+          <div class="form-row">
+            <label>Reach by</label>
+            <input type="date" value="2027-03-01" readonly />
+          </div>
+        </div>
+        <p class="hint" style="margin-top:-6px;margin-bottom:12px">Enter the weight you want to reach. Lose, gain, or maintain is inferred from your current or starting weight (within about 0.5 lb counts as maintain).</p>
+        <div class="form-row">
+          <label>Starting weight (optional)</label>
+          <input type="number" value="190.0" readonly />
+        </div>
+        <button class="btn">Save Goal</button>
+      </div>
+    </main>
+    <nav class="bottom"><div>Home</div><div>Workout</div><div>Body</div><div>Food</div><div class="on">More</div></nav>
+  </div>
+</body>
+</html>

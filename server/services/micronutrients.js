@@ -21,8 +21,22 @@ const MICRO_FIELDS = [
   { key: 'vitaminA', label: 'Vitamin A', unit: 'mcg RAE', dv: 900, dvRole: 'get_enough' },
   { key: 'vitaminC', label: 'Vitamin C', unit: 'mg', dv: 90, dvRole: 'get_enough' },
   { key: 'vitaminD', label: 'Vitamin D', unit: 'mcg', dv: 20, dvRole: 'get_enough' },
-  { key: 'vitaminB12', label: 'Vitamin B-12', unit: 'mcg', dv: 2.4, dvRole: 'get_enough' }
+  { key: 'vitaminB12', label: 'Vitamin B-12', unit: 'mcg', dv: 2.4, dvRole: 'get_enough' },
+  { key: 'saturatedFat', label: 'Saturated fat', unit: 'g', dv: 20, dvRole: 'limit' },
+  { key: 'transFat', label: 'Trans fat', unit: 'g', dv: null, dvRole: 'limit', note: 'No FDA Daily Value; keep intake as low as possible.' },
+  { key: 'cholesterol', label: 'Cholesterol', unit: 'mg', dv: 300, dvRole: 'limit' },
+  { key: 'monounsaturatedFat', label: 'Monounsaturated fat', unit: 'g', dv: null, dvRole: 'no_dv' },
+  { key: 'polyunsaturatedFat', label: 'Polyunsaturated fat', unit: 'g', dv: null, dvRole: 'no_dv' },
+  { key: 'omega3', label: 'Omega-3 (ALA+EPA+DHA+DPA)', unit: 'g', dv: null, dvRole: 'no_dv', note: 'Sum of official USDA FDC n-3 components only. Missing components are omitted, not treated as zero.' },
+  { key: 'ala', label: 'ALA (omega-3)', unit: 'g', dv: null, dvRole: 'ai', note: 'Adequate Intake is 1.6 g/day for men and 1.1 g/day for women (NIH Office of Dietary Supplements). Not an FDA Daily Value.' },
+  { key: 'epa', label: 'EPA', unit: 'g', dv: null, dvRole: 'no_dv', note: 'No FDA Daily Value. Shown in grams from official FDC values only.' },
+  { key: 'dha', label: 'DHA', unit: 'g', dv: null, dvRole: 'no_dv', note: 'No FDA Daily Value. Shown in grams from official FDC values only.' },
+  { key: 'omega6', label: 'Omega-6', unit: 'g', dv: null, dvRole: 'no_dv', note: 'Sum of official USDA FDC n-6 fatty acids only (e.g. linoleic, arachidonic). Missing components are omitted, not treated as zero.' }
 ];
+
+/** NIH ODS Adequate Intake for ALA (not an FDA DV). Retrieved 2026-11-15. */
+const ALA_AI_G = { men: 1.6, women: 1.1, url: 'https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/' };
+
 
 const MICRO_KEYS = MICRO_FIELDS.map((f) => f.key);
 
@@ -108,6 +122,7 @@ function viewModel(logs) {
 module.exports = {
   MICRO_FIELDS,
   MICRO_KEYS,
+  ALA_AI_G,
   hasValue,
   scaleMicros,
   pickMicros,

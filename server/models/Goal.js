@@ -7,6 +7,9 @@ const goalSchema = new mongoose.Schema({
   weeks: { type: Number, default: 12 },
   targetDate: { type: String, default: '' },
   startWeight: { type: Number },                // lbs
+  // Optional additive target (lbs). Existing goals without this field still
+  // work: goal weight is computed from startWeight ± amountLbs.
+  targetWeightLbs: { type: Number, default: undefined },
   // Macro targets (optional – calculated or user-set later)
   proteinG: { type: Number },
   carbsG: { type: Number },

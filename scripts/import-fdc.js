@@ -36,7 +36,21 @@ const FDC_NUTRIENTS = {
   1106: { key: 'vitaminA', unit: 'mcg RAE' },
   1162: { key: 'vitaminC', unit: 'mg' },
   1114: { key: 'vitaminD', unit: 'mcg' },
-  1178: { key: 'vitaminB12', unit: 'mcg' }
+  1178: { key: 'vitaminB12', unit: 'mcg' },
+  1258: { key: 'saturatedFat', unit: 'g' },
+  1257: { key: 'transFat', unit: 'g' },
+  1253: { key: 'cholesterol', unit: 'mg' },
+  1292: { key: 'monounsaturatedFat', unit: 'g' },
+  1293: { key: 'polyunsaturatedFat', unit: 'g' },
+  1404: { key: 'ala', unit: 'g' },
+  619: { key: '_alaFallback', unit: 'g' },
+  1278: { key: 'epa', unit: 'g' },
+  1272: { key: 'dha', unit: 'g' },
+  1280: { key: '_dpa', unit: 'g' },
+  1313: { key: '_la', unit: 'g' },
+  618: { key: '_laFallback', unit: 'g' },
+  1296: { key: '_aa', unit: 'g' },
+  620: { key: '_aa', unit: 'g' }
 };
 
 function parseArgs(argv) {
@@ -113,6 +127,25 @@ function toFood(record, opts = {}) {
     food[meta.key] = scalePer100g(per100, grams);
   }
   if (food.calories != null) food.calories = Math.round(food.calories);
+
+  if (food.ala == null && food._alaFallback != null) food.ala = food._alaFallback;
+  if (food._la == null && food._laFallback != null) food._la = food._laFallback;
+  if (food._aa == null && food._aaFallback != null) food._aa = food._aaFallback;
+  function officialSum(keys) {
+    const present = keys.filter((k) => food[k] != null && Number.isFinite(Number(food[k])));
+    if (!present.length) return undefined;
+    return +present.reduce((s, k) => s + Number(food[k]), 0).toFixed(3);
+  }
+  const o3 = officialSum(['ala', 'epa', 'dha', '_dpa']);
+  if (o3 != null) food.omega3 = o3;
+  const o6 = officialSum(['_la', '_aa']);
+  if (o6 != null) food.omega6 = o6;
+  delete food._dpa;
+  delete food._la;
+  delete food._aa;
+  delete food._alaFallback;
+  delete food._laFallback;
+  delete food._aaFallback;
   return food;
 }
 

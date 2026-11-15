@@ -32,6 +32,16 @@ const foodSchema = new mongoose.Schema({
   vitaminC: { type: Number, default: undefined }, // mg
   vitaminD: { type: Number, default: undefined }, // mcg
   vitaminB12: { type: Number, default: undefined }, // mcg
+  saturatedFat: { type: Number, default: undefined }, // g
+  transFat: { type: Number, default: undefined }, // g
+  cholesterol: { type: Number, default: undefined }, // mg
+  monounsaturatedFat: { type: Number, default: undefined }, // g
+  polyunsaturatedFat: { type: Number, default: undefined }, // g
+  ala: { type: Number, default: undefined }, // g, 18:3 n-3
+  epa: { type: Number, default: undefined }, // g, 20:5 n-3
+  dha: { type: Number, default: undefined }, // g, 22:6 n-3
+  omega3: { type: Number, default: undefined }, // g, sum of official ALA+EPA+DHA+DPA only
+  omega6: { type: Number, default: undefined }, // g, sum of official n-6 fatty acids only
   sourceFdcId: { type: Number, default: undefined },
   isRecipe: { type: Boolean, default: false },
   isPublic: { type: Boolean, default: false },
