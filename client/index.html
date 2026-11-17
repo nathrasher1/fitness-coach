@@ -1133,6 +1133,75 @@
     </main>
     <div id="social-sheet" class="sheet-backdrop" hidden></div>
     <div id="about-you-sheet" class="sheet-backdrop" hidden></div>
+    <div id="food-edit-sheet" class="sheet-backdrop" hidden>
+      <div class="sheet food-sheet food-edit-sheet" role="dialog" aria-modal="true" aria-labelledby="food-edit-title">
+        <div class="sheet-grip" aria-hidden="true"></div>
+        <div class="sheet-head">
+          <div>
+            <div class="summary-kicker" id="food-edit-kicker">Logged food</div>
+            <h2 id="food-edit-title" class="food-sheet-title">Edit food</h2>
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm" id="food-edit-close" aria-label="Close">✕</button>
+        </div>
+        <div id="food-edit-name" class="selected-food"></div>
+        <div id="food-edit-catalog">
+          <div class="grid-2">
+            <div class="form-row">
+              <label for="food-edit-amount">Amount</label>
+              <div class="serving-input-row">
+                <input type="text" id="food-edit-amount" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" enterkeyhint="done" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-select-all="1" />
+                <select id="food-edit-unit" class="serving-unit-select" aria-label="Unit"></select>
+              </div>
+            </div>
+            <div class="form-row">
+              <label>This entry</label>
+              <div id="food-edit-preview" class="selected-food">—</div>
+            </div>
+          </div>
+        </div>
+        <div id="food-edit-manual" hidden>
+          <div class="form-row">
+            <label for="food-edit-label">Label</label>
+            <input type="text" id="food-edit-label" maxlength="80" autocomplete="off" />
+          </div>
+          <div class="grid-2">
+            <div class="form-row">
+              <label for="food-edit-calories">Calories</label>
+              <input type="text" id="food-edit-calories" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-select-all="1" />
+            </div>
+          </div>
+          <div class="grid-3">
+            <div class="form-row">
+              <label for="food-edit-protein">Protein (g)</label>
+              <input type="text" id="food-edit-protein" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-select-all="1" />
+            </div>
+            <div class="form-row">
+              <label for="food-edit-carbs">Carbs (g)</label>
+              <input type="text" id="food-edit-carbs" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-select-all="1" />
+            </div>
+            <div class="form-row">
+              <label for="food-edit-fat">Fat (g)</label>
+              <input type="text" id="food-edit-fat" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-select-all="1" />
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Meal</label>
+          <div class="meal-pills" id="food-edit-meals" role="radiogroup" aria-label="Meal">
+            <button type="button" class="meal-pill" role="radio" data-edit-meal="breakfast" aria-checked="false">Breakfast</button>
+            <button type="button" class="meal-pill" role="radio" data-edit-meal="lunch" aria-checked="false">Lunch</button>
+            <button type="button" class="meal-pill" role="radio" data-edit-meal="dinner" aria-checked="false">Dinner</button>
+            <button type="button" class="meal-pill" role="radio" data-edit-meal="snack" aria-checked="false">Snack</button>
+            <button type="button" class="meal-pill" role="radio" data-edit-meal="other" aria-checked="false">Other</button>
+          </div>
+        </div>
+        <div class="form-row">
+          <label for="food-edit-date">Date</label>
+          <input type="date" id="food-edit-date" />
+        </div>
+        <button type="button" class="btn btn-primary btn-block food-sheet-cta" id="btn-save-food-edit">Save changes</button>
+      </div>
+    </div>
     <div id="diary-wo-sheet" class="sheet-backdrop" hidden></div>
   </div>
 
