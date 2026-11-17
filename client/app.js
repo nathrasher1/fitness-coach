@@ -1125,6 +1125,7 @@ document.addEventListener('keydown', (e) => {
   if (!document.getElementById('photo-lightbox').hidden) return closeLightbox();
   if (scanModal.style.display === 'flex') return;
   if (!foodSheet.hidden) closeFoodSheet();
+  else if (!document.getElementById('food-edit-sheet').hidden) closeFoodEditSheet();
   else if (!document.getElementById('diary-wo-sheet').hidden) closeDiaryWoSheet();
   else if (!document.getElementById('wo-sheet').hidden) closeWoSheet();
 });
@@ -1486,6 +1487,243 @@ function amountLabel(log) {
   return `${log.servings} serving${log.servings === 1 ? '' : 's'}`;
 }
 
+let foodLogById = new Map();
+let editingFoodLog = null;
+
+function rememberFoodLogs(logs) {
+  (logs || []).forEach((l) => {
+    if (l && l._id) foodLogById.set(String(l._id), l);
+  });
+}
+
+function selectAllTextInput(el) {
+  if (!el) return;
+  const run = () => {
+    if (document.activeElement !== el) return;
+    const len = String(el.value || '').length;
+    try {
+      if (typeof el.setSelectionRange === 'function') el.setSelectionRange(0, len);
+      else el.select();
+    } catch {
+      try { el.select(); } catch {}
+    }
+  };
+  requestAnimationFrame(() => setTimeout(run, 0));
+}
+
+function bindSelectAll(root) {
+  if (!root) return;
+  root.addEventListener('focusin', (e) => {
+    const el = e.target;
+    if (!el.matches || !el.matches('[data-select-all]')) return;
+    el.dataset.justFocused = '1';
+    selectAllTextInput(el);
+    setTimeout(() => { delete el.dataset.justFocused; }, 300);
+  });
+  root.addEventListener('mouseup', (e) => {
+    const el = e.target;
+    if (el.matches && el.matches('[data-select-all]') && el.dataset.justFocused) {
+      e.preventDefault();
+      selectAllTextInput(el);
+    }
+  });
+  root.addEventListener('touchend', (e) => {
+    const el = e.target;
+    if (el.matches && el.matches('[data-select-all]') && el.dataset.justFocused) selectAllTextInput(el);
+  });
+}
+
+function parseEditNumber(id) {
+  const raw = String((document.getElementById(id) || {}).value || '').replace(',', '.').trim();
+  const n = parseFloat(raw);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function setEditMeal(meal) {
+  const m = MEAL_LABELS[meal] ? meal : 'other';
+  document.querySelectorAll('#food-edit-meals [data-edit-meal]').forEach((btn) => {
+    const on = btn.dataset.editMeal === m;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-checked', on ? 'true' : 'false');
+  });
+  if (editingFoodLog) editingFoodLog._editMeal = m;
+}
+
+function fillEditUnits(log) {
+  const select = document.getElementById('food-edit-unit');
+  const food = log.foodInfo;
+  if (!food) {
+    const unit = log.amountUnit || 'serving';
+    const label = String(unit).replace(/^p:/, '') || 'serving';
+    select.innerHTML = `<option value="${esc(unit)}">${esc(label)}</option>`;
+    if (unit !== 'serving') select.insertAdjacentHTML('afterbegin', '<option value="serving">serving</option>');
+    select.value = unit;
+    return;
+  }
+  const opts = SV.unitOptions(food);
+  select.innerHTML = opts.map((o) => `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join('');
+  const unit = log.amountUnit || 'serving';
+  if ([...select.options].some((o) => o.value === unit)) select.value = unit;
+  else select.value = 'serving';
+}
+
+function updateFoodEditPreview() {
+  const box = document.getElementById('food-edit-preview');
+  const log = editingFoodLog;
+  if (!box || !log || log.isManual) return;
+  const amount = parseEditNumber('food-edit-amount');
+  const unit = document.getElementById('food-edit-unit').value;
+  if (!Number.isFinite(amount) || amount <= 0) {
+    box.innerHTML = '<strong>Enter an amount</strong>';
+    return;
+  }
+  let qty = null;
+  if (log.foodInfo) qty = SV.amountToServings(amount, unit, log.foodInfo);
+  else if (unit === 'serving') qty = amount;
+  else if (Number(log.amount) > 0 && String(log.amountUnit || 'serving') === unit) {
+    qty = (Number(log.servings) * amount) / Number(log.amount);
+  }
+  if (qty == null || !(qty > 0)) {
+    box.innerHTML = '<strong>Pick a unit this food is measured in</strong>';
+    return;
+  }
+  const cal = Math.round((Number(log.calories) / Number(log.servings)) * qty);
+  const p = +((Number(log.protein) / Number(log.servings)) * qty).toFixed(1);
+  const c = +((Number(log.carbs) / Number(log.servings)) * qty).toFixed(1);
+  const f = +((Number(log.fat) / Number(log.servings)) * qty).toFixed(1);
+  const label = log.foodInfo ? SV.amountLabel(amount, unit, log.foodInfo) : `${amount} ${String(unit).replace(/^p:/, '')}`;
+  box.innerHTML = `<strong>${esc(label)} = ${cal} kcal</strong> · P${p} C${c} F${f}`;
+}
+
+function convertEditUnit() {
+  const log = editingFoodLog;
+  const select = document.getElementById('food-edit-unit');
+  if (!log || !log.foodInfo || !select) return updateFoodEditPreview();
+  const unit = select.value;
+  const prevUnit = select.dataset.prev || unit;
+  const prevAmount = parseEditNumber('food-edit-amount');
+  const servings = SV.amountToServings(prevAmount, prevUnit, log.foodInfo) || Number(log.servings) || 1;
+  const opt = SV.unitOptions(log.foodInfo).find((o) => o.value === unit);
+  const next = opt && opt.factor ? servings / opt.factor : prevAmount;
+  document.getElementById('food-edit-amount').value = SV.fmt(next);
+  select.dataset.prev = unit;
+  updateFoodEditPreview();
+}
+
+function otherSheetsOpen() {
+  const ids = ['food-sheet', 'wo-sheet', 'diary-wo-sheet', 'food-edit-sheet', 'photo-lightbox'];
+  return ids.some((id) => {
+    const el = document.getElementById(id);
+    return el && !el.hidden;
+  });
+}
+
+function openFoodEditSheet(id) {
+  const log = foodLogById.get(String(id));
+  if (!log) return toast('Could not open this entry');
+  editingFoodLog = Object.assign({}, log, { _editMeal: log.meal });
+  document.getElementById('food-edit-title').textContent = 'Edit food';
+  document.getElementById('food-edit-kicker').textContent = MEAL_LABELS[log.meal] || log.meal || 'Logged food';
+  document.getElementById('food-edit-name').textContent = log.foodName || 'Logged food';
+  const catalog = document.getElementById('food-edit-catalog');
+  const manual = document.getElementById('food-edit-manual');
+  if (log.isManual) {
+    catalog.hidden = true;
+    manual.hidden = false;
+    document.getElementById('food-edit-label').value = log.foodName || '';
+    document.getElementById('food-edit-calories').value = String(log.calories ?? '');
+    document.getElementById('food-edit-protein').value = String(log.protein ?? '0');
+    document.getElementById('food-edit-carbs').value = String(log.carbs ?? '0');
+    document.getElementById('food-edit-fat').value = String(log.fat ?? '0');
+  } else {
+    catalog.hidden = false;
+    manual.hidden = true;
+    fillEditUnits(log);
+    const amount = log.amount != null ? log.amount : log.servings;
+    document.getElementById('food-edit-amount').value = String(amount);
+    document.getElementById('food-edit-unit').dataset.prev = document.getElementById('food-edit-unit').value;
+    updateFoodEditPreview();
+  }
+  setEditMeal(log.meal);
+  document.getElementById('food-edit-date').value = log.date || logDate();
+  const sheet = document.getElementById('food-edit-sheet');
+  sheet.hidden = false;
+  document.body.classList.add('sheet-open');
+}
+
+function closeFoodEditSheet() {
+  const sheet = document.getElementById('food-edit-sheet');
+  if (!sheet) return;
+  sheet.hidden = true;
+  editingFoodLog = null;
+  if (!otherSheetsOpen()) document.body.classList.remove('sheet-open');
+}
+
+function refreshAfterFoodEdit() {
+  loadFoodLog();
+  loadQuickAdd();
+  loadDashboard();
+  const active = document.querySelector('.panel.active');
+  if (active && active.id === 'nutrition') loadNutrition();
+  const detail = document.getElementById('calendar-day-detail');
+  if (detail && detail.style.display !== 'none' && daySessions && daySessions.date) {
+    showDayDetail(daySessions.date, { openSection: 'food' });
+  }
+}
+
+async function saveFoodEdit() {
+  const log = editingFoodLog;
+  if (!log) return;
+  const date = document.getElementById('food-edit-date').value;
+  const meal = log._editMeal || log.meal;
+  const body = { date, meal };
+  if (log.isManual) {
+    const name = document.getElementById('food-edit-label').value.trim();
+    if (!name) return toast('Label is required');
+    const calories = parseEditNumber('food-edit-calories');
+    const protein = parseEditNumber('food-edit-protein');
+    const carbs = parseEditNumber('food-edit-carbs');
+    const fat = parseEditNumber('food-edit-fat');
+    if (![calories, protein, carbs, fat].every((n) => Number.isFinite(n) && n >= 0)) {
+      return toast('Enter calories and macros as 0 or more');
+    }
+    body.foodName = name;
+    body.calories = calories;
+    body.protein = protein;
+    body.carbs = carbs;
+    body.fat = fat;
+  } else {
+    const amount = parseEditNumber('food-edit-amount');
+    if (!Number.isFinite(amount) || amount <= 0) return toast('Amount must be greater than 0');
+    body.amount = amount;
+    body.amountUnit = document.getElementById('food-edit-unit').value;
+  }
+  try {
+    await api(`/food-logs/${log._id}`, { method: 'PATCH', body: JSON.stringify(body) });
+    const moved = date && date !== log.date;
+    closeFoodEditSheet();
+    toast(moved ? `Moved to ${formatDate(date)}` : 'Updated');
+    refreshAfterFoodEdit();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+const foodEditSheet = document.getElementById('food-edit-sheet');
+if (foodEditSheet) {
+  foodEditSheet.addEventListener('click', (e) => {
+    if (e.target === foodEditSheet || e.target.closest('#food-edit-close')) return closeFoodEditSheet();
+    const pill = e.target.closest('[data-edit-meal]');
+    if (pill) setEditMeal(pill.dataset.editMeal);
+  });
+  document.getElementById('btn-save-food-edit').addEventListener('click', saveFoodEdit);
+  document.getElementById('food-edit-amount').addEventListener('input', updateFoodEditPreview);
+  document.getElementById('food-edit-unit').addEventListener('change', convertEditUnit);
+  document.getElementById('food-edit-unit').addEventListener('focus', (e) => { e.target.dataset.prev = e.target.value; });
+  document.getElementById('food-edit-unit').addEventListener('mousedown', (e) => { e.target.dataset.prev = e.target.value; });
+  bindSelectAll(foodEditSheet);
+}
+
 
 const V1_MICRO_KEYS = ['fiber', 'sugar', 'sodium', 'potassium', 'calcium', 'iron', 'magnesium', 'vitaminA', 'vitaminC', 'vitaminD', 'vitaminB12'];
 const FAT_MICRO_KEYS = ['saturatedFat', 'transFat', 'cholesterol', 'monounsaturatedFat', 'polyunsaturatedFat', 'omega3', 'ala', 'epa', 'dha', 'omega6'];
@@ -1649,11 +1887,13 @@ async function loadFoodLog() {
               .map(
                 (l) => `
           <div class="diary-item">
-            <div class="info">
-              <div class="name">${l.foodName}${l.isManual ? ' <span class="badge-manual">manual</span>' : ''}</div>
-              <div class="meta">${l.isManual ? '' : amountLabel(l) + ' · '}P${l.protein} C${l.carbs} F${l.fat}</div>
-            </div>
-            <div class="cals">${l.calories}</div>
+            <button type="button" class="diary-item-main" data-edit-log="${l._id}" aria-label="Edit ${escH(l.foodName)}">
+              <div class="info">
+                <div class="name">${escH(l.foodName)}${l.isManual ? ' <span class="badge-manual">manual</span>' : ''}</div>
+                <div class="meta">${l.isManual ? '' : escH(amountLabel(l)) + ' · '}P${l.protein} C${l.carbs} F${l.fat}</div>
+              </div>
+              <div class="cals">${l.calories}</div>
+            </button>
             <button class="btn btn-danger btn-sm" data-id="${l._id}" aria-label="Remove">×</button>
           </div>`
               )
@@ -1703,9 +1943,17 @@ async function loadFoodLog() {
       });
     });
 
+    rememberFoodLogs(data.logs);
+
+    listEl.querySelectorAll('[data-edit-log]').forEach((btn) => {
+      btn.addEventListener('click', () => openFoodEditSheet(btn.dataset.editLog));
+    });
+
     listEl.querySelectorAll('.btn-danger[data-id]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
         await api(`/food-logs/${btn.dataset.id}`, { method: 'DELETE' });
+        foodLogById.delete(String(btn.dataset.id));
         toast('Removed');
         loadFoodLog();
         loadQuickAdd();
@@ -3585,7 +3833,7 @@ function openLightbox(src, caption) {
 function closeLightbox() {
   lightbox.hidden = true;
   document.getElementById('photo-lightbox-img').removeAttribute('src');
-  if (document.getElementById('food-sheet').hidden && document.getElementById('wo-sheet').hidden && document.getElementById('diary-wo-sheet').hidden) document.body.classList.remove('sheet-open');
+  if (document.getElementById('food-sheet').hidden && document.getElementById('wo-sheet').hidden && document.getElementById('diary-wo-sheet').hidden && document.getElementById('food-edit-sheet').hidden) document.body.classList.remove('sheet-open');
 }
 lightbox.addEventListener('click', (e) => {
   if (e.target === lightbox || e.target.closest('.photo-lightbox-close')) closeLightbox();
@@ -3617,7 +3865,8 @@ function closeDiaryWoSheet() {
   const food = document.getElementById('food-sheet');
   const wo = document.getElementById('wo-sheet');
   const lb = document.getElementById('photo-lightbox');
-  if ((food && !food.hidden) || (wo && !wo.hidden) || (lb && !lb.hidden)) return;
+  const edit = document.getElementById('food-edit-sheet');
+  if ((food && !food.hidden) || (wo && !wo.hidden) || (lb && !lb.hidden) || (edit && !edit.hidden)) return;
   document.body.classList.remove('sheet-open');
 }
 function openDiaryWoSheet(html) {
@@ -3817,6 +4066,7 @@ async function showDayDetail(date, { openSection } = {}) {
     ]);
     dayPhotos = photos;
     const foods = foodRes.logs || [];
+    rememberFoodLogs(foods);
     const workouts = (allWorkouts || []).filter((w) => w.date === date);
     const sports = (sportRes && sportRes.sessions) || [];
     const healthWorkouts = healthList || [];
@@ -3838,7 +4088,10 @@ async function showDayDetail(date, { openSection } = {}) {
     html += `<div class="day-section">
       <button class="day-section-toggle" data-sec="food">Food <span>▸</span></button>
       <div class="day-section-body" id="day-food">
-        ${foods.length ? foods.map(f => `<div>${f.foodName || 'Manual'} — ${f.calories} kcal</div>`).join('') : '<div class="empty">No food logged</div>'}
+        ${foods.length ? foods.map(f => `<button type="button" class="day-food-edit" data-edit-log="${f._id}" aria-label="Edit ${esc(f.foodName || 'Manual')}">
+          <span><strong>${esc(f.foodName || 'Manual')}</strong><div class="meta">${esc((MEAL_LABELS[f.meal] || f.meal || '') + (f.isManual ? '' : ' · ' + amountLabel(f)))}</div></span>
+          <span>${f.calories} kcal</span>
+        </button>`).join('') : '<div class="empty">No food logged</div>'}
       </div>
     </div>`;
 
@@ -3884,6 +4137,10 @@ async function showDayDetail(date, { openSection } = {}) {
         body.classList.toggle('open', !open);
         btn.querySelector('span').textContent = open ? '▸' : '▾';
       });
+    });
+
+    content.querySelectorAll('[data-edit-log]').forEach((btn) => {
+      btn.addEventListener('click', () => openFoodEditSheet(btn.dataset.editLog));
     });
 
     content.querySelectorAll('[data-delete-workout]').forEach((btn) => {

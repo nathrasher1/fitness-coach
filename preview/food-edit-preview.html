@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SAMPLE PREVIEW — Edit a logged food</title>
+<style>
+  :root { --bg:#eef7f6; --surface:#fff; --surface2:#f3faf9; --border:#cbe3df; --text:#12343b; --text-muted:#4b676c; --main:#0e7c86; --main-soft:#d7eef0; --main-text:#0b3d45; --nav:#0b3d45; --nav-text:#cbe9e6; --accent:#c9a227; --danger:#b42318; --on-main:#fff; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 390px; height: 844px; background: var(--bg); font-family: system-ui, -apple-system, sans-serif; color: var(--text); overflow: hidden; }
+  .phone { width: 390px; height: 844px; display: flex; flex-direction: column; position: relative; }
+  .banner { background: #7a3b00; color: #fff; font-size: 10px; font-weight: 600; padding: 5px 10px; line-height: 1.25; }
+  .status { height: 28px; padding: 6px 22px 0; display: flex; justify-content: space-between; font-weight: 700; font-size: 13px; background: var(--nav); color: #fff; }
+  header { background: var(--nav); color: var(--nav-text); display: flex; align-items: center; gap: 8px; padding: 4px 10px 6px; }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #c9a227, #7a5a12); border: 2px solid #e9d6b0; }
+  .brand-title { color: #fff; font-weight: 800; font-size: 14px; }
+  .brand-user { font-size: 11px; }
+  .tabs { display: flex; gap: 4px; background: var(--nav); padding: 0 8px 6px; }
+  .tab { flex: 1; text-align: center; font-size: 10px; color: var(--nav-text); padding: 5px 0; border-radius: 10px; }
+  .tab.on { background: #135860; color: #fff; font-weight: 700; }
+  main { flex: 1; overflow: hidden; padding: 8px 12px 4px; }
+  .toolbar { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .btn { border: 1px solid var(--border); background: #fff; border-radius: 10px; padding: 4px 8px; font-size: 12px; }
+  .date { flex: 1; text-align: center; font-weight: 700; font-size: 13px; background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 6px 0; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 10px 12px 8px; margin-bottom: 8px; }
+  .kcal { font-size: 28px; font-weight: 800; }
+  .label { color: var(--text-muted); font-size: 11px; }
+  .totals { display: flex; gap: 10px; font-size: 12px; color: var(--text-muted); margin: 4px 0 2px; }
+  .link { background: none; border: 0; color: var(--main); font-weight: 700; font-size: 13px; padding: 0; }
+  .meal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 8px; overflow: hidden; }
+  .meal-h { display: flex; justify-content: space-between; padding: 8px 12px; font-weight: 700; font-size: 13px; text-transform: capitalize; background: var(--surface2); border-bottom: 1px solid var(--border); }
+  .meal-h span:last-child { color: var(--text-muted); font-weight: 500; }
+  .item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 13px; border-top: 1px solid var(--border); }
+  .item:first-of-type { border-top: 0; }
+  .item .info { flex: 1; min-width: 0; }
+  .item strong { display: block; }
+  .meta { color: var(--text-muted); font-size: 11px; }
+  .cals { font-weight: 700; min-width: 36px; text-align: right; }
+  .item.open { background: var(--main-soft); }
+  .del { width: 28px; height: 28px; border: 0; border-radius: 8px; background: var(--danger); color: #fff; font-weight: 700; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; padding: 8px 12px 10px; border-top: 1px solid var(--border); }
+  .actions span { font-size: 12px; color: var(--main); font-weight: 650; }
+  nav.bottom { background: var(--nav); color: var(--nav-text); display: flex; justify-content: space-around; padding: 8px 0 14px; font-size: 10px; }
+  nav.bottom .on { color: #fff; font-weight: 700; }
+  .scrim { position: absolute; inset: 0; background: rgba(8, 15, 25, 0.55); display: flex; align-items: flex-end; }
+  .sheet { width: 100%; background: var(--surface); border-radius: 20px 20px 0 0; border-top: 4px solid var(--accent); padding: 6px 16px 18px; }
+  .grip { width: 40px; height: 4px; border-radius: 99px; background: #c5d5d3; margin: 4px auto 8px; }
+  .sheet-h { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+  .kicker { font-size: 11px; font-weight: 650; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .sheet-h h2 { margin: 0; font-size: 1.25rem; }
+  .x { border: 0; background: none; font-size: 16px; color: var(--text-muted); padding: 4px 6px; }
+  .foodname { font-weight: 700; margin-bottom: 12px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  label { display: block; font-size: 12px; font-weight: 650; margin-bottom: 4px; }
+  .serving { display: flex; gap: 8px; }
+  .serving .amt, .serving select, .date-box {
+    border: 1px solid var(--border); background: var(--bg); border-radius: 8px;
+    padding: 10px 8px; font: inherit; font-weight: 600; color: var(--text);
+  }
+  .serving .amt {
+    flex: 0 0 88px; text-align: left; background: #fff; border-color: var(--main);
+    box-shadow: 0 0 0 2px var(--main-soft);
+  }
+  .serving .amt em { font-style: normal; background: #b9e2e6; border-radius: 2px; padding: 0 1px; }
+  .serving select { flex: 1; min-width: 0; }
+  .date-box { width: 100%; display: flex; justify-content: space-between; align-items: center; }
+  .preview { background: var(--surface2); border-radius: 8px; padding: 10px 8px; font-size: 13px; min-height: 44px; }
+  .pills { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 12px; }
+  .pill { border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 999px; padding: 8px 10px; font-size: 12px; font-weight: 650; }
+  .pill.on { background: var(--main); border-color: var(--main); color: #fff; }
+  .save { width: 100%; border: 0; background: var(--main); color: #fff; font-weight: 750; font-size: 15px; border-radius: 12px; padding: 14px 12px; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="banner">SAMPLE PREVIEW — static mock, not the live app. Tap a logged food to edit amount, meal, or date. Not deployed.</div>
+    <div class="status"><span>9:41</span><span>●●● LTE</span></div>
+    <header>
+      <div class="avatar"></div>
+      <div><div class="brand-title">Fitness Coach</div><div class="brand-user">Preview</div></div>
+    </header>
+    <div class="tabs">
+      <div class="tab">Home</div><div class="tab">Workout</div><div class="tab on">Food</div>
+      <div class="tab">Nutrition</div><div class="tab">More</div>
+    </div>
+    <main>
+      <div class="toolbar">
+        <button class="btn">‹</button>
+        <div class="date">Mon, Nov 16</div>
+        <button class="btn">›</button>
+        <button class="btn">Copy yesterday</button>
+      </div>
+      <div class="card">
+        <div class="kcal">1,286</div>
+        <div class="label">kcal remaining</div>
+        <div class="totals"><span>714 / 2,000 kcal eaten</span><span>P 62g</span><span>C 78g</span><span>F 18g</span></div>
+        <button class="link">Nutrition</button>
+      </div>
+      <div class="meal">
+        <div class="meal-h"><span>Breakfast</span><span>214 kcal</span></div>
+        <div class="item"><div class="info">Banana, medium<div class="meta">1 banana · P1 C27 F0</div></div><div class="cals">105</div><button class="del">×</button></div>
+        <div class="item open"><div class="info">Greek yogurt, plain nonfat<div class="meta">170 g · P17 C6 F0</div></div><div class="cals">100</div><button class="del">×</button></div>
+        <div class="item"><div class="info">1% milk<div class="meta">1 cup · P8 C12 F2</div></div><div class="cals">50</div><button class="del">×</button></div>
+        <div class="actions"><span>+ Add food</span><span>Copy from yesterday</span><span>Log flex/holiday</span></div>
+      </div>
+    </main>
+    <nav class="bottom"><div>Home</div><div>Workout</div><div class="on">Food</div><div>Nutrition</div><div>More</div></nav>
+    <div class="scrim">
+      <div class="sheet">
+        <div class="grip"></div>
+        <div class="sheet-h">
+          <div>
+            <div class="kicker">Breakfast</div>
+            <h2>Edit food</h2>
+          </div>
+          <button class="x" aria-label="Close">✕</button>
+        </div>
+        <div class="foodname">Greek yogurt, plain nonfat</div>
+        <div class="grid">
+          <div>
+            <label>Amount</label>
+            <div class="serving">
+              <div class="amt"><em>250</em></div>
+              <select><option selected>g</option><option>oz</option><option>serving (170 g)</option></select>
+            </div>
+          </div>
+          <div>
+            <label>This entry</label>
+            <div class="preview"><strong>250 g = 147 kcal</strong><div>P25 C8.8 F0</div></div>
+          </div>
+        </div>
+        <label>Meal</label>
+        <div class="pills">
+          <span class="pill on">Breakfast</span>
+          <span class="pill">Lunch</span>
+          <span class="pill">Dinner</span>
+          <span class="pill">Snack</span>
+          <span class="pill">Other</span>
+        </div>
+        <label>Date</label>
+        <div class="date-box"><span>Mon, Nov 16, 2026</span></div>
+        <button class="save">Save changes</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

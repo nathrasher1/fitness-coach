@@ -1411,6 +1411,47 @@ tr:last-child td { border-bottom: none; }
 .diary-item .name { font-weight: 600; }
 .diary-item .meta { font-size: 0.8rem; color: var(--text-muted); }
 .diary-item .cals { font-weight: 700; min-width: 48px; text-align: right; }
+.diary-item-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.diary-item-main:hover .name,
+.diary-item-main:focus-visible .name { color: var(--main-text); }
+.diary-item-main:focus-visible { outline: 2px solid var(--main); outline-offset: 2px; }
+.day-food-edit {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 8px 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.day-food-edit:last-child { border-bottom: 0; }
+.day-food-edit:hover,
+.day-food-edit:focus-visible { color: var(--main-text); }
+.day-food-edit .meta { color: var(--text-muted); font-size: 0.85rem; }
+.food-edit-sheet .selected-food { margin-bottom: 12px; }
+.food-edit-sheet .meal-pills { margin-top: 4px; }
 .diary-empty { padding: 10px 14px; color: var(--text-muted); font-size: 0.85rem; }
 .add-meal-btn {
   width: 100%;

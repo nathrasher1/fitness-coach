@@ -6,6 +6,7 @@ const FD = require('../services/flexDays');
 const { requireAuth } = require('../middleware/auth');
 const { amountToServings, amountToGrams } = require('../services/portions');
 const Servings = require('../../client/lib/servings');
+const FoodLogUpdate = require('../services/foodLogUpdate');
 const { computeCalorieRecommendation } = require('../services/recommendations');
 
 const { localToday, daysAgoKey, shiftKey, isDateKey } = require('../services/dates');
@@ -33,12 +34,13 @@ function dayTotals(logs) {
 // Older entries were saved without a readable amount label. Describe them from the linked
 // food's current serving (display only; the stored entry is never changed).
 async function withAmountLabels(logs) {
-  const ids = [...new Set(logs.filter((l) => !l.amountLabel && l.food).map((l) => String(l.food)))];
+  const ids = [...new Set(logs.filter((l) => l.food).map((l) => String(l.food)))];
   const foods = ids.length ? await Food.find({ _id: { $in: ids } }).lean() : [];
   const byId = new Map(foods.map((f) => [String(f._id), f]));
   return logs.map((l) => {
     const o = l.toObject ? l.toObject() : l;
     const f = o.food && byId.get(String(o.food));
+    if (f) o.foodInfo = FoodLogUpdate.compactFoodInfo(f);
     if (!o.amountLabel && f && o.servings > 0) {
       const size = Number(f.servingSize) || 1;
       const unit = String(f.servingUnit || 'serving');
@@ -256,43 +258,22 @@ router.post('/copy-yesterday', async (req, res) => {
   }
 });
 
-// PATCH /api/food-logs/:id  – update servings
+// PATCH /api/food-logs/:id  – amount/servings, meal, date, and (for manual entries) macros
 router.patch('/:id', async (req, res) => {
   try {
     const log = await FoodLog.findOne({ _id: req.params.id, user: req.session.userId });
     if (!log) return res.status(404).json({ error: 'Not found' });
 
-    const servings = Number(req.body.servings);
-    if (!servings || servings <= 0) {
-      return res.status(400).json({ error: 'servings must be > 0' });
-    }
+    const food = log.food ? await Food.findById(log.food).lean() : null;
+    const result = FoodLogUpdate.apply(log.toObject(), food, req.body || {});
+    if (!result.ok) return res.status(result.status).json({ error: result.error });
 
-    // Scale from original per-serving values
-    const perServing = {
-      calories: log.calories / log.servings,
-      protein: log.protein / log.servings,
-      carbs: log.carbs / log.servings,
-      fat: log.fat / log.servings,
-      fiber: log.fiber / log.servings,
-      ...Micros.scaleMicros(log, 1 / log.servings)
-    };
-
-    log.servings = servings;
-    log.calories = Math.round(perServing.calories * servings);
-    log.protein = +(perServing.protein * servings).toFixed(1);
-    log.carbs = +(perServing.carbs * servings).toFixed(1);
-    log.fat = +(perServing.fat * servings).toFixed(1);
-    log.fiber = +(perServing.fiber * servings).toFixed(1);
-    const scaled = Micros.scaleMicros(perServing, servings);
-    for (const key of Micros.MICRO_KEYS) {
-      if (Object.prototype.hasOwnProperty.call(scaled, key)) log[key] = scaled[key];
-    }
-    if (req.body.meal) log.meal = req.body.meal;
-    if (req.body.note != null) log.note = req.body.note;
-
+    Object.assign(log, result.fields);
     await log.save();
-    res.json(log);
+    const [out] = await withAmountLabels([log]);
+    res.json(out);
   } catch (err) {
+    if (err && err.name === 'CastError') return res.status(404).json({ error: 'Not found' });
     console.error(err);
     res.status(500).json({ error: 'Failed to update log' });
   }
