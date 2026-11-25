@@ -630,6 +630,7 @@ async function loadActiveRoutineCard() {
 async function loadDashboard() {
   loadActivity();
   loadActiveRoutineCard();
+  if (window.Events) window.Events.refreshHome();
   try {
     const data = await api(`/dashboard?days=${currentPeriodDays}`);
     const statsEl = document.getElementById('overview-stats');
@@ -3816,6 +3817,8 @@ async function loadCalendar() {
     });
   } catch (err) { console.error(err); }
 
+  if (window.Events) await window.Events.markCalendar(grid, monthStart, monthEnd);
+
   grid.querySelectorAll('.cal-day').forEach(el => {
     el.addEventListener('click', () => showDayDetail(el.dataset.date));
   });
@@ -3833,7 +3836,7 @@ function openLightbox(src, caption) {
 function closeLightbox() {
   lightbox.hidden = true;
   document.getElementById('photo-lightbox-img').removeAttribute('src');
-  if (document.getElementById('food-sheet').hidden && document.getElementById('wo-sheet').hidden && document.getElementById('diary-wo-sheet').hidden && document.getElementById('food-edit-sheet').hidden) document.body.classList.remove('sheet-open');
+  if (document.getElementById('food-sheet').hidden && document.getElementById('wo-sheet').hidden && document.getElementById('diary-wo-sheet').hidden && document.getElementById('food-edit-sheet').hidden && (!document.getElementById('event-sheet') || document.getElementById('event-sheet').hidden)) document.body.classList.remove('sheet-open');
 }
 lightbox.addEventListener('click', (e) => {
   if (e.target === lightbox || e.target.closest('.photo-lightbox-close')) closeLightbox();
@@ -3866,7 +3869,8 @@ function closeDiaryWoSheet() {
   const wo = document.getElementById('wo-sheet');
   const lb = document.getElementById('photo-lightbox');
   const edit = document.getElementById('food-edit-sheet');
-  if ((food && !food.hidden) || (wo && !wo.hidden) || (lb && !lb.hidden) || (edit && !edit.hidden)) return;
+  const ev = document.getElementById('event-sheet');
+  if ((food && !food.hidden) || (wo && !wo.hidden) || (lb && !lb.hidden) || (edit && !edit.hidden) || (ev && !ev.hidden)) return;
   document.body.classList.remove('sheet-open');
 }
 function openDiaryWoSheet(html) {
@@ -4055,14 +4059,16 @@ async function showDayDetail(date, { openSection } = {}) {
   content.innerHTML = '<div class="empty">Loading…</div>';
 
   try {
-    const [weights, foodRes, allWorkouts, metrics, photos, sportRes, healthList] = await Promise.all([
+    const [weights, foodRes, allWorkouts, metrics, photos, sportRes, healthList, eventRes, readyRes] = await Promise.all([
       api(`/weights?days=365`).then(all => all.filter(w => w.date === date)),
       api(`/food-logs?date=${date}`),
       api('/workouts?limit=100'),
       api('/body-metrics?limit=100').then(all => all.filter(m => m.date === date)),
       api(`/profile/photos?date=${date}`).catch(() => []),
       api(`/sport-sessions?from=${date}&to=${date}`).catch(() => ({ sessions: [] })),
-      api('/health/workouts?limit=100').then((all) => (all || []).filter((w) => w.date === date)).catch(() => [])
+      api('/health/workouts?limit=100').then((all) => (all || []).filter((w) => w.date === date)).catch(() => []),
+      api(`/events?from=${date}&to=${date}`).catch(() => ({ events: [] })),
+      api(`/readiness?from=${date}&to=${date}`).catch(() => ({ logs: [] }))
     ]);
     dayPhotos = photos;
     const foods = foodRes.logs || [];
@@ -4070,9 +4076,12 @@ async function showDayDetail(date, { openSection } = {}) {
     const workouts = (allWorkouts || []).filter((w) => w.date === date);
     const sports = (sportRes && sportRes.sessions) || [];
     const healthWorkouts = healthList || [];
-    daySessions = { date, logs: workouts, sports, health: healthWorkouts, history: allWorkouts || [] };
+    const dayEvents = (eventRes && eventRes.events) || [];
+    const dayReady = ((readyRes && readyRes.logs) || [])[0] || null;
+    daySessions = { date, logs: workouts, sports, health: healthWorkouts, history: allWorkouts || [], events: dayEvents };
 
     let html = '';
+    if (window.Events) html += window.Events.daySectionHtml(date, dayEvents, dayReady);
 
     // Progress photos taken that day: thumbnails, tap to enlarge
     html += `<div class="day-section">
@@ -4167,6 +4176,8 @@ async function showDayDetail(date, { openSection } = {}) {
         if (w) openDiaryWoSheet(renderDiaryHealthSheet(w));
       });
     });
+
+    if (window.Events) window.Events.bindDaySection(content, date);
 
     if (openSection) {
       const btn = content.querySelector(`.day-section-toggle[data-sec="${openSection}"]`);

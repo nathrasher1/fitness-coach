@@ -185,6 +185,19 @@
           <details class="streak-explain"><summary>How streaks work</summary><p class="hint" id="streak-explain"></p><button type="button" class="link-btn" id="streak-edit">Change training schedule</button></details>
         </div>
 
+        <div class="card" id="next-event-card">
+          <div class="flex-between"><h2 style="margin:0">Next event</h2><button type="button" class="link-btn" id="next-event-add">Add event</button></div>
+          <div id="next-event-body">
+            <p class="hint">Add a meet, game, race, or match to see a countdown here. Competition days count toward your streak.</p>
+          </div>
+        </div>
+
+        <div class="card" id="readiness-card">
+          <div class="flex-between"><h2 style="margin:0">Readiness today</h2><span class="hint">Optional</span></div>
+          <p class="hint card-intro">A 1–5 check-in for sleep, soreness, mood, and energy. It shows up on event recaps for the week leading in.</p>
+          <div id="readiness-today"></div>
+        </div>
+
 
         <div class="card flex-summary" id="flex-summary-card" hidden>
           <div class="flex-between"><h2 style="margin:0">Flex day today</h2><button type="button" class="link-btn" id="flex-summary-open">Open Food log</button></div>
@@ -225,6 +238,10 @@
               <span id="cal-month-label" style="font-weight:600;min-width:120px;text-align:center"></span>
               <button class="btn btn-secondary btn-sm" id="cal-next">›</button>
             </div>
+          </div>
+          <div class="flex-between" style="margin-bottom:10px">
+            <p class="hint" style="margin:0">Events show a gold pip on the day. Tap a day to open details, or add a meet, game, race, or match.</p>
+            <button type="button" class="btn btn-secondary btn-sm" id="cal-add-event">Add event</button>
           </div>
           <div id="calendar-grid" class="calendar-grid"></div>
         </div>
@@ -1203,6 +1220,8 @@
       </div>
     </div>
     <div id="diary-wo-sheet" class="sheet-backdrop" hidden></div>
+    <div id="event-sheet" class="sheet-backdrop" hidden></div>
+
   </div>
 
   <div id="toast" class="toast"></div>
@@ -1238,6 +1257,7 @@
   <script src="social.js"></script>
   <script src="account.js"></script>
   <script src="flexSport.js"></script>
+  <script src="events.js"></script>
   <script src="native.js"></script>
   <script src="health.js"></script>
 </body>

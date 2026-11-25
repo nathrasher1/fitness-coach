@@ -12,6 +12,7 @@ const RestDay = require('../models/RestDay');
 const HealthWorkout = require('../models/HealthWorkout');
 const FlexDay = require('../models/FlexDay');
 const SportSession = require('../models/SportSession');
+const Event = require('../models/Event');
 const Settings = require('../models/Settings');
 const { shiftKey } = require('./dates');
 
@@ -110,17 +111,18 @@ function explain(schedule) {
 
 async function streakFor(userId, today) {
   const from = shiftKey(today, -LOOKBACK - 7);
-  const [logs, imported, sports, rests, flexes, settings, recent] = await Promise.all([
+  const [logs, imported, sports, comps, rests, flexes, settings, recent] = await Promise.all([
     WorkoutLog.find({ user: userId, date: { $gte: from, $lte: today } }).select('date').lean(),
     HealthWorkout.find({ user: userId, date: { $gte: from, $lte: today } }).select('date').lean(),
     SportSession.find({ user: userId, date: { $gte: from, $lte: today } }).select('date').lean(),
+    Event.find({ user: userId, date: { $gte: from, $lte: today } }).select('date').lean(),
     RestDay.find({ user: userId, date: { $gte: from, $lte: today } }).select('date').lean(),
     FlexDay.find({ user: userId, date: { $gte: from, $lte: today } }).select('date').lean(),
     Settings.findOne({ user: userId }).select('trainingDays restDaysPerWeek restSkipsPerWeek practiceDays').lean(),
     WorkoutLog.findOne({ user: userId, planDay: { $regex: '^[a-z0-9_]+:' }, date: { $gte: shiftKey(today, -28), $lte: today } }).sort({ date: -1, createdAt: -1 }).select('planDay').lean()
   ]);
   const schedule = resolveSchedule(settings, recent && recent.planDay);
-  const workouts = new Set([...logs, ...imported, ...sports].map((l) => l.date));
+  const workouts = new Set([...logs, ...imported, ...sports, ...comps].map((l) => l.date));
   const out = computeStreak({
     workouts,
     rests: new Set(rests.map((r) => r.date)),
@@ -129,7 +131,7 @@ async function streakFor(userId, today) {
     today,
     schedule
   });
-  const expl = explain(schedule) + ' Flex / holiday days never break it. Sport and practice sessions count as training.';
+  const expl = explain(schedule) + ' Flex / holiday days never break it. Sport and practice sessions and competition days count as training.';
   return { ...out, schedule, explanation: expl, practiceDays: (settings && settings.practiceDays) || [] };
 }
 

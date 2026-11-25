@@ -74,6 +74,8 @@ app.use('/api/about-you', require('./routes/aboutYou'));
 app.use('/api/health', require('./routes/health'));
 app.use('/api/flex-days', require('./routes/flexDays'));
 app.use('/api/sport-sessions', require('./routes/sportSessions'));
+app.use('/api/events', require('./routes/events'));
+app.use('/api/readiness', require('./routes/readiness'));
 
 // ---------- Static frontend ----------
 app.use(express.static(path.join(__dirname, '../client')));
