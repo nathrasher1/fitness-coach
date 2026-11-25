@@ -13,7 +13,7 @@
   const SET_TYPES = ['working', 'warmup', 'failure'];
   const LB_PER_KG = 2.20462;
 
-  // Rep ranges by training focus (from the original suggest-load logic).
+  // Legacy default ranges used when no training goal is set (keeps current behavior).
   const FOCUS_RANGES = {
     strength: { low: 3, high: 6, bump: true },
     power: { low: 2, high: 5, bump: true },
@@ -21,6 +21,73 @@
     conditioning: { low: 12, high: 20, bump: false },
     endurance: { low: 15, high: 20, bump: false }
   };
+
+  /**
+   * Evidence-based ranges applied when the user chooses a training goal.
+   * Sources (public):
+   *  - ACSM. Progression Models in Resistance Training for Healthy Adults.
+   *    Med Sci Sports Exerc. 2009;41(3):687–708.
+   *    https://journals.lww.com/acsm-msse/fulltext/2009/03000/progression_models_in_resistance_training_for.26.aspx
+   *  - Schoenfeld BJ, Grgic J, Van Every DW, Plotkin DL. Loading Recommendations
+   *    for Muscle Strength, Hypertrophy, and Local Endurance: A Re-Examination of
+   *    the Repetition Continuum. Sports (Basel). 2021;9(2):32. (6–30 near failure
+   *    can build muscle; 6–12 remains the usual practical range.)
+   */
+  const TRAINING_GOALS = {
+    power: {
+      key: 'power', label: 'Power',
+      low: 1, high: 5, bump: true,
+      setsLow: 3, setsHigh: 5, defaultSets: 4,
+      restSec: 180, restLabel: '3–5 min',
+      summary: '1–5 explosive reps · 3–5 sets · rest 3–5 min',
+      note: 'Emphasize quality and speed. Stop before form slows. Take longer rests so each set stays explosive.'
+    },
+    strength: {
+      key: 'strength', label: 'Strength',
+      low: 1, high: 6, bump: true,
+      setsLow: 3, setsHigh: 5, defaultSets: 4,
+      restSec: 180, restLabel: '2–5 min',
+      summary: '1–6 reps · 3–5 sets · rest 2–5 min',
+      note: 'Heavy, controlled reps. Leave about 1–3 reps in reserve. Longer rests between heavy sets.'
+    },
+    hypertrophy: {
+      key: 'hypertrophy', label: 'Hypertrophy',
+      low: 6, high: 12, bump: true,
+      setsLow: 3, setsHigh: 4, defaultSets: 3,
+      restSec: 90, restLabel: '60–90 sec',
+      summary: '6–12 reps · 3–4 sets · rest 60–90 sec',
+      note: '6–12 is the usual range. Sets of about 6–30 taken near failure can also build muscle.'
+    },
+    endurance: {
+      key: 'endurance', label: 'Endurance',
+      low: 12, high: 20, bump: false,
+      setsLow: 2, setsHigh: 4, defaultSets: 3,
+      restSec: 45, restLabel: '30–60 sec',
+      summary: '12–20+ reps · 2–4 sets · rest 30–60 sec',
+      note: 'Lighter loads and shorter rests. Add reps rather than large weight jumps.'
+    }
+  };
+  const TRAINING_GOAL_KEYS = Object.keys(TRAINING_GOALS);
+
+  function normalizeTrainingGoal(value) {
+    const key = String(value || '').trim().toLowerCase();
+    return TRAINING_GOALS[key] ? key : null;
+  }
+
+  /** First recognized training goal on a settings object, or null if unset (legacy defaults). */
+  function goalFromSettings(settings) {
+    const list = settings && Array.isArray(settings.trainingFocus) ? settings.trainingFocus : [];
+    for (const v of list) {
+      const g = normalizeTrainingGoal(v);
+      if (g) return g;
+    }
+    return null;
+  }
+
+  function guidanceFor(focus) {
+    const key = normalizeTrainingGoal(focus);
+    return key ? TRAINING_GOALS[key] : null;
+  }
 
   const LOWER_PATTERNS = ['squat', 'hinge', 'lunge', 'plyometric'];
   const LOWER_MUSCLES = ['quads', 'glutes', 'hamstrings', 'legs', 'calves', 'adductors'];
@@ -83,10 +150,22 @@
   }
 
   function rangeFor({ focus, repMin, repMax } = {}) {
-    const base = FOCUS_RANGES[focus] || FOCUS_RANGES.hypertrophy;
+    const goal = guidanceFor(focus);
+    const base = goal || FOCUS_RANGES[focus] || FOCUS_RANGES.hypertrophy;
     const low = Number(repMin) > 0 ? Number(repMin) : base.low;
     const high = Number(repMax) >= low ? Number(repMax) : Math.max(low, base.high);
-    return { low, high, bump: base.bump, focus: FOCUS_RANGES[focus] ? focus : 'hypertrophy' };
+    const resolved = goal ? goal.key : (FOCUS_RANGES[focus] ? focus : 'hypertrophy');
+    return {
+      low, high, bump: base.bump, focus: resolved,
+      goal: !!goal,
+      setsLow: goal ? goal.setsLow : undefined,
+      setsHigh: goal ? goal.setsHigh : undefined,
+      defaultSets: goal ? goal.defaultSets : 3,
+      restSec: goal ? goal.restSec : undefined,
+      restLabel: goal ? goal.restLabel : undefined,
+      summary: goal ? goal.summary : `${low}–${high} reps`,
+      note: goal ? goal.note : ''
+    };
   }
 
   /** Plate-friendly rounding: 5 lb, or 2.5 kg for metric users (converted back to lbs). */
@@ -203,9 +282,10 @@
   }
 
   return {
-    SET_TYPES, FOCUS_RANGES, LB_PER_KG,
+    SET_TYPES, FOCUS_RANGES, TRAINING_GOALS, TRAINING_GOAL_KEYS, LB_PER_KG,
     setType, nextSetType, isWorking, workingSets, setLabels,
     e1rm, bestE1rm, volume, isLowerBody, rangeFor, roundLoad, displayLoad,
+    normalizeTrainingGoal, goalFromSettings, guidanceFor,
     suggestNext, prefillFromLast, formatSets, estimateMinutes
   };
 });

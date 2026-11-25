@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SAMPLE PREVIEW — Weight number pad</title>
+<style>
+  :root { --bg:#eef7f6; --surface:#fff; --border:#cbe3df; --text:#12343b; --text-muted:#4b676c; --main:#0e7c86; --nav:#0b3d45; --nav-text:#cbe9e6; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #111; font-family: system-ui, -apple-system, sans-serif; color: var(--text); }
+  .phone { width: 390px; height: 844px; margin: 0 auto; background: var(--bg); overflow: hidden; display: flex; flex-direction: column; }
+  .banner { background: #7a3b00; color: #fff; font-size: 10px; font-weight: 600; padding: 5px 10px; line-height: 1.25; }
+  .status { height: 28px; padding: 6px 22px 0; display: flex; justify-content: space-between; font-weight: 700; font-size: 13px; background: var(--nav); color: #fff; }
+  header { background: var(--nav); color: var(--nav-text); display: flex; align-items: center; gap: 8px; padding: 4px 10px 6px; }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #c9a227, #7a5a12); border: 2px solid #e9d6b0; }
+  .brand-title { color: #fff; font-weight: 800; font-size: 14px; }
+  .tabs { display: flex; gap: 4px; background: var(--nav); padding: 0 8px 6px; }
+  .tab { flex: 1; text-align: center; font-size: 11px; color: var(--nav-text); padding: 5px 0; border-radius: 10px; }
+  .tab.on { background: #135860; color: #fff; font-weight: 700; }
+  main { flex: 1; padding: 12px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 14px; }
+  h2 { margin: 0 0 12px; font-size: 20px; }
+  label { display: block; font-size: 13px; font-weight: 650; margin: 0 0 4px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .field { margin-bottom: 12px; }
+  input { width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 16px; background: #fff; }
+  input.focus { border-color: var(--main); box-shadow: 0 0 0 3px #cfeceb; caret-color: var(--main); }
+  input.focus { background: #e8f6f5; }
+  .btn { width: 100%; border: 0; background: var(--main); color: #fff; font-weight: 700; border-radius: 12px; padding: 12px; font-size: 15px; }
+  .hint { color: var(--text-muted); font-size: 11px; margin: 8px 0 0; }
+  .kb { margin-top: 14px; background: #d6d8dd; border-radius: 12px 12px 0 0; padding: 8px 6px 10px; }
+  .kb-label { text-align: center; font-size: 11px; color: #555; margin-bottom: 6px; }
+  .keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .key { background: #fff; border-radius: 8px; text-align: center; padding: 12px 0 10px; font-size: 22px; font-weight: 500; box-shadow: 0 1px 0 #b0b3bb; }
+  .key small { display: block; font-size: 8px; color: #888; font-weight: 400; letter-spacing: .08em; }
+  .key.wide { background: #c5c7cc; }
+  nav.bottom { background: var(--nav); color: var(--nav-text); display: flex; justify-content: space-around; padding: 8px 0 14px; font-size: 11px; }
+  nav.bottom .on { color: #fff; font-weight: 700; }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="banner">SAMPLE PREVIEW — not the live app, not a logged-in session. Mock 10-key pad. Not deployed.</div>
+    <div class="status"><span>9:41</span><span>●●● LTE</span></div>
+    <header>
+      <div class="avatar"></div>
+      <div><div class="brand-title">Fitness Coach</div><div style="font-size:11px">Preview</div></div>
+    </header>
+    <div class="tabs">
+      <div class="tab on">Home</div><div class="tab">Workout</div><div class="tab">Body</div>
+      <div class="tab">Food</div><div class="tab">More</div>
+    </div>
+    <main>
+      <div class="card">
+        <h2>Log Weight</h2>
+        <div class="grid-2">
+          <div class="field">
+            <label>Date</label>
+            <input value="2026-11-25" readonly />
+          </div>
+          <div class="field">
+            <label>Weight</label>
+            <input class="focus" value="185.2" readonly />
+          </div>
+        </div>
+        <div class="field">
+          <label>Note (optional)</label>
+          <input placeholder="Morning, post-workout…" readonly />
+        </div>
+        <button class="btn">Save Weight</button>
+        <p class="hint">The weight field is a text input with the decimal number pad. Tapping it selects the whole value so typing replaces it. This is a mock keypad, not iOS itself.</p>
+      </div>
+      <div class="kb">
+        <div class="kb-label">decimal pad (mock)</div>
+        <div class="keys">
+          <div class="key">1</div><div class="key">2</div><div class="key">3</div>
+          <div class="key">4</div><div class="key">5</div><div class="key">6</div>
+          <div class="key">7</div><div class="key">8</div><div class="key">9</div>
+          <div class="key wide">.</div><div class="key">0</div><div class="key wide">⌫</div>
+        </div>
+      </div>
+    </main>
+    <nav class="bottom"><div class="on">Home</div><div>Workout</div><div>Body</div><div>Food</div><div>More</div></nav>
+  </div>
+</body>
+</html>

@@ -55,8 +55,9 @@ function toDisplayWeight(w) {
 }
 
 function fromInputWeight(val) {
-  if (settings.unit === 'kg') return parseFloat(val) * 2.20462;
-  return parseFloat(val);
+  const n = parseFloat(String(val == null ? '' : val).trim().replace(',', '.'));
+  if (settings.unit === 'kg') return n * 2.20462;
+  return n;
 }
 
 // ========== Auth ==========
@@ -437,21 +438,75 @@ function renderActivityOptions() {
   updateActivitiesSummary();
 }
 
-const TRAINING_FOCUS = ['Strength', 'Power', 'Hypertrophy', 'Conditioning', 'Endurance'];
+const TRAINING_GOAL_OPTIONS = [
+  { key: '', label: 'Not set', hint: 'Keep current defaults' },
+  { key: 'power', label: 'Power', hint: '1–5 explosive reps' },
+  { key: 'strength', label: 'Strength', hint: '1–6 reps' },
+  { key: 'hypertrophy', label: 'Hypertrophy', hint: '6–12 reps' },
+  { key: 'endurance', label: 'Endurance', hint: '12–20+ reps' }
+];
+
+function currentTrainingGoal() {
+  return (window.Progression && window.Progression.goalFromSettings(settings)) || '';
+}
 
 function renderTrainingFocus() {
-  const box = document.getElementById('training-focus');
-  if (!box) return;
-  const selected = new Set(settings.trainingFocus || []);
-  box.innerHTML = TRAINING_FOCUS.map((item) => `
+  const selected = currentTrainingGoal();
+  const tiles = (name) => TRAINING_GOAL_OPTIONS.map((item) => `
     <label class="check-tile">
-      <input type="checkbox" class="focus-check" value="${item.toLowerCase()}" ${selected.has(item.toLowerCase()) ? 'checked' : ''} /><span>${item}</span>
+      <input type="radio" class="focus-check" name="${name}" value="${item.key}" ${selected === item.key ? 'checked' : ''} /><span>${item.label}</span>
     </label>`).join('');
+  const settingsBox = document.getElementById('training-focus');
+  const goalsBox = document.getElementById('goal-training-focus');
+  if (settingsBox) settingsBox.innerHTML = tiles('training-goal-settings');
+  if (goalsBox) goalsBox.innerHTML = tiles('training-goal-goals');
+  updateTrainingGoalHint();
 }
 
 function selectedFocus() {
-  return Array.from(document.querySelectorAll('.focus-check:checked')).map((el) => el.value);
+  const on = document.querySelector('#goal-training-focus .focus-check:checked, #training-focus .focus-check:checked');
+  return on && on.value ? [on.value] : [];
 }
+
+function updateTrainingGoalHint() {
+  const hint = document.getElementById('training-goal-hint');
+  if (!hint || !window.Progression) return;
+  const goal = window.Progression.guidanceFor(currentTrainingGoal());
+  hint.textContent = goal
+    ? `${goal.summary}. ${goal.note}`
+    : 'No training goal selected. Suggestions keep the current default ranges.';
+}
+
+async function persistTrainingFocus(values, { toastMsg } = {}) {
+  const current = settings || {};
+  settings = await api('/settings', {
+    method: 'PUT',
+    body: JSON.stringify({
+      unit: current.unit || document.getElementById('unit-pref')?.value || 'lbs',
+      foodWeightUnit: current.foodWeightUnit || document.getElementById('food-weight-unit')?.value || 'g',
+      calAvgDays: current.calAvgDays || parseInt(document.getElementById('cal-avg-days')?.value || '14', 10),
+      lengthUnit: current.lengthUnit || document.getElementById('length-unit')?.value || 'in',
+      theme: current.theme || document.getElementById('theme-pref')?.value || 'sage',
+      interests: current.interests || selectedInterests(),
+      trainingFocus: Array.isArray(values) ? values : selectedFocus()
+    })
+  });
+  renderTrainingFocus();
+  if (toastMsg) toast(toastMsg);
+}
+
+document.addEventListener('change', async (e) => {
+  if (!e.target || !e.target.classList || !e.target.classList.contains('focus-check')) return;
+  const value = e.target.value || '';
+  try {
+    await persistTrainingFocus(value ? [value] : [], { toastMsg: value ? 'Training goal saved' : 'Training goal cleared' });
+    if (typeof renderRecommendedLifts === 'function') renderRecommendedLifts();
+    if (typeof loadPlans === 'function') loadPlans();
+    if (typeof renderDayView === 'function' && typeof woDayView !== 'undefined' && woDayView) renderDayView();
+  } catch (err) {
+    toast(err.message);
+  }
+});
 
 // Themes: each has a main and an accent colour (defined in styles.css).
 const THEMES = [
@@ -768,6 +823,7 @@ function renderRecommendation(rec) {
 }
 
 // ========== Weight ==========
+bindSelectAll(document.getElementById('weight'));
 document.getElementById('btn-save-weight').addEventListener('click', async () => {
   const date = document.getElementById('weight-date').value;
   const raw = document.getElementById('weight-value').value;
@@ -971,6 +1027,9 @@ function selectFoodForLog(food) {
     mlPerServing: food.mlPerServing || null,
     portions: food.portions || undefined
   };
+  ALL_MICRO_KEYS.forEach((k) => {
+    if (food[k] != null && food[k] !== '' && Number.isFinite(Number(food[k]))) selectedFood[k] = Number(food[k]);
+  });
   document.getElementById('food-selected-name').textContent = selectedFood.name;
   const m = SV.measure(selectedFood);
   const bits = [SV.servingLabel(selectedFood)];
@@ -1021,6 +1080,46 @@ function updateServingPreview() {
   const m = SV.measure(selectedFood);
   const weightNote = grams && unit !== 'g' ? ` (${m.approxGrams ? '≈' : ''}${SV.fmt(grams)} g)` : '';
   box.innerHTML = `<strong>${esc(SV.amountLabel(amount, unit, selectedFood))}${esc(weightNote)} = ${cal} kcal</strong> · P${p} C${c} F${f}`;
+  renderFoodDetailMicros(servings);
+}
+
+function renderFoodDetailMicros(servings) {
+  const el = document.getElementById('food-selected-micros');
+  if (!el) return;
+  if (!selectedFood || !(servings > 0)) {
+    el.hidden = true;
+    el.innerHTML = '';
+    return;
+  }
+  const rows = [];
+  ALL_MICRO_KEYS.forEach((key) => {
+    const raw = selectedFood[key];
+    if (raw == null || raw === '' || !Number.isFinite(Number(raw))) return;
+    rows.push({ key, amount: Number(raw) * servings });
+  });
+  if (!rows.length) {
+    el.hidden = true;
+    el.innerHTML = '';
+    return;
+  }
+  const fields = (window.Micros && window.Micros.MICRO_FIELDS) || [];
+  const byKey = Object.fromEntries(fields.map((f) => [f.key, f]));
+  const htmlRows = rows.map((row) => {
+    const meta = byKey[row.key] || { key: row.key, label: row.key, unit: '', dv: null, dvRole: 'no_dv' };
+    const n = {
+      key: row.key,
+      label: meta.label || row.key,
+      unit: meta.unit || '',
+      dvRole: meta.dvRole || 'no_dv',
+      amount: row.amount,
+      percentDv: meta.dv ? +((row.amount / meta.dv) * 100).toFixed(1) : null,
+      coverage: 1,
+      unknown: false
+    };
+    return nutrientRowHtml(n, 1);
+  }).join('');
+  el.hidden = false;
+  el.innerHTML = `<div class="micro-heading">Nutrition details</div>${htmlRows}<p class="hint">FDA %DV is a labeling reference, not a personal RDA. Missing values stay blank, not zero.</p>`;
 }
 
 document.getElementById('food-servings').addEventListener('input', updateServingPreview);
@@ -1725,8 +1824,12 @@ if (foodEditSheet) {
 }
 
 
-const V1_MICRO_KEYS = ['fiber', 'sugar', 'sodium', 'potassium', 'calcium', 'iron', 'magnesium', 'vitaminA', 'vitaminC', 'vitaminD', 'vitaminB12'];
+const V1_MICRO_KEYS = ['fiber', 'sugar'];
+const ELECTROLYTE_KEYS = ['sodium', 'potassium', 'chloride', 'magnesium', 'calcium', 'phosphorus'];
+const VITAMIN_KEYS = ['vitaminA', 'vitaminC', 'vitaminD', 'vitaminE', 'vitaminK', 'thiamin', 'riboflavin', 'niacin', 'pantothenicAcid', 'vitaminB6', 'biotin', 'folate', 'vitaminB12', 'choline'];
+const MINERAL_KEYS = ['iron', 'zinc', 'copper', 'manganese', 'selenium', 'iodine'];
 const FAT_MICRO_KEYS = ['saturatedFat', 'transFat', 'cholesterol', 'monounsaturatedFat', 'polyunsaturatedFat', 'omega3', 'ala', 'epa', 'dha', 'omega6'];
+const ALL_MICRO_KEYS = V1_MICRO_KEYS.concat(ELECTROLYTE_KEYS, VITAMIN_KEYS, MINERAL_KEYS, FAT_MICRO_KEYS);
 
 function logDate() {
   const food = document.getElementById('food-date');
@@ -1774,11 +1877,20 @@ function renderEnergySummary(totals, targets, remEl, totalsEl) {
   }
 }
 
+function formatMicroAmount(n) {
+  const v = Number(n.amount);
+  if (!Number.isFinite(v)) return '—';
+  if (Number.isInteger(v)) return String(v);
+  const unit = String(n.unit || '');
+  const fine = unit.includes('mcg') || ['iron', 'copper', 'manganese', 'thiamin', 'riboflavin', 'niacin', 'pantothenicAcid', 'vitaminB6', 'vitaminB12', 'vitaminE', 'biotin', 'folate', 'selenium', 'iodine'].includes(n.key);
+  return v.toFixed(fine ? 2 : 1);
+}
+
 function nutrientRowHtml(n, items) {
   if (n.unknown) {
     return `<div class="micro-row micro-unknown"><div class="micro-label">${n.label}</div><div class="micro-meta">No verified data for this day</div></div>`;
   }
-  const amount = n.amount == null ? '—' : (Number.isInteger(n.amount) ? n.amount : Number(n.amount).toFixed(n.unit === 'mcg' || n.key === 'iron' || n.key === 'vitaminB12' ? 2 : 1));
+  const amount = n.amount == null ? '—' : formatMicroAmount(n);
   const pct = n.percentDv == null ? null : Math.min(100, n.percentDv);
   const pctLabel = n.percentDv == null ? (n.key === 'sugar' ? 'no Daily Value (total sugars)' : 'no Daily Value') : `${n.percentDv}% DV`;
   const width = pct == null ? 0 : pct;
@@ -1805,7 +1917,10 @@ function renderMicroProgress(micros) {
     src.textContent = (s.name || 'FDA Daily Value') + ' — %DV is a labeling reference, not a personal RDA. Missing values are left blank, not assumed to be zero.';
   }
   const items = micros && micros.items;
-  renderNutrientGroup(nutrients.filter((n) => V1_MICRO_KEYS.includes(n.key)), document.getElementById('micro-bars'), 'No verified micronutrient data for this day.', items);
+  renderNutrientGroup(nutrients.filter((n) => V1_MICRO_KEYS.includes(n.key)), document.getElementById('micro-bars'), 'No verified data for this day.', items);
+  renderNutrientGroup(nutrients.filter((n) => ELECTROLYTE_KEYS.includes(n.key)), document.getElementById('electrolyte-bars'), 'No verified electrolyte data for this day.', items);
+  renderNutrientGroup(nutrients.filter((n) => VITAMIN_KEYS.includes(n.key)), document.getElementById('vitamin-bars'), 'No verified vitamin data for this day.', items);
+  renderNutrientGroup(nutrients.filter((n) => MINERAL_KEYS.includes(n.key)), document.getElementById('mineral-bars'), 'No verified mineral data for this day.', items);
   renderNutrientGroup(nutrients.filter((n) => FAT_MICRO_KEYS.includes(n.key)), document.getElementById('fat-bars'), 'No verified fat or omega-3 data for this day.', items);
 }
 
@@ -2231,7 +2346,17 @@ function woUnit() { return settings.unit === 'kg' ? 'kg' : 'lbs'; }
 function woUnitLabel() { return settings.unit === 'kg' ? 'kg' : 'lb'; }
 function woDisp(lbs) { return P.displayLoad(Number(lbs) || 0, woUnit()); }
 function woToLbs(v) { return woUnit() === 'kg' ? Number(v) * P.LB_PER_KG : Number(v); }
-function woFocus() { return (settings.trainingFocus || [])[0] || 'hypertrophy'; }
+function woFocus() {
+  return (P && P.goalFromSettings(settings)) || (settings.trainingFocus || [])[0] || 'hypertrophy';
+}
+function trainingGoalGuidance() {
+  return (P && P.guidanceFor(woFocus())) || null;
+}
+function trainingGoalBannerHtml(cls) {
+  const g = trainingGoalGuidance();
+  if (!g) return '';
+  return `<div class="${cls || 'wo-goal-banner'}"><strong>Training goal: ${esc(g.label)}</strong><p>${esc(g.summary)}. ${esc(g.note)}</p></div>`;
+}
 function restKey(ex) { return String(ex.exerciseId || ex.exerciseName || '').toLowerCase().replace(/[.$]/g, '_'); }
 function fmtClock(sec) {
   const s = Math.max(0, Math.round(sec));
@@ -2331,8 +2456,9 @@ function makeEntry(info) {
   const repMax = Number(info.repMax) || null;
   const range = P.rangeFor({ focus: woFocus(), repMin, repMax });
   const targetReps = Number(info.targetReps) || range.low;
-  const targetSets = Number(info.targetSets) || 3;
+  const targetSets = Number(info.targetSets) || range.defaultSets || 3;
   const cachedRest = Number(localStorage.getItem('fc-rest:' + restKey(info)));
+  const goalRest = range.restSec != null ? range.restSec : 90;
   return {
     uid: ++woUid,
     exerciseId: info.exerciseId || info._id || null,
@@ -2344,7 +2470,7 @@ function makeEntry(info) {
     isLower: info.isLower,
     repMin, repMax,
     restSec: Number.isFinite(Number(info.restSec)) && info.restSec != null ? Number(info.restSec)
-      : (Number.isFinite(cachedRest) && localStorage.getItem('fc-rest:' + restKey(info)) != null ? cachedRest : 90),
+      : (Number.isFinite(cachedRest) && localStorage.getItem('fc-rest:' + restKey(info)) != null ? cachedRest : goalRest),
     lastSets: [], lastDate: null, lastE1rm: 0, bestE1rm: 0, suggestion: null,
     touched: false,
     sets: Array.from({ length: targetSets }, () => ({ type: 'working', weight: Number(info.targetWeight) || 0, reps: targetReps, logged: false }))
@@ -2852,7 +2978,7 @@ function dayMinutes(day) {
   return P.estimateMinutes(day.details.map((d) => ({
     targetSets: d.targetSets,
     targetReps: d.targetReps || Math.round(((d.repMin || 8) + (d.repMax || d.repMin || 8)) / 2),
-    restSec: d.restSec != null ? d.restSec : Number(localStorage.getItem('fc-rest:' + restKey({ exerciseId: d.exerciseId, exerciseName: d.name })) || 90)
+    restSec: d.restSec != null ? d.restSec : Number(localStorage.getItem('fc-rest:' + restKey({ exerciseId: d.exerciseId, exerciseName: d.name })) || (trainingGoalGuidance() ? trainingGoalGuidance().restSec : 90))
   })));
 }
 function dayCard(day) {
@@ -2917,7 +3043,7 @@ async function loadPlans() {
         : '<div class="empty">No programs for these activities.</div>';
       return;
     }
-    pEl.innerHTML = `<div class="plan-grid">${programs.map((p) => planCard(p, true)).join('')}</div>`;
+    pEl.innerHTML = `${trainingGoalBannerHtml('wo-goal-banner')}<div class="plan-grid">${programs.map((p) => planCard(p, true)).join('')}</div>`;
     if (woReopenPlan && woPrograms.has(woReopenPlan)) openPlanSheet(woReopenPlan);
     woReopenPlan = null;
   } catch (err) {
@@ -3084,6 +3210,7 @@ function openPlanSheet(id) {
     <div class="sheet-grip" aria-hidden="true"></div>
     <div class="sheet-head"><div><div class="summary-kicker">${p.planDays.length}-day plan${p.matchFor ? ' · for ' + esc(p.matchFor) : ''}</div><strong class="summary-title">${esc(p.name)}</strong></div><button type="button" class="icon-btn" data-sheet-close aria-label="Close">×</button></div>
     ${p.notes ? `<p class="hint">${esc(p.notes)}</p>` : ''}
+    ${trainingGoalBannerHtml('wo-goal-banner')}
     ${progressionPanelHtml(p)}
     <div class="day-grid plan-sheet-days">${p.planDays.map((d) => dayCard(d)).join('')}</div>
     <p class="hint plan-sheet-foot">Tap a day to see the exercises, reorder or swap them, and start.</p>
@@ -3132,8 +3259,12 @@ function setSummary(d) {
     const extra = warm ? `${warm} warm-up` : '';
     if (main || extra) return [main, extra].filter(Boolean).join(' · ');
   }
-  const lo = d.targetReps || d.repMin || 8; const hi = d.targetReps ? null : d.repMax;
-  return `${d.targetSets || 3} × ${hi && hi !== lo ? `${lo}–${hi}` : lo} reps`;
+  const goal = trainingGoalGuidance();
+  const lo = d.targetReps || d.repMin || (goal ? goal.low : 8);
+  const hi = d.targetReps ? null : (d.repMax || (goal && !d.repMin ? goal.high : null));
+  const setCount = d.targetSets || (goal ? goal.defaultSets : 3);
+  const rest = d.restSec != null ? (d.restSec ? fmtClock(d.restSec) + ' rest' : '') : (goal ? `rest ${goal.restLabel}` : '');
+  return [`${setCount} × ${hi && hi !== lo ? `${lo}–${hi}` : lo} reps`, rest].filter(Boolean).join(' · ');
 }
 
 function openDayView(key) {
@@ -3167,6 +3298,7 @@ function renderDayView() {
       ${bodyMapSvg(v.details, 'body-map-lg')}
     </div>
     ${muscles.length ? `<div class="dd-muscles">${muscles.map((m) => `<span class="chip chip-static">${esc(m)}</span>`).join('')}</div>` : ''}
+    ${trainingGoalBannerHtml('wo-goal-banner dd-goal')}
     <div class="dd-list" id="dd-list">
       ${v.details.map((d, i) => `
         <div class="dd-row" data-i="${i}">

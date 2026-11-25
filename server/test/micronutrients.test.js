@@ -26,6 +26,24 @@ test('FDA Daily Values used by the UI match the official FDA table (retrieved 20
   assert.equal(byKey.vitaminC.dv, 90);
   assert.equal(byKey.vitaminD.dv, 20);
   assert.equal(byKey.vitaminB12.dv, 2.4);
+  assert.equal(byKey.choline.dv, 550);
+  assert.equal(byKey.folate.dv, 400);
+  assert.equal(byKey.folate.unit, 'mcg DFE');
+  assert.equal(byKey.vitaminK.dv, 120);
+  assert.equal(byKey.vitaminE.dv, 15);
+  assert.equal(byKey.thiamin.dv, 1.2);
+  assert.equal(byKey.riboflavin.dv, 1.3);
+  assert.equal(byKey.niacin.dv, 16);
+  assert.equal(byKey.pantothenicAcid.dv, 5);
+  assert.equal(byKey.vitaminB6.dv, 1.7);
+  assert.equal(byKey.biotin.dv, 30);
+  assert.equal(byKey.selenium.dv, 55);
+  assert.equal(byKey.iodine.dv, 150);
+  assert.equal(byKey.manganese.dv, 2.3);
+  assert.equal(byKey.copper.dv, 0.9);
+  assert.equal(byKey.zinc.dv, 11);
+  assert.equal(byKey.chloride.dv, 2300);
+  assert.equal(byKey.phosphorus.dv, 1250);
   assert.equal(byKey.sugar.dv, null);
   assert.equal(byKey.saturatedFat.dv, 20);
   assert.equal(byKey.cholesterol.dv, 300);
@@ -87,14 +105,18 @@ test('day totals skip unknown micros and do not treat missing as zero', () => {
 });
 
 test('Food and FoodLog schemas add optional micronutrient fields; the Nutrition page can render a DV view', () => {
-  for (const key of ['potassium', 'calcium', 'iron', 'magnesium', 'vitaminA', 'vitaminC', 'vitaminD', 'vitaminB12', 'saturatedFat', 'transFat', 'cholesterol', 'ala', 'epa', 'dha', 'omega3', 'omega6']) {
+  for (const key of ['potassium', 'calcium', 'iron', 'magnesium', 'vitaminA', 'vitaminC', 'vitaminD', 'vitaminB12', 'choline', 'folate', 'vitaminK', 'vitaminE', 'thiamin', 'riboflavin', 'niacin', 'pantothenicAcid', 'vitaminB6', 'biotin', 'selenium', 'iodine', 'manganese', 'copper', 'zinc', 'chloride', 'phosphorus', 'saturatedFat', 'transFat', 'cholesterol', 'ala', 'epa', 'dha', 'omega3', 'omega6']) {
     assert.match(foodModel, new RegExp(key + ':'));
     assert.match(logModel, new RegExp(key + ':'));
   }
   assert.match(foodModel, /null\/undefined = unknown/);
   assert.match(html, /id="nutrition"/);
   assert.match(html, /id="micro-progress"/);
+  assert.match(html, /id="electrolyte-bars"/);
+  assert.match(html, /id="vitamin-bars"/);
+  assert.match(html, /id="mineral-bars"/);
   assert.match(html, /id="fat-bars"/);
+  assert.match(html, /id="food-selected-micros"/);
   assert.match(app, /function renderMicroProgress/);
   assert.match(app, /renderMicroProgress\(/);
   assert.match(app, /data\.totals\.micros/);
@@ -106,10 +128,44 @@ test('Food and FoodLog schemas add optional micronutrient fields; the Nutrition 
 });
 
 test('FDC nutrient map covers the tracked micros and the three fixtures are official SR Legacy records', () => {
-  const needed = ['fiber', 'sugar', 'sodium', 'potassium', 'calcium', 'iron', 'magnesium', 'vitaminA', 'vitaminC', 'vitaminD', 'vitaminB12', 'saturatedFat', 'transFat', 'cholesterol', 'ala', 'epa', 'dha'];
+  const needed = ['fiber', 'sugar', 'sodium', 'potassium', 'calcium', 'iron', 'magnesium', 'vitaminA', 'vitaminC', 'vitaminD', 'vitaminB12', 'choline', 'folate', 'vitaminK', 'vitaminE', 'thiamin', 'riboflavin', 'niacin', 'pantothenicAcid', 'vitaminB6', 'biotin', 'selenium', 'iodine', 'manganese', 'copper', 'zinc', 'chloride', 'phosphorus', 'saturatedFat', 'transFat', 'cholesterol', 'ala', 'epa', 'dha'];
   const keys = Object.values(FDC_NUTRIENTS).map((n) => n.key);
   for (const k of needed) assert.ok(keys.includes(k), k);
   assert.equal(bananaRaw.dataType, 'SR Legacy');
   assert.equal(spinachRaw.fdcId, 168462);
   assert.equal(milkRaw.fdcId, 173441);
+});
+
+test('importing official FDC amounts scales new micros and never invents missing ones', () => {
+  const raw = {
+    fdcId: 999001,
+    description: 'Synthetic official-style record',
+    dataType: 'SR Legacy',
+    foodNutrients: [
+      { nutrient: { id: 1008, name: 'Energy', unitName: 'kcal' }, amount: 100 },
+      { nutrient: { id: 1190, name: 'Folate, DFE', unitName: 'UG' }, amount: 80 },
+      { nutrient: { id: 1180, name: 'Choline, total', unitName: 'MG' }, amount: 40 },
+      { nutrient: { id: 1185, name: 'Vitamin K (phylloquinone)', unitName: 'UG' }, amount: 10 }
+    ]
+  };
+  const food = toFood(raw, { servingGrams: 50 });
+  assert.equal(food.calories, 50);
+  assert.equal(food.folate, 40);
+  assert.equal(food.choline, 20);
+  assert.equal(food.vitaminK, 5);
+  assert.equal(food.thiamin, undefined);
+  assert.equal(food.iodine, undefined);
+  assert.equal(food.chloride, undefined);
+  assert.ok(!Object.prototype.hasOwnProperty.call(food, 'biotin'));
+  // Folate, total (1177) is not used because the DV is in mcg DFE.
+  const totalOnly = toFood({
+    fdcId: 999002,
+    description: 'Folate total only',
+    dataType: 'SR Legacy',
+    foodNutrients: [
+      { nutrient: { id: 1008, name: 'Energy', unitName: 'kcal' }, amount: 10 },
+      { nutrient: { id: 1177, name: 'Folate, total', unitName: 'UG' }, amount: 99 }
+    ]
+  }, { servingGrams: 100 });
+  assert.equal(totalOnly.folate, undefined);
 });

@@ -245,7 +245,7 @@
             </div>
             <div class="form-row">
               <label for="weight-value">Weight</label>
-              <input type="number" id="weight-value" step="0.1" min="50" max="500" placeholder="e.g. 185.2" />
+              <input type="text" id="weight-value" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" enterkeyhint="done" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-select-all="1" placeholder="e.g. 185.2" aria-label="Weight" />
             </div>
           </div>
           <div class="form-row">
@@ -611,6 +611,7 @@
                     <div id="food-serving-preview" class="selected-food">—</div>
                   </div>
                 </div>
+                <div id="food-selected-micros" class="food-selected-micros" hidden></div>
                 <div class="quick-serving-btns" id="quick-serving-btns">
                   <button type="button" class="btn btn-secondary btn-sm" data-amt="0.5">½</button>
                   <button type="button" class="btn btn-secondary btn-sm" data-amt="1">1</button>
@@ -759,7 +760,14 @@
           <h2 class="micro-heading">Micronutrients</h2>
           <p class="hint" id="micro-source"></p>
           <div id="micro-progress">
+            <h3 class="micro-subhead">General</h3>
             <div id="micro-bars"></div>
+            <h3 class="micro-subhead">Electrolytes</h3>
+            <div id="electrolyte-bars"></div>
+            <h3 class="micro-subhead">Vitamins</h3>
+            <div id="vitamin-bars"></div>
+            <h3 class="micro-subhead">Minerals</h3>
+            <div id="mineral-bars"></div>
           </div>
         </div>
 
@@ -844,6 +852,13 @@
             <input type="number" id="goal-start-weight" step="0.1" placeholder="Uses latest if blank" />
           </div>
           <button class="btn btn-primary btn-block" id="btn-save-goal">Save Goal</button>
+        </div>
+
+        <div class="card" id="training-goal-card">
+          <h2>Training goal</h2>
+          <p class="hint card-intro" id="training-goal-intro">Choose one to change suggested rep ranges, sets, and rest in workout suggestions and routine views. Leave it unset to keep the current defaults (about 8–12 reps, 3 sets, 90 sec rest).</p>
+          <div id="goal-training-focus" class="check-grid" role="radiogroup" aria-labelledby="training-goal-intro"></div>
+          <p class="hint" id="training-goal-hint"></p>
         </div>
       </section>
 
@@ -931,7 +946,8 @@
           </div>
           <div class="settings-section">
             <h3 class="section-label" id="training-focus-label">Training goal</h3>
-            <div id="training-focus" class="check-grid" role="group" aria-labelledby="training-focus-label"></div>
+            <p class="hint section-hint">Same control as on the Goals page. Choosing one updates suggested rep ranges, sets, and rest.</p>
+            <div id="training-focus" class="check-grid" role="radiogroup" aria-labelledby="training-focus-label"></div>
           </div>
           <div class="card-actions">
             <button class="btn btn-primary" id="btn-save-settings">Save settings</button>
@@ -1229,6 +1245,7 @@
     <div id="photo-lightbox-cap" class="photo-lightbox-cap"></div>
   </div>
   <script src="lib/progression.js"></script>
+  <script src="lib/micronutrients.js"></script>
   <script src="lib/diarySession.js"></script>
   <script src="lib/activities.js"></script>
   <script src="lib/aboutYou.js"></script>
