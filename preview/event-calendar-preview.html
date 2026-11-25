@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SAMPLE PREVIEW — Event calendar and countdown</title>
+<style>
+  :root { --bg:#f3f6f1; --surface:#fff; --border:#d6e1d0; --text:#1e2a21; --text-muted:#56655a; --main:#4a7656; --nav:#203227; --nav-text:#d3e0d5; --accent:#e3a873; --accent-strong:#d48f52; --main-soft:#e0ebdf; --surface2:#eaf0e6; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #111; font-family: system-ui, -apple-system, sans-serif; color: var(--text); }
+  .row { display: flex; gap: 24px; justify-content: center; padding: 24px; width: 860px; }
+  .phone { width: 390px; height: 844px; background: var(--bg); overflow: hidden; display: flex; flex-direction: column; border-radius: 8px; }
+  .banner { background: #7a3b00; color: #fff; font-size: 10px; font-weight: 600; padding: 5px 10px; line-height: 1.25; }
+  .status { height: 28px; padding: 6px 22px 0; display: flex; justify-content: space-between; font-weight: 700; font-size: 13px; background: var(--nav); color: #fff; }
+  header { background: var(--nav); color: var(--nav-text); display: flex; align-items: center; gap: 8px; padding: 4px 10px 6px; }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #c9a227, #7a5a12); border: 2px solid #e9d6b0; }
+  .brand-title { color: #fff; font-weight: 800; font-size: 14px; }
+  .brand-user { font-size: 11px; }
+  .tabs { display: flex; gap: 4px; background: var(--nav); padding: 0 8px 6px; }
+  .tab { flex: 1; text-align: center; font-size: 11px; color: var(--nav-text); padding: 5px 0; border-radius: 10px; }
+  .tab.on { background: #2a4533; color: #fff; font-weight: 700; }
+  main { flex: 1; overflow: hidden; padding: 12px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 10px; }
+  h2 { margin: 0; font-size: 18px; }
+  .flex-between { display: flex; justify-content: space-between; align-items: center; }
+  .link { color: var(--main); font-weight: 700; font-size: 13px; }
+  .hint { color: var(--text-muted); font-size: 12px; margin: 4px 0 0; line-height: 1.35; }
+  .countdown { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; margin: 6px 0 2px; }
+  .btn { width: 100%; border: 0; background: var(--main); color: #fff; font-weight: 700; border-radius: 12px; padding: 11px; font-size: 15px; margin-top: 10px; }
+  .btn-sec { background: var(--surface2); color: var(--text); border: 1px solid var(--border); width: auto; padding: 6px 10px; font-size: 13px; margin: 0; }
+  nav.bottom { background: var(--nav); color: var(--nav-text); display: flex; justify-content: space-around; padding: 8px 0 14px; font-size: 11px; }
+  nav.bottom .on { color: #fff; font-weight: 700; }
+  .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 8px; }
+  .cal b { text-align: center; font-size: 10px; color: var(--text-muted); padding: 4px 0; }
+  .day { aspect-ratio: 1; border: 1px solid var(--border); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; background: var(--bg); position: relative; }
+  .day.on { background: var(--main-soft); border-color: var(--main); font-weight: 700; }
+  .day.today { border: 2px solid var(--accent-strong); font-weight: 700; }
+  .day.event { border-color: var(--accent-strong); }
+  .pip { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-strong); margin-top: 2px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--main); margin-top: 2px; }
+  .event-row { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin-top: 8px; }
+  .event-row strong { display: block; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="phone">
+      <div class="banner">SAMPLE PREVIEW — not the live app, not a logged-in session. Next-event countdown on Home. Not deployed.</div>
+      <div class="status"><span>9:41</span><span>●●● LTE</span></div>
+      <header>
+        <div class="avatar"></div>
+        <div><div class="brand-title">Fitness Coach</div><div class="brand-user">Preview</div></div>
+      </header>
+      <div class="tabs">
+        <div class="tab on">Home</div><div class="tab">Diary</div><div class="tab">Food</div><div class="tab">Workouts</div><div class="tab">More</div>
+      </div>
+      <main>
+        <div class="card">
+          <div class="flex-between"><h2>8</h2></div>
+          <p class="hint" style="margin-top:0">training-day streak · Competition days count toward your streak.</p>
+        </div>
+        <div class="card">
+          <div class="flex-between"><h2>Next event</h2><span class="link">Add event</span></div>
+          <div class="countdown">In 17 days</div>
+          <p style="margin:0"><strong>Winter Open</strong> · Powerlifting · Meet · City Hall</p>
+          <p class="hint">Sat, Dec 12 at 9:30 AM · Class 165.0 lbs</p>
+          <button class="btn">Open event</button>
+        </div>
+        <div class="card">
+          <div class="flex-between"><h2>Readiness today</h2><span class="hint">Optional</span></div>
+          <p class="hint">Sleep 4 · Soreness 2 · Mood 4 · Energy 3</p>
+        </div>
+      </main>
+      <nav class="bottom"><div class="on">Home</div><div>Diary</div><div>Food</div><div>Workouts</div><div>More</div></nav>
+    </div>
+    <div class="phone">
+      <div class="banner">SAMPLE PREVIEW — not the live app. Diary calendar with event pips. Sample data only. Not deployed.</div>
+      <div class="status"><span>9:41</span><span>●●● LTE</span></div>
+      <header>
+        <div class="avatar"></div>
+        <div><div class="brand-title">Fitness Coach</div><div class="brand-user">Preview</div></div>
+      </header>
+      <div class="tabs">
+        <div class="tab">Home</div><div class="tab on">Diary</div><div class="tab">Food</div><div class="tab">Workouts</div><div class="tab">More</div>
+      </div>
+      <main>
+        <div class="card">
+          <div class="flex-between" style="margin-bottom:8px">
+            <h2>Log Calendar</h2>
+            <span style="font-weight:700;font-size:13px">November 2026</span>
+          </div>
+          <div class="flex-between" style="margin-bottom:8px">
+            <p class="hint" style="margin:0;max-width:70%">Gold pip = event. Green = logged training or food.</p>
+            <button class="btn btn-sec">Add event</button>
+          </div>
+          <div class="cal">
+            <b>S</b><b>M</b><b>T</b><b>W</b><b>T</b><b>F</b><b>S</b>
+            <div class="day">1</div>
+            <div class="day on"><span>2</span><i class="dot"></i></div>
+            <div class="day on"><span>3</span><i class="dot"></i></div>
+            <div class="day on"><span>4</span><i class="dot"></i></div>
+            <div class="day on"><span>5</span><i class="dot"></i></div>
+            <div class="day on"><span>6</span><i class="dot"></i></div>
+            <div class="day event"><span>7</span><i class="pip"></i></div>
+            <div class="day">8</div>
+            <div class="day on"><span>9</span><i class="dot"></i></div>
+            <div class="day">10</div>
+            <div class="day">11</div>
+            <div class="day on"><span>12</span><i class="dot"></i></div>
+            <div class="day">13</div>
+            <div class="day">14</div>
+            <div class="day">15</div>
+            <div class="day">16</div>
+            <div class="day on"><span>17</span><i class="dot"></i></div>
+            <div class="day">18</div>
+            <div class="day">19</div>
+            <div class="day">20</div>
+            <div class="day">21</div>
+            <div class="day event"><span>22</span><i class="pip"></i></div>
+            <div class="day">23</div>
+            <div class="day">24</div>
+            <div class="day today"><span>25</span></div>
+            <div class="day">26</div>
+            <div class="day">27</div>
+            <div class="day">28</div>
+            <div class="day">29</div>
+            <div class="day">30</div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Sun, Nov 22</h2>
+          <div class="event-row">
+            <strong>Club dual</strong>
+            <span class="hint">Wrestling · Match · 10:00 AM</span>
+          </div>
+        </div>
+      </main>
+      <nav class="bottom"><div>Home</div><div class="on">Diary</div><div>Food</div><div>Workouts</div><div>More</div></nav>
+    </div>
+  </div>
+</body>
+</html>

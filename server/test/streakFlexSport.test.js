@@ -54,3 +54,31 @@ describe('streak with flex days and sport sessions', () => {
     assert.equal(out.streak, 2);
   });
 });
+
+const fs = require('fs');
+const path = require('path');
+
+describe('competition days count toward the streak', () => {
+  it('treats dates in the workouts set as completed training, including competition days', () => {
+    const schedule = resolveSchedule({ trainingDays: [1, 2, 3, 4, 5], restSkipsPerWeek: 1 }, null);
+    const today = '2026-11-06';
+    // A competition on Thursday with no separate practice session still counts.
+    const out = computeStreak({
+      workouts: new Set(['2026-11-06', '2026-11-05']), // Fri workout + Thu competition date
+      rests: new Set(),
+      flexes: new Set(),
+      practiceDays: [],
+      today,
+      schedule
+    });
+    assert.equal(out.streak, 2);
+    assert.equal(out.todayDone, true);
+  });
+
+  it('streakFor loads Event dates alongside sport sessions', () => {
+    const src = fs.readFileSync(path.join(__dirname, '../services/streak.js'), 'utf8');
+    assert.match(src, /Event\.find/);
+    assert.match(src, /\.\.\.comps/);
+    assert.match(src, /competition days count as training/);
+  });
+});

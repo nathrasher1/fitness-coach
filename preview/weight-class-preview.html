@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SAMPLE PREVIEW — Weight-class safety</title>
+<style>
+  :root { --bg:#f3f6f1; --surface:#fff; --border:#d6e1d0; --text:#1e2a21; --text-muted:#56655a; --main:#4a7656; --nav:#203227; --nav-text:#d3e0d5; --accent:#e3a873; --accent-strong:#d48f52; --main-soft:#e0ebdf; --surface2:#eaf0e6; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #111; font-family: system-ui, -apple-system, sans-serif; color: var(--text); }
+  .row { display: flex; gap: 24px; justify-content: center; padding: 24px; width: 860px; }
+  .phone { width: 390px; height: 844px; background: var(--bg); overflow: hidden; display: flex; flex-direction: column; border-radius: 8px; }
+  .banner { background: #7a3b00; color: #fff; font-size: 10px; font-weight: 600; padding: 5px 10px; line-height: 1.25; }
+  .status { height: 28px; padding: 6px 22px 0; display: flex; justify-content: space-between; font-weight: 700; font-size: 13px; background: var(--nav); color: #fff; }
+  .sheet { background: var(--surface); flex: 1; border-radius: 16px 16px 0 0; margin-top: 8px; padding: 12px 14px 20px; }
+  .grip { width: 40px; height: 4px; border-radius: 4px; background: var(--border); margin: 0 auto 10px; }
+  .kicker { font-size: 11px; color: var(--text-muted); font-weight: 700; }
+  h2 { margin: 0 0 8px; font-size: 20px; }
+  h3 { margin: 16px 0 6px; font-size: 16px; }
+  label { display: block; font-size: 13px; font-weight: 650; margin: 0 0 4px; }
+  input { width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 15px; background: #fff; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .hint { color: var(--text-muted); font-size: 12px; margin: 4px 0 10px; line-height: 1.35; }
+  .banner-msg { border-radius: 10px; padding: 10px 12px; font-size: 13px; line-height: 1.4; margin-top: 10px; }
+  .blocked { background: #f8e8e6; color: #6b2a22; }
+  .none { background: var(--surface2); color: var(--text); }
+  .ok { background: var(--main-soft); color: #3b5f45; }
+  .facts { font-size: 13px; margin: 8px 0 0; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="phone">
+      <div class="banner">SAMPLE PREVIEW — not the live app. Adult weight-class view when the gap is too large. Not a cut plan. Not deployed.</div>
+      <div class="status"><span>9:41</span><span>●●● LTE</span></div>
+      <div class="sheet">
+        <div class="grip"></div>
+        <div class="kicker">EVENT</div>
+        <h2>State championships</h2>
+        <p class="facts">Wrestling · Match · Dec 2</p>
+        <h3>Weight class (optional)</h3>
+        <p class="hint">We never suggest a crash cut or dehydration. If the gap is too large for the time left, planning is blocked.</p>
+        <div class="grid">
+          <div><label>Class (lbs)</label><input value="165.0" readonly /></div>
+          <div><label>Weigh-in date</label><input value="2026-12-02" readonly /></div>
+        </div>
+        <p class="facts">Latest weigh-in 180.0 lbs · 15.0 lbs above class · 7 days left</p>
+        <div class="banner-msg blocked">The gap is too large to close gradually before the weigh-in. We won't suggest a cut. Consider a different class, or more time. We don't provide crash-cut or dehydration plans.</div>
+        <p class="hint" style="margin-top:12px">There is no calorie deficit, daily cut plan, or dehydration advice in this view.</p>
+      </div>
+    </div>
+    <div class="phone">
+      <div class="banner">SAMPLE PREVIEW — not the live app. Under-18 view: facts only, no cutting guidance. Not deployed.</div>
+      <div class="status"><span>9:41</span><span>●●● LTE</span></div>
+      <div class="sheet">
+        <div class="grip"></div>
+        <div class="kicker">EVENT</div>
+        <h2>County duals</h2>
+        <p class="facts">Wrestling · Match · Dec 12</p>
+        <h3>Weight class (optional)</h3>
+        <p class="hint">Members under 18 don't get cutting guidance.</p>
+        <div class="grid">
+          <div><label>Class (lbs)</label><input value="150.0" readonly /></div>
+          <div><label>Weigh-in date</label><input value="2026-12-12" readonly /></div>
+        </div>
+        <p class="facts">Latest weigh-in 154.0 lbs · class 150.0 lbs</p>
+        <div class="banner-msg none">We don't provide weight-class cutting guidance for members under 18. Talk with a parent or guardian and a doctor before changing how you eat or train for a weight class.</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

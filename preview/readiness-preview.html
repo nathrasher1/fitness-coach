@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SAMPLE PREVIEW — Readiness check-in</title>
+<style>
+  :root { --bg:#f3f6f1; --surface:#fff; --border:#d6e1d0; --text:#1e2a21; --text-muted:#56655a; --main:#4a7656; --nav:#203227; --nav-text:#d3e0d5; --accent:#e3a873; --on-main:#fff; --surface2:#eaf0e6; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #111; font-family: system-ui, -apple-system, sans-serif; color: var(--text); }
+  .phone { width: 390px; height: 844px; margin: 20px auto; background: var(--bg); overflow: hidden; display: flex; flex-direction: column; border-radius: 8px; }
+  .banner { background: #7a3b00; color: #fff; font-size: 10px; font-weight: 600; padding: 5px 10px; line-height: 1.25; }
+  .status { height: 28px; padding: 6px 22px 0; display: flex; justify-content: space-between; font-weight: 700; font-size: 13px; background: var(--nav); color: #fff; }
+  header { background: var(--nav); color: var(--nav-text); display: flex; align-items: center; gap: 8px; padding: 4px 10px 6px; }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #c9a227, #7a5a12); border: 2px solid #e9d6b0; }
+  .brand-title { color: #fff; font-weight: 800; font-size: 14px; }
+  .brand-user { font-size: 11px; }
+  .tabs { display: flex; gap: 4px; background: var(--nav); padding: 0 8px 6px; }
+  .tab { flex: 1; text-align: center; font-size: 11px; color: var(--nav-text); padding: 5px 0; border-radius: 10px; }
+  .tab.on { background: #2a4533; color: #fff; font-weight: 700; }
+  main { flex: 1; overflow: hidden; padding: 12px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 10px; }
+  h2 { margin: 0; font-size: 18px; }
+  .flex-between { display: flex; justify-content: space-between; align-items: center; }
+  .hint { color: var(--text-muted); font-size: 12px; margin: 4px 0 8px; line-height: 1.35; }
+  label { display: block; font-size: 13px; font-weight: 650; margin: 6px 0 2px; }
+  .hints { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); }
+  .scale { display: flex; gap: 6px; margin-top: 4px; }
+  .scale span { flex: 1; text-align: center; border: 1px solid var(--border); border-radius: 10px; padding: 6px 0; font-weight: 700; background: #fff; }
+  .scale span.on { background: var(--main); color: var(--on-main); border-color: var(--main); }
+  .btn { width: 100%; border: 0; background: var(--surface2); color: var(--text); border: 1px solid var(--border); font-weight: 700; border-radius: 12px; padding: 11px; font-size: 15px; margin-top: 12px; }
+  .chart { display: flex; gap: 6px; align-items: flex-end; height: 64px; margin-top: 4px; margin-bottom: 8px; }
+  .bar { flex: 1; text-align: center; font-size: 10px; color: var(--text-muted); }
+  .bar i { display: block; width: 100%; border-radius: 4px 4px 0 0; background: var(--main); margin: 0 auto 4px; }
+  nav.bottom { background: var(--nav); color: var(--nav-text); display: flex; justify-content: space-around; padding: 8px 0 14px; font-size: 11px; }
+  nav.bottom .on { color: #fff; font-weight: 700; }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="banner">SAMPLE PREVIEW — not the live app, not a logged-in session. Optional readiness check-in and lead-in chart. Not deployed.</div>
+    <div class="status"><span>9:41</span><span>●●● LTE</span></div>
+    <header>
+      <div class="avatar"></div>
+      <div><div class="brand-title">Fitness Coach</div><div class="brand-user">Preview</div></div>
+    </header>
+    <div class="tabs">
+      <div class="tab on">Home</div><div class="tab">Diary</div><div class="tab">Food</div><div class="tab">Workouts</div><div class="tab">More</div>
+    </div>
+    <main>
+      <div class="card">
+        <div class="flex-between"><h2>Readiness today</h2><span class="hint" style="margin:0">Optional</span></div>
+        <p class="hint">A 1–5 check-in for sleep, soreness, mood, and energy. It shows up on event recaps for the week leading in.</p>
+        <label>Sleep</label>
+        <div class="hints"><span>Poor</span><span>Great</span></div>
+        <div class="scale"><span>1</span><span>2</span><span>3</span><span class="on">4</span><span>5</span></div>
+        <label>Soreness</label>
+        <div class="hints"><span>None</span><span>Severe</span></div>
+        <div class="scale"><span>1</span><span class="on">2</span><span>3</span><span>4</span><span>5</span></div>
+        <label>Mood</label>
+        <div class="hints"><span>Low</span><span>Great</span></div>
+        <div class="scale"><span>1</span><span>2</span><span>3</span><span class="on">4</span><span>5</span></div>
+        <label>Energy</label>
+        <div class="hints"><span>Low</span><span>High</span></div>
+        <div class="scale"><span>1</span><span>2</span><span class="on">3</span><span>4</span><span>5</span></div>
+        <button class="btn">Save check-in</button>
+      </div>
+      <div class="card">
+        <h2>Week leading into Winter Open</h2>
+        <p class="hint">Readiness in the 7 days before the event, as shown on the recap.</p>
+        <div class="chart">
+          <div class="bar"><i style="height:32px"></i>12/06</div>
+          <div class="bar"><i style="height:38px"></i>12/07</div>
+          <div class="bar"><i style="height:42px"></i>12/08</div>
+          <div class="bar"><i style="height:36px"></i>12/09</div>
+          <div class="bar"><i style="height:46px"></i>12/10</div>
+          <div class="bar"><i style="height:40px"></i>12/11</div>
+          <div class="bar"><i style="height:44px"></i>12/12</div>
+        </div>
+      </div>
+    </main>
+    <nav class="bottom"><div class="on">Home</div><div>Diary</div><div>Food</div><div>Workouts</div><div>More</div></nav>
+  </div>
+</body>
+</html>

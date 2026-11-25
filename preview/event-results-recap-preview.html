@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SAMPLE PREVIEW — Results and recap</title>
+<style>
+  :root { --bg:#f3f6f1; --surface:#fff; --border:#d6e1d0; --text:#1e2a21; --text-muted:#56655a; --main:#4a7656; --nav:#203227; --nav-text:#d3e0d5; --accent:#e3a873; --accent-strong:#d48f52; --main-soft:#e0ebdf; --surface2:#eaf0e6; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #111; font-family: system-ui, -apple-system, sans-serif; color: var(--text); }
+  .phone { width: 390px; height: 980px; margin: 20px auto; background: var(--bg); overflow: hidden; display: flex; flex-direction: column; border-radius: 8px; }
+  .banner { background: #7a3b00; color: #fff; font-size: 10px; font-weight: 600; padding: 5px 10px; line-height: 1.25; }
+  .status { height: 28px; padding: 6px 22px 0; display: flex; justify-content: space-between; font-weight: 700; font-size: 13px; background: var(--nav); color: #fff; }
+  .sheet { background: var(--surface); flex: 1; border-radius: 16px 16px 0 0; margin-top: 8px; padding: 12px 14px 20px; overflow: hidden; }
+  .grip { width: 40px; height: 4px; border-radius: 4px; background: var(--border); margin: 0 auto 10px; }
+  .kicker { font-size: 11px; color: var(--text-muted); font-weight: 700; letter-spacing: .02em; }
+  h2 { margin: 0 0 10px; font-size: 20px; }
+  h3 { margin: 14px 0 6px; font-size: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 5px 4px; }
+  td span { display: block; font-weight: 700; }
+  .ok { color: var(--main); }
+  .no { color: #8a3a32; }
+  .compare { background: var(--surface2); border-radius: 10px; padding: 10px 12px; margin: 8px 0; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat { background: var(--surface2); border-radius: 10px; padding: 8px 10px; }
+  .value { font-weight: 800; font-size: 1.05rem; }
+  .label { font-size: 11px; color: var(--text-muted); }
+  .hint { color: var(--text-muted); font-size: 12px; margin: 4px 0 0; line-height: 1.35; }
+  .chart { display: flex; gap: 6px; align-items: flex-end; height: 80px; margin-top: 8px; }
+  .bar { flex: 1; text-align: center; font-size: 10px; color: var(--text-muted); }
+  .bar i { display: block; width: 100%; border-radius: 4px 4px 0 0; background: var(--main); margin: 0 auto 4px; }
+  .meta { font-size: 13px; margin: 0 0 8px; }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="banner">SAMPLE PREVIEW — not the live app, not a logged-in session. Sample lifting result and recap. Not deployed.</div>
+    <div class="status"><span>9:41</span><span>●●● LTE</span></div>
+    <div class="sheet">
+      <div class="grip"></div>
+      <div class="kicker">EVENT</div>
+      <h2>Winter Open</h2>
+      <p class="meta">Powerlifting · Meet · Sat, Dec 12 · City Hall</p>
+      <h3>Result · Lifts and attempts</h3>
+      <table>
+        <thead><tr><th></th><th>1</th><th>2</th><th>3</th></tr></thead>
+        <tbody>
+          <tr><th>Squat</th><td><span class="ok">315 good</span></td><td><span class="ok">335 good</span></td><td><span class="no">345 no-lift</span></td></tr>
+          <tr><th>Bench</th><td><span class="ok">200 good</span></td><td><span class="ok">210 good</span></td><td><span class="no">220 no-lift</span></td></tr>
+          <tr><th>Deadlift</th><td><span class="ok">405 good</span></td><td><span class="ok">425 good</span></td><td><span class="ok">440 good</span></td></tr>
+        </tbody>
+      </table>
+      <p class="hint">Total 985 lbs (best good attempt of each lift)</p>
+      <h3>Recap</h3>
+      <div class="compare">
+        <strong>Compared with Summer Open</strong> (Jun 14)
+        <p class="hint">20 lbs more than Summer Open (965 lbs).</p>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="value">3</div><div class="label">Workouts</div></div>
+        <div class="stat"><div class="value">1,140</div><div class="label">Practice load</div></div>
+        <div class="stat"><div class="value">−0.8 lbs</div><div class="label">Weight change</div></div>
+        <div class="stat"><div class="value">2,280</div><div class="label">Avg calories</div></div>
+      </div>
+      <p class="hint">Readiness in the week leading in</p>
+      <div class="chart">
+        <div class="bar"><i style="height:40px"></i>12/06</div>
+        <div class="bar"><i style="height:48px"></i>12/07</div>
+        <div class="bar"><i style="height:52px"></i>12/08</div>
+        <div class="bar"><i style="height:44px"></i>12/09</div>
+        <div class="bar"><i style="height:56px"></i>12/10</div>
+        <div class="bar"><i style="height:50px"></i>12/11</div>
+        <div class="bar"><i style="height:54px"></i>12/12</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
