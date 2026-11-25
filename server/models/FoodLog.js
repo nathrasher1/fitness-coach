@@ -27,6 +27,24 @@ const foodLogSchema = new mongoose.Schema({
   vitaminC: { type: Number, default: undefined },
   vitaminD: { type: Number, default: undefined },
   vitaminB12: { type: Number, default: undefined },
+
+  chloride: { type: Number, default: undefined }, // mg; rarely present in FDC
+  phosphorus: { type: Number, default: undefined }, // mg
+  zinc: { type: Number, default: undefined }, // mg
+  copper: { type: Number, default: undefined }, // mg
+  manganese: { type: Number, default: undefined }, // mg
+  selenium: { type: Number, default: undefined }, // mcg
+  iodine: { type: Number, default: undefined }, // mcg
+  vitaminE: { type: Number, default: undefined }, // mg alpha-tocopherol
+  vitaminK: { type: Number, default: undefined }, // mcg phylloquinone
+  thiamin: { type: Number, default: undefined }, // mg
+  riboflavin: { type: Number, default: undefined }, // mg
+  niacin: { type: Number, default: undefined }, // mg (FDC niacin, not always NE)
+  pantothenicAcid: { type: Number, default: undefined }, // mg
+  vitaminB6: { type: Number, default: undefined }, // mg
+  biotin: { type: Number, default: undefined }, // mcg
+  folate: { type: Number, default: undefined }, // mcg DFE
+  choline: { type: Number, default: undefined }, // mg
   saturatedFat: { type: Number, default: undefined },
   transFat: { type: Number, default: undefined },
   cholesterol: { type: Number, default: undefined },

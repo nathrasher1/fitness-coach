@@ -273,7 +273,7 @@ router.get('/programs', async (req, res) => {
   const picks = choosePrograms(activities, PROGRAMS, { daysPerWeek });
   const chosen = picks.map((r) => r.program);
   try {
-    const focusName = (settings?.trainingFocus || [])[0];
+    const focusName = P.goalFromSettings(settings) || (settings?.trainingFocus || [])[0];
     const range = P.rangeFor({ focus: focusName });
     const defaults = { sets: range.focus === 'strength' || range.focus === 'power' ? 4 : 3, low: range.low, high: range.high };
     const orders = settings?.programOrders || null;
@@ -310,7 +310,7 @@ function findCatalogProgram(id) {
 }
 
 async function programDetailsPayload(prog, userId, settings) {
-  const focusName = (settings?.trainingFocus || [])[0];
+  const focusName = P.goalFromSettings(settings) || (settings?.trainingFocus || [])[0];
   const range = P.rangeFor({ focus: focusName });
   const defaults = { sets: range.focus === 'strength' || range.focus === 'power' ? 4 : 3, low: range.low, high: range.high };
   const orders = settings?.programOrders || null;
@@ -621,12 +621,13 @@ router.get('/suggest-load', async (req, res) => {
       }
     }
 
-    const focus = (settings?.trainingFocus || [])[0] || 'hypertrophy';
+    const focus = P.goalFromSettings(settings) || (settings?.trainingFocus || [])[0] || 'hypertrophy';
     const unit = settings?.unit === 'kg' ? 'kg' : 'lbs';
     const range = P.rangeFor({ focus, repMin: req.query.repMin, repMax: req.query.repMax });
     const key = exerciseId || nameLc;
     const saved = settings?.restTimers ? settings.restTimers[key] : undefined;
-    const restSec = Number.isFinite(saved) ? saved : (lastRestSec ?? 90);
+    const goalRest = range.restSec != null ? range.restSec : 90;
+    const restSec = Number.isFinite(saved) ? saved : (lastRestSec ?? goalRest);
     const exInfo = exDoc || { name: exerciseName };
     const isLower = P.isLowerBody(exInfo);
     const note = `${focus}: aim for ${range.low}–${range.high} reps`;

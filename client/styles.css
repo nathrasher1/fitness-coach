@@ -2487,3 +2487,33 @@ html.native .scan-card { margin-top: env(safe-area-inset-top, 0px); }
   padding-top: 0;
   border-top: none;
 }
+
+.micro-subhead {
+  margin: 14px 0 4px;
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.micro-subhead:first-child { margin-top: 4px; }
+.food-selected-micros {
+  margin: 8px 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.food-selected-micros .micro-heading { margin-bottom: 6px; }
+.food-selected-micros .micro-row { margin: 5px 0; }
+.wo-goal-banner, .training-goal-banner {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--main-soft, #e7f4f3);
+}
+.wo-goal-banner strong, .training-goal-banner strong { display: block; font-size: 0.9rem; }
+.wo-goal-banner p, .training-goal-banner p { margin: 4px 0 0; font-size: 0.78rem; color: var(--text-muted); }
+#training-goal-hint { min-height: 1.3em; margin-top: 10px; }
+.dd-goal { margin: 10px 0 12px; }
